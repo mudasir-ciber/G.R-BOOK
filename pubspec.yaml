@@ -1,0 +1,78 @@
+name: gr_book
+description: "G.R. Book — Digital General Register for Government Primary Schools (Pakistan)"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # ---- Backend: Supabase (auth, postgres, storage, realtime) ----
+  supabase_flutter: ^2.6.0
+
+  # ---- Offline-first local database ----
+  drift: ^2.20.3
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # ---- State management ----
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # ---- Routing ----
+  go_router: ^14.2.7
+
+  # ---- Connectivity / sync ----
+  connectivity_plus: ^6.0.5
+  uuid: ^4.5.1
+
+  # ---- Secure storage (session, PIN, keys) ----
+  flutter_secure_storage: ^9.2.2
+
+  # ---- Biometric / app lock ----
+  local_auth: ^2.3.0
+
+  # ---- Images: pick, compress, cache ----
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+  cached_network_image: ^3.4.1
+
+  # ---- Google Drive backup ----
+  google_sign_in: ^6.2.1
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
+  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+
+  # ---- Excel import/export ----
+  excel: ^4.0.6
+  file_picker: ^8.1.2
+
+  # ---- PDF export / certificates ----
+  pdf: ^3.11.1
+  printing: ^5.13.3
+
+  # ---- Utilities ----
+  intl: ^0.19.0
+  collection: ^1.18.0
+  logger: ^2.4.0
+  archive: ^3.6.1
+  share_plus: ^10.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: any
+  drift_dev: any
+  analyzer: ^14.4.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/fonts/
