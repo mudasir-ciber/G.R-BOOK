@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
 import '../../providers/audit_log_providers.dart';
-import '../../repositories/audit_log_repository.dart';
 
 /// [studentId] narrows the log to one student (e.g. opened from a
 /// student's profile); leave null for the school-wide log.
