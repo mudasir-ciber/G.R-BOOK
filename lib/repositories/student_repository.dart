@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -60,6 +61,38 @@ class StudentRepository {
       })
       ..orderBy([(t) => OrderingTerm(expression: t.studentName)]);
     return query.watch().map((rows) => rows.map(_fromRow).toList());
+  }
+
+  /// School-wide search (requirement #25: "Global/student searches
+  /// should support Student Name, GR Number, Class"). Unlike
+  /// [watchSearch] (used inside one class's student list), this is
+  /// scoped to the whole school and also matches by class name/code —
+  /// searching "class 3" surfaces every Class 3 student even with no
+  /// name/GR match.
+  Stream<List<Student>> watchGlobalSearch({required String schoolId, required String queryText}) async* {
+    final trimmed = queryText.trim();
+    if (trimmed.isEmpty) {
+      yield [];
+      return;
+    }
+    final like = '%$trimmed%';
+
+    final matchingClassIds = await (_db.select(_db.classesTable)
+          ..where((t) =>
+              t.schoolId.equals(schoolId) & (t.displayName.like(like) | t.classCode.like(like))))
+        .map((c) => c.id)
+        .get();
+
+    final query = _db.select(_db.studentsTable)
+      ..where((t) {
+        final nameOrGrMatch = t.studentName.like(like) | t.grNumber.like(like);
+        final anyMatch =
+            matchingClassIds.isNotEmpty ? (nameOrGrMatch | t.classId.isIn(matchingClassIds)) : nameOrGrMatch;
+        return t.schoolId.equals(schoolId) & t.isDeleted.equals(false) & anyMatch;
+      })
+      ..orderBy([(t) => OrderingTerm(expression: t.studentName)]);
+
+    yield* query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
   Future<Student?> getById(String id) async {

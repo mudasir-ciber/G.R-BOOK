@@ -12,6 +12,7 @@ import '../../models/student.dart';
 import '../../providers/photo_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../repositories/student_photo_repository.dart';
+import '../audit/audit_log_screen.dart';
 import '../../widgets/sync_status_banner.dart';
 import 'widgets/document_photo_tile.dart';
 import 'widgets/profile_photo_avatar.dart';
@@ -235,7 +236,27 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
 
     return Scaffold(
       backgroundColor: GrBookTheme.background,
-      appBar: AppBar(title: Text(widget.isEditing ? 'Student Profile' : 'Add Student')),
+      appBar: AppBar(
+        title: Text(widget.isEditing ? 'Student Profile' : 'Add Student'),
+        actions: [
+          if (widget.isEditing)
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'History',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => AuditLogScreen(
+                      schoolId: widget.existingStudent!.schoolId,
+                      studentId: widget.existingStudent!.id,
+                      title: '${widget.existingStudent!.studentName} — History',
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [

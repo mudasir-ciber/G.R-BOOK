@@ -6,6 +6,8 @@ import '../../providers/repository_providers.dart';
 import '../../widgets/sync_status_banner.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../passout/pass_out_years_screen.dart';
+import '../search/global_search_screen.dart';
+import '../settings/settings_screen.dart';
 import '../struck_off/struck_off_screen.dart';
 import '../students/class_students_screen.dart';
 
@@ -19,8 +21,26 @@ class ClassesScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: GrBookTheme.background,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.settings_outlined),
+          tooltip: 'Settings',
+          onPressed: () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+          },
+        ),
         title: const Text('Classes'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search',
+            onPressed: schoolAsync.valueOrNull == null
+                ? null
+                : () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => GlobalSearchScreen(schoolId: schoolAsync.value!.id)),
+                    );
+                  },
+          ),
           IconButton(
             icon: const Icon(Icons.dashboard_outlined),
             tooltip: 'Dashboard',

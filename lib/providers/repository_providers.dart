@@ -43,3 +43,9 @@ final classesWithCountsProvider = StreamProvider.family((ref, String schoolId) {
 final classesStreamProvider = StreamProvider.family((ref, String schoolId) {
   return ref.watch(classRepositoryProvider).watchClasses(schoolId);
 });
+
+typedef GlobalSearchArgs = ({String schoolId, String query});
+
+final globalSearchProvider = StreamProvider.family((ref, GlobalSearchArgs args) {
+  return ref.watch(studentRepositoryProvider).watchGlobalSearch(schoolId: args.schoolId, queryText: args.query);
+});
