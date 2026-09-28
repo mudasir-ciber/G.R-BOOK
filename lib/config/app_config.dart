@@ -37,7 +37,7 @@ class AppConfig {
   /// Public by design — configured in Google Cloud Console, not a secret.
   static const String googleOAuthClientId = String.fromEnvironment(
     'GOOGLE_OAUTH_CLIENT_ID',
-    defaultValue: 'YOUR-GOOGLE-OAUTH-CLIENT-ID.apps.googleusercontent.com',
+    defaultValue: '854448656632-jrjdeuq7hlte70ghbqkf7fumvvig2du2.apps.googleusercontent.com',
   );
 
   static const String studentPhotosBucket = 'student-photos';
