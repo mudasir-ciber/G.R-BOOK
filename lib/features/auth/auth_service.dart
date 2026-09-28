@@ -39,29 +39,43 @@ class AuthService {
   }) async {
     final email = _syntheticEmail(mobileNumber);
 
-    final response = await _client.auth.signUp(
-      email: email,
-      password: password,
-      data: {
-        'full_name': fullName,
-        'mobile_number': mobileNumber,
-      },
-    );
-
-    final user = response.user;
-    if (user == null) {
-      throw const AuthServiceException(
-        'Account creation failed. Please try again.',
+    try {
+      final response = await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': fullName,
+          'mobile_number': mobileNumber,
+        },
       );
-    }
 
-    // Populate public.profiles (id, full_name, mobile_number). RLS on
-    // profiles restricts this insert to the authenticated user's own id.
-    await _client.from('profiles').upsert({
-      'id': user.id,
-      'full_name': fullName,
-      'mobile_number': mobileNumber,
-    });
+      final user = response.user;
+      if (user == null) {
+        throw const AuthServiceException(
+          'Account creation failed. Please try again.',
+        );
+      }
+
+      // Populate public.profiles (id, full_name, mobile_number). RLS on
+      // profiles restricts this insert to the authenticated user's own id.
+      try {
+        await _client.from('profiles').upsert({
+          'id': user.id,
+          'full_name': fullName,
+          'mobile_number': mobileNumber,
+        });
+      } catch (_) {
+        // Ignore if unconfirmed session prevents immediate profile write
+      }
+    } on AuthException catch (e) {
+      final msg = e.message.toLowerCase();
+      if (msg.contains('rate limit')) {
+        throw const AuthServiceException(
+          'Rate limit reached. Please disable "Confirm email" in Supabase Authentication settings.',
+        );
+      }
+      throw AuthServiceException(e.message);
+    }
   }
 
   Future<void> login({
