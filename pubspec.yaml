@@ -71,6 +71,9 @@ dev_dependencies:
   drift_dev: any
   analyzer: ^14.4.0
 
+dependency_overrides:
+  path_provider_android: 2.2.23
+
 flutter:
   uses-material-design: true
   assets:

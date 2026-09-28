@@ -19,8 +19,9 @@ android {
     namespace = "pk.gov.school.grbook"
 
     // Target the latest stable SDK available in the build environment.
-    compileSdk = 35
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
+    // ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -37,7 +38,7 @@ android {
 
         // REQUIREMENT: Android 10 (API 29) through Android 16 support.
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
 
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -87,6 +88,9 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            keepDebugSymbols += "**/*.so"
         }
     }
 }
