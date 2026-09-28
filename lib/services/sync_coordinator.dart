@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/auth/auth_providers.dart';
+import '../providers/backup_providers.dart';
+import '../providers/repository_providers.dart';
 import '../providers/sync_providers.dart';
 import '../services/connectivity_service.dart';
 
@@ -37,8 +40,12 @@ class _SyncCoordinatorState extends ConsumerState<SyncCoordinator> {
     super.initState();
 
     // Fire an initial sync attempt shortly after launch (covers changes
-    // queued while the app was closed).
-    WidgetsBinding.instance.addPostFrameCallback((_) => triggerSync(ref));
+    // queued while the app was closed), then check whether the
+    // automatic backup is due.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await triggerSync(ref);
+      await _maybeRunAutoBackup();
+    });
 
     _connectivitySub = ref.read(connectivityServiceProvider).onStatusChange.listen((online) {
       if (online && !_wasOnline) {
@@ -50,6 +57,38 @@ class _SyncCoordinatorState extends ConsumerState<SyncCoordinator> {
     _periodicTimer = Timer.periodic(const Duration(minutes: 3), (_) {
       triggerSync(ref);
     });
+  }
+
+  /// Automatic Backup (requirement #29). Honest scope: Android does not
+  /// let a normal app run an exact daily job without extra
+  /// background-work infrastructure, so this runs when the app is
+  /// opened, if the toggle is on, ≥24h have passed since the last
+  /// backup, the device is online, and Google sign-in can be restored
+  /// silently (no popup). Any failure is swallowed — a backup problem
+  /// must never disturb normal use; the manual Backup screen shows
+  /// real errors.
+  Future<void> _maybeRunAutoBackup() async {
+    try {
+      final prefs = ref.read(backupPreferencesProvider);
+      if (!await prefs.isAutoBackupEnabled()) return;
+
+      final last = await prefs.getLastBackupAt();
+      if (last != null && DateTime.now().difference(last) < const Duration(hours: 24)) return;
+
+      if (!await ref.read(connectivityServiceProvider).isOnline()) return;
+
+      final service = ref.read(googleDriveBackupServiceProvider);
+      final account = await service.signInSilently();
+      if (account == null) return;
+
+      final school = await ref.read(schoolRepositoryProvider).getLocalSchool();
+      if (school == null) return;
+
+      await service.backupNow(schoolId: school.id, userId: ref.read(currentUserProvider)?.id);
+      await prefs.setLastBackupAt(DateTime.now());
+    } catch (_) {
+      // Intentionally silent — see doc comment.
+    }
   }
 
   @override

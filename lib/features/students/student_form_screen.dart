@@ -13,6 +13,7 @@ import '../../providers/photo_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../repositories/student_photo_repository.dart';
 import '../audit/audit_log_screen.dart';
+import 'certificate_screen.dart';
 import '../../widgets/sync_status_banner.dart';
 import 'widgets/document_photo_tile.dart';
 import 'widgets/profile_photo_avatar.dart';
@@ -239,6 +240,21 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Student Profile' : 'Add Student'),
         actions: [
+          if (widget.isEditing)
+            IconButton(
+              icon: const Icon(Icons.workspace_premium_outlined),
+              tooltip: 'Certificates',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CertificateScreen(
+                      student: widget.existingStudent!,
+                      schoolClass: widget.schoolClass,
+                    ),
+                  ),
+                );
+              },
+            ),
           if (widget.isEditing)
             IconButton(
               icon: const Icon(Icons.history),

@@ -95,6 +95,27 @@ class StudentRepository {
     yield* query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
+  /// One-shot fetch used by exports and the Excel import's duplicate
+  /// check (not a stream — these are point-in-time snapshots).
+  Future<List<Student>> getStudents({
+    required String schoolId,
+    StudentStatus? status,
+    String? classId,
+    int? passOutYear,
+  }) async {
+    final query = _db.select(_db.studentsTable)
+      ..where((t) {
+        var cond = t.schoolId.equals(schoolId) & t.isDeleted.equals(false);
+        if (status != null) cond = cond & t.status.equals(status.dbValue);
+        if (classId != null) cond = cond & t.classId.equals(classId);
+        if (passOutYear != null) cond = cond & t.passOutYear.equals(passOutYear);
+        return cond;
+      })
+      ..orderBy([(t) => OrderingTerm(expression: t.serialNumber)]);
+    final rows = await query.get();
+    return rows.map(_fromRow).toList();
+  }
+
   Future<Student?> getById(String id) async {
     final row =
         await (_db.select(_db.studentsTable)..where((t) => t.id.equals(id))).getSingleOrNull();

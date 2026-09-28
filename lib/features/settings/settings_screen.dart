@@ -7,6 +7,8 @@ import '../audit/audit_log_screen.dart';
 import '../auth/auth_providers.dart';
 import '../auth/login_screen.dart';
 import '../passout/pass_out_years_screen.dart';
+import 'backup_restore_screen.dart';
+import 'export_print_screen.dart';
 import '../school/school_profile_screen.dart';
 import 'about_screen.dart';
 import 'my_account_screen.dart';
@@ -94,13 +96,17 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.backup_outlined,
               title: 'Backup & Restore',
               subtitle: 'Backup your data and restore when needed',
-              onTap: () => _notAvailableYet(context, 'Backup & Restore', 'Phase 9'),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BackupRestoreScreen())),
             ),
             _SettingsTile(
               icon: Icons.description_outlined,
               title: 'Export & Print',
               subtitle: 'Export student records or generate PDF',
-              onTap: () => _notAvailableYet(context, 'Export & Print', 'Phase 9'),
+              onTap: schoolId == null
+                  ? null
+                  : () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => ExportPrintScreen(schoolId: schoolId)),
+                      ),
             ),
             _SectionHeader('SECURITY'),
             _SettingsTile(
