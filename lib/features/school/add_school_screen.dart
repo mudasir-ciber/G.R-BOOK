@@ -45,7 +45,7 @@ class _AddSchoolScreenState extends ConsumerState<AddSchoolScreen> {
     } on SchoolRepositoryException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
-      setState(() => _errorMessage = 'Could not save the school. Please check your connection.');
+      setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

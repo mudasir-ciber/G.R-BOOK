@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../models/school.dart';
@@ -135,23 +136,44 @@ class SchoolRepository {
 
     final userId = _client.auth.currentUser!.id;
 
-    final schoolRow = await _client
-        .from('schools')
-        .insert({
-          'school_name': schoolName,
-          'semis_code': semisCode,
-          'uc': uc,
-          'taluka': taluka,
-          'district': district,
-          'created_by': userId,
-        })
-        .select()
-        .single();
+    // Ensure the profile row exists so foreign key references on schools.created_by never fail:
+    try {
+      await _client.from('profiles').upsert({
+        'id': userId,
+        'full_name': _client.auth.currentUser?.userMetadata?['full_name'] ?? 'School Admin',
+        'mobile_number': _client.auth.currentUser?.userMetadata?['mobile_number'] ??
+            _client.auth.currentUser?.email?.split('@').first ??
+            '',
+      });
+    } catch (_) {}
 
-    final school = School.fromMap(schoolRow);
+    final schoolId = const Uuid().v4();
+    final now = DateTime.now().toUtc();
+
+    await _client.from('schools').insert({
+      'id': schoolId,
+      'school_name': schoolName,
+      'semis_code': semisCode,
+      'uc': uc,
+      'taluka': taluka,
+      'district': district,
+      'created_by': userId,
+    });
+
+    final school = School(
+      id: schoolId,
+      schoolName: schoolName,
+      semisCode: semisCode,
+      uc: uc,
+      taluka: taluka,
+      district: district,
+      createdBy: userId,
+      createdAt: now,
+      updatedAt: now,
+    );
 
     await _client.from('school_members').insert({
-      'school_id': school.id,
+      'school_id': schoolId,
       'profile_id': userId,
       'role': 'owner',
     });
@@ -165,35 +187,41 @@ class SchoolRepository {
       {'code': '5', 'name': 'Class 5', 'order': 5, 'terminal': true},
     ];
 
-    String? eceId;
     final insertedIds = <String, String>{};
-
     for (final c in defaultClasses) {
-      final row = await _client
-          .from('classes')
-          .insert({
-            'school_id': school.id,
-            'class_code': c['code'],
-            'display_name': c['name'],
-            'sort_order': c['order'],
-            'min_admission_age_months': c['minAdmission'],
-            'is_terminal': c['terminal'] ?? false,
-          })
-          .select()
-          .single();
-      insertedIds[c['code'] as String] = row['id'] as String;
-      if (c['code'] == 'ECE') eceId = row['id'] as String;
+      final classId = const Uuid().v4();
+      insertedIds[c['code'] as String] = classId;
     }
 
-    // Wire the promotion chain + ECE->1 minimum age (61 months = 5y1m).
-    await _client.from('classes').update({
-      'promotes_to_class_id': insertedIds['1'],
-      'min_promotion_age_months': 61,
-    }).eq('id', eceId!);
-    for (var i = 1; i <= 4; i++) {
-      await _client.from('classes').update({
-        'promotes_to_class_id': insertedIds['${i + 1}'],
-      }).eq('id', insertedIds['$i']!);
+    for (final c in defaultClasses) {
+      final code = c['code'] as String;
+      final classId = insertedIds[code]!;
+      String? promotesTo;
+      int? minPromoAge;
+      if (code == 'ECE') {
+        promotesTo = insertedIds['1'];
+        minPromoAge = 61; // 5y1m
+      } else if (code == '1') {
+        promotesTo = insertedIds['2'];
+      } else if (code == '2') {
+        promotesTo = insertedIds['3'];
+      } else if (code == '3') {
+        promotesTo = insertedIds['4'];
+      } else if (code == '4') {
+        promotesTo = insertedIds['5'];
+      }
+
+      await _client.from('classes').insert({
+        'id': classId,
+        'school_id': schoolId,
+        'class_code': code,
+        'display_name': c['name'],
+        'sort_order': c['order'],
+        'min_admission_age_months': c['minAdmission'],
+        'min_promotion_age_months': minPromoAge,
+        'promotes_to_class_id': promotesTo,
+        'is_terminal': c['terminal'] ?? false,
+      });
     }
 
     await bootstrapFromServer();
