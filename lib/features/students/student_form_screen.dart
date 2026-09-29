@@ -14,7 +14,6 @@ import '../../providers/repository_providers.dart';
 import '../../providers/sync_providers.dart';
 import '../../repositories/student_photo_repository.dart';
 import '../../widgets/gr_book_ui_components.dart';
-import '../../widgets/sync_status_banner.dart';
 import '../audit/audit_log_screen.dart';
 import 'certificate_screen.dart';
 import 'widgets/document_photo_tile.dart';
@@ -318,8 +317,6 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                 ),
               ),
 
-              if (widget.isEditing) const SyncStatusBanner(),
-
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
@@ -366,22 +363,23 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           const SizedBox(height: 14),
 
                           // 2. Student Name Pill Field (Centered in rounded box)
+                          // 2. Student Name Pill Field (Centered in rounded box, larger and spacious)
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFD6E8DC), width: 1.2),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFD6E8DC), width: 1.3),
                             ),
                             child: TextFormField(
                               controller: _nameController,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                              style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
                               decoration: const InputDecoration(
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 border: InputBorder.none,
-                                hintText: 'Student Name',
-                                hintStyle: TextStyle(fontSize: 13.5, color: Color(0xFF94A3B8)),
+                                hintText: 'Enter Student Full Name',
+                                hintStyle: TextStyle(fontSize: 14.5, color: Color(0xFF94A3B8)),
                               ),
                               validator: (v) => (v == null || v.trim().isEmpty) ? 'Student name is required' : null,
                               onChanged: (_) => setState(() {}),
@@ -389,7 +387,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 12),
 
-                          // 3. Row 1: G.R No. | Class
+                          // 3. Row 1: G.R No. | Class (Short fields stay in 2 columns)
                           Row(
                             children: [
                               Expanded(
@@ -399,13 +397,13 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                                   child: TextFormField(
                                     controller: _grController,
                                     keyboardType: TextInputType.text,
-                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.bold),
                                     decoration: const InputDecoration(
                                       isDense: true,
                                       contentPadding: EdgeInsets.zero,
                                       border: InputBorder.none,
                                       hintText: '001',
-                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                      hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                                     ),
                                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                                   ),
@@ -416,16 +414,16 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                                 child: _ProfileFieldCard(
                                   icon: Icons.school_outlined,
                                   label: 'Class',
-                                  trailing: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: GrBookTheme.textSecondary),
+                                  trailing: const Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: GrBookTheme.textSecondary),
                                   child: classesAsync.when(
-                                    loading: () => const Text('Loading...', style: TextStyle(fontSize: 12)),
-                                    error: (_, __) => const Text('Error', style: TextStyle(fontSize: 12)),
+                                    loading: () => const Text('Loading...', style: TextStyle(fontSize: 13)),
+                                    error: (_, __) => const Text('Error', style: TextStyle(fontSize: 13)),
                                     data: (classes) => DropdownButtonHideUnderline(
                                       child: DropdownButton<String>(
                                         value: classes.any((c) => c.id == _selectedClassId) ? _selectedClassId : null,
                                         isDense: true,
                                         icon: const SizedBox.shrink(),
-                                        style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.bold),
+                                        style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.bold),
                                         items: classes
                                             .map((c) => DropdownMenuItem(value: c.id, child: Text(c.displayName)))
                                             .toList(),
@@ -441,92 +439,80 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // 4. Row 2: Father Name | Mobile No.
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _ProfileFieldCard(
-                                  icon: Icons.person,
-                                  label: 'Father Name',
-                                  child: TextFormField(
-                                    controller: _fatherNameController,
-                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      border: InputBorder.none,
-                                      hintText: 'Enter father name',
-                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                                    ),
-                                  ),
-                                ),
+                          // 4. Father Name (Full width for clear, uncut name visibility)
+                          _ProfileFieldCard(
+                            icon: Icons.person,
+                            label: 'Father Name',
+                            child: TextFormField(
+                              controller: _fatherNameController,
+                              style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                                border: InputBorder.none,
+                                hintText: 'Enter father full name',
+                                hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _ProfileFieldCard(
-                                  icon: Icons.phone,
-                                  label: 'Mobile No.',
-                                  child: TextFormField(
-                                    controller: _mobileController,
-                                    keyboardType: TextInputType.phone,
-                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      border: InputBorder.none,
-                                      hintText: 'Enter mobile number',
-                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                           const SizedBox(height: 10),
 
-                          // 5. Row 3: Mother Name | Last School
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _ProfileFieldCard(
-                                  icon: Icons.person,
-                                  label: 'Mother Name',
-                                  child: TextFormField(
-                                    controller: _motherNameController,
-                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      border: InputBorder.none,
-                                      hintText: 'Enter mother name',
-                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                                    ),
-                                  ),
-                                ),
+                          // 5. Mother Name (Full width for clear visibility)
+                          _ProfileFieldCard(
+                            icon: Icons.person_outline,
+                            label: 'Mother Name',
+                            child: TextFormField(
+                              controller: _motherNameController,
+                              style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                                border: InputBorder.none,
+                                hintText: 'Enter mother name',
+                                hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _ProfileFieldCard(
-                                  icon: Icons.apartment_rounded,
-                                  label: 'Last School',
-                                  child: TextFormField(
-                                    controller: _lastSchoolController,
-                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      border: InputBorder.none,
-                                      hintText: 'Enter last school',
-                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                           const SizedBox(height: 10),
 
-                          // 6. Row 4: Date of Birth | Age Here
+                          // 6. Mobile No. (Full width for easy typing)
+                          _ProfileFieldCard(
+                            icon: Icons.phone,
+                            label: 'Mobile No.',
+                            child: TextFormField(
+                              controller: _mobileController,
+                              keyboardType: TextInputType.phone,
+                              style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                                border: InputBorder.none,
+                                hintText: 'e.g. 0300-1234567',
+                                hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 7. Last School Attended (Horizontally wide & prominent as requested)
+                          _ProfileFieldCard(
+                            icon: Icons.apartment_rounded,
+                            label: 'Last School Attended',
+                            child: TextFormField(
+                              controller: _lastSchoolController,
+                              style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                                border: InputBorder.none,
+                                hintText: 'Enter previous school attended',
+                                hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 8. Row: Date of Birth | Age Here
                           Row(
                             children: [
                               Expanded(
@@ -534,11 +520,11 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                                   icon: Icons.calendar_today_outlined,
                                   label: 'Date of Birth',
                                   onTap: () => _pickDate(isDob: true),
-                                  trailing: const Icon(Icons.calendar_month_outlined, size: 18, color: Color(0xFF94A3B8)),
+                                  trailing: const Icon(Icons.calendar_month_outlined, size: 20, color: Color(0xFF94A3B8)),
                                   child: Text(
                                     _dateOfBirth != null ? _dateFormat.format(_dateOfBirth!) : 'Select date',
                                     style: TextStyle(
-                                      fontSize: 12.5,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                       color: _dateOfBirth != null ? GrBookTheme.textPrimary : const Color(0xFF94A3B8),
                                     ),
@@ -548,54 +534,54 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: _ProfileFieldCard(
-                                  icon: Icons.person_outline,
+                                  icon: Icons.access_time_rounded,
                                   label: 'Age Here',
                                   child: Row(
                                     children: [
                                       Expanded(
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 3),
+                                          padding: const EdgeInsets.symmetric(vertical: 5),
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFF8FAFC),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            border: Border.all(color: const Color(0xFFCBD5E1)),
                                           ),
                                           alignment: Alignment.center,
                                           child: Text(
                                             age != null ? '${age.years} Yr' : 'Year',
-                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
                                           ),
                                         ),
                                       ),
                                       const SizedBox(width: 3),
                                       Expanded(
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 3),
+                                          padding: const EdgeInsets.symmetric(vertical: 5),
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFF8FAFC),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            border: Border.all(color: const Color(0xFFCBD5E1)),
                                           ),
                                           alignment: Alignment.center,
                                           child: Text(
                                             age != null ? '${age.months} Mo' : 'Month',
-                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
                                           ),
                                         ),
                                       ),
                                       const SizedBox(width: 3),
                                       Expanded(
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 3),
+                                          padding: const EdgeInsets.symmetric(vertical: 5),
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFF8FAFC),
                                             borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            border: Border.all(color: const Color(0xFFCBD5E1)),
                                           ),
                                           alignment: Alignment.center,
                                           child: Text(
                                             age != null ? '${age.days} D' : 'Days',
-                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
                                           ),
                                         ),
                                       ),
@@ -607,16 +593,16 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // 7. Row 5: Date of Admission
+                          // 9. Date of Admission (Full width)
                           _ProfileFieldCard(
                             icon: Icons.calendar_today_outlined,
                             label: 'Date of Admission',
                             onTap: () => _pickDate(isDob: false),
-                            trailing: const Icon(Icons.calendar_month_outlined, size: 18, color: Color(0xFF94A3B8)),
+                            trailing: const Icon(Icons.calendar_month_outlined, size: 20, color: Color(0xFF94A3B8)),
                             child: Text(
                               _dateOfAdmission != null ? _dateFormat.format(_dateOfAdmission!) : 'Select date',
                               style: TextStyle(
-                                fontSize: 12.5,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: _dateOfAdmission != null ? GrBookTheme.textPrimary : const Color(0xFF94A3B8),
                               ),
@@ -624,76 +610,68 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // 8. Row 6: Address
+                          // 10. Address (Full width)
                           _ProfileFieldCard(
                             icon: Icons.location_on,
                             label: 'Address',
                             child: TextFormField(
                               controller: _addressController,
-                              style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
+                              style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
                               decoration: const InputDecoration(
                                 isDense: true,
                                 contentPadding: EdgeInsets.zero,
                                 border: InputBorder.none,
-                                hintText: 'Enter address',
-                                hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                hintText: 'Enter complete residential address',
+                                hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
 
                           // Optional details toggle
                           Center(
                             child: TextButton.icon(
                               onPressed: () => setState(() => _showAdditionalFields = !_showAdditionalFields),
-                              icon: Icon(_showAdditionalFields ? Icons.expand_less : Icons.expand_more, size: 18, color: GrBookTheme.primary),
+                              icon: Icon(_showAdditionalFields ? Icons.expand_less : Icons.expand_more, size: 20, color: GrBookTheme.primary),
                               label: Text(
                                 _showAdditionalFields ? 'Hide Additional Details' : 'More Details (CNIC, B-Form, Remarks)',
-                                style: const TextStyle(fontSize: 12, color: GrBookTheme.primary, fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontSize: 13, color: GrBookTheme.primary, fontWeight: FontWeight.w600),
                               ),
                             ),
                           ),
                           if (_showAdditionalFields) ...[
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _ProfileFieldCard(
-                                    icon: Icons.credit_card_rounded,
-                                    label: 'Father CNIC No.',
-                                    child: TextFormField(
-                                      controller: _cnicController,
-                                      keyboardType: TextInputType.number,
-                                      style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary),
-                                      decoration: const InputDecoration(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        border: InputBorder.none,
-                                        hintText: 'e.g. 45302-XXXXXXX-X',
-                                        hintStyle: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                                      ),
-                                    ),
-                                  ),
+                            _ProfileFieldCard(
+                              icon: Icons.credit_card_rounded,
+                              label: 'Father CNIC No.',
+                              child: TextFormField(
+                                controller: _cnicController,
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  border: InputBorder.none,
+                                  hintText: 'e.g. 45302-XXXXXXX-X',
+                                  hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _ProfileFieldCard(
-                                    icon: Icons.badge_outlined,
-                                    label: 'B-Form Number',
-                                    child: TextFormField(
-                                      controller: _bFormController,
-                                      keyboardType: TextInputType.number,
-                                      style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary),
-                                      decoration: const InputDecoration(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        border: InputBorder.none,
-                                        hintText: 'e.g. 45302-XXXXXXX-X',
-                                        hintStyle: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                                      ),
-                                    ),
-                                  ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _ProfileFieldCard(
+                              icon: Icons.badge_outlined,
+                              label: 'B-Form Number',
+                              child: TextFormField(
+                                controller: _bFormController,
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  border: InputBorder.none,
+                                  hintText: 'e.g. 45302-XXXXXXX-X',
+                                  hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                                 ),
-                              ],
+                              ),
                             ),
                             const SizedBox(height: 10),
                             _ProfileFieldCard(
@@ -701,13 +679,13 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                               label: 'Remarks',
                               child: TextFormField(
                                 controller: _remarksController,
-                                style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary),
+                                style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
                                   border: InputBorder.none,
                                   hintText: 'Optional notes or remarks',
-                                  hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                  hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                                 ),
                               ),
                             ),
@@ -820,20 +798,20 @@ class _ProfileFieldCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFD6E8DC), width: 1.2),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFD6E8DC), width: 1.3),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, color: GrBookTheme.primary, size: 20),
-            const SizedBox(width: 8),
+            Icon(icon, color: GrBookTheme.primary, size: 22),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -842,20 +820,20 @@ class _ProfileFieldCard extends StatelessWidget {
                   Text(
                     label,
                     style: const TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: GrBookTheme.textSecondary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   child,
                 ],
               ),
             ),
             if (trailing != null) ...[
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               trailing!,
             ],
           ],

@@ -7,6 +7,7 @@ import '../../features/auth/auth_providers.dart';
 import '../../models/school.dart';
 import '../../models/student.dart';
 import '../../providers/promotion_providers.dart';
+import '../../providers/sync_providers.dart';
 
 class PromotionPreviewScreen extends ConsumerStatefulWidget {
   const PromotionPreviewScreen({
@@ -36,10 +37,12 @@ class _PromotionPreviewScreenState extends ConsumerState<PromotionPreviewScreen>
       await ref.read(promotionRepositoryProvider).promoteStudents(
             schoolId: widget.fromClass.schoolId,
             fromClass: widget.fromClass,
+            targetClass: widget.toClass,
             selectedStudentIds: widget.students.map((s) => s.id).toList(),
             promotionDate: widget.promotionDate,
             performedBy: userId,
           );
+      triggerSync(ref);
       ref.invalidate(hasUndoableBatchProvider(widget.fromClass.id));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

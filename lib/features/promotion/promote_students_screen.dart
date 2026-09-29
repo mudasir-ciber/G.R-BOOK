@@ -110,7 +110,7 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
       targetClass = allClasses.firstWhere((c) => c.id == _targetClassId);
     }
 
-    Navigator.of(context).push(
+    final success = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => PromotionPreviewScreen(
           fromClass: widget.schoolClass,
@@ -120,6 +120,10 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
         ),
       ),
     );
+
+    if (success == true && mounted) {
+      Navigator.of(context).pop(true);
+    }
   }
 
   @override

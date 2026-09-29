@@ -107,15 +107,21 @@ class PromotionRepository {
     required SchoolClass fromClass,
     required List<String> selectedStudentIds,
     required DateTime promotionDate,
+    SchoolClass? targetClass,
     String? performedBy,
   }) async {
     if (selectedStudentIds.isEmpty) return;
 
-    final toClass = fromClass.promotesToClassId != null
-        ? await _classRepo.getClassById(fromClass.promotesToClassId!)
-        : null;
+    final SchoolClass? toClass;
+    if (targetClass != null) {
+      toClass = targetClass;
+    } else if (fromClass.promotesToClassId != null) {
+      toClass = await _classRepo.getClassById(fromClass.promotesToClassId!);
+    } else {
+      toClass = null;
+    }
 
-    if (toClass == null && !fromClass.isTerminal) {
+    if (toClass == null && !fromClass.isTerminal && targetClass == null) {
       throw StateError('${fromClass.displayName} has no configured promotion target.');
     }
 

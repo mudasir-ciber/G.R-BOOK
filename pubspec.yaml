@@ -63,6 +63,7 @@ dependencies:
   logger: ^2.4.0
   archive: ^3.6.1
   share_plus: ^10.0.2
+  crop_image: ^1.0.17
 
 dev_dependencies:
   flutter_test:

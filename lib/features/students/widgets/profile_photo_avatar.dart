@@ -32,7 +32,7 @@ class ProfilePhotoAvatar extends StatelessWidget {
         InkWell(
           borderRadius: BorderRadius.circular(radius),
           onTap: () async {
-            final file = await showPhotoPickerSheet(context);
+            final file = await showPhotoPickerSheet(context, preferredAspectRatio: 1.0);
             if (file != null) onPicked(file);
           },
           child: Container(
@@ -60,7 +60,7 @@ class ProfilePhotoAvatar extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(20),
             onTap: () async {
-              final file = await showPhotoPickerSheet(context);
+              final file = await showPhotoPickerSheet(context, preferredAspectRatio: 1.0);
               if (file != null) onPicked(file);
             },
             child: Container(
