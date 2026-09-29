@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../main.dart';
+import '../../providers/app_lock_providers.dart';
 import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 import 'create_account_screen.dart';
 
-/// Screen 1: Login Page matching reference UI image 1 exactly.
+/// Screen 1: Login Page with Fingerprint & Remembered Credential support.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -21,26 +22,96 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _rememberMe = false;
+  bool _rememberMe = true;
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+  bool _hasSavedCredentials = false;
+  bool _supportsBiometrics = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _restoreRememberedMobile();
+    _restoreRememberedCredentials();
   }
 
-  Future<void> _restoreRememberedMobile() async {
+  Future<void> _restoreRememberedCredentials() async {
     final auth = ref.read(authServiceProvider);
+    final lockService = ref.read(appLockServiceProvider);
     final remembered = await auth.getRememberedPreference();
     final mobile = await auth.getRememberedMobile();
+    final password = await auth.getRememberedPassword();
+    final supportsBio = await lockService.deviceSupportsBiometrics();
+
+    if (!mounted) return;
+    final hasCreds = (mobile != null && mobile.isNotEmpty && password != null && password.isNotEmpty);
+
+    setState(() {
+      _rememberMe = remembered || (mobile != null);
+      if (mobile != null) _mobileController.text = mobile;
+      if (password != null) _passwordController.text = password;
+      _hasSavedCredentials = hasCreds;
+      _supportsBiometrics = supportsBio;
+    });
+
+    // Auto-prompt fingerprint authentication on app launch if user has saved credentials!
+    if (hasCreds && supportsBio) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _authenticateBiometricAndLogin();
+      });
+    }
+  }
+
+  Future<void> _authenticateBiometricAndLogin() async {
+    final lockService = ref.read(appLockServiceProvider);
+    final auth = ref.read(authServiceProvider);
+    final mobile = (await auth.getRememberedMobile()) ?? _mobileController.text.trim();
+    final password = (await auth.getRememberedPassword()) ?? _passwordController.text;
+
+    if (mobile.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in once with mobile number and password to enable fingerprint login.')),
+      );
+      return;
+    }
+
+    final authenticated = await lockService.authenticateWithBiometrics();
+    if (!authenticated) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fingerprint authentication cancelled.')),
+        );
+      }
+      return;
+    }
+
     if (!mounted) return;
     setState(() {
-      _rememberMe = remembered;
-      if (mobile != null) _mobileController.text = mobile;
+      _isSubmitting = true;
+      _errorMessage = null;
     });
+
+    try {
+      await auth.login(
+        mobileNumber: mobile,
+        password: password,
+        rememberMe: true,
+      );
+      ref.read(appUnlockedProvider.notifier).state = true;
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const SyncCoordinator(child: SchoolGate()),
+        ),
+        (route) => false,
+      );
+    } on AuthServiceException catch (e) {
+      setState(() => _errorMessage = e.message);
+    } catch (_) {
+      setState(() => _errorMessage = 'Login failed. Please enter your password manually.');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -66,7 +137,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
-      setState(() => _errorMessage = 'Something went wrong. Please check your connection and try again.');
+      setState(() => _errorMessage = 'Login error: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -87,7 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not process the request. Check your internet connection.')),
+        const SnackBar(content: Text('Could not process the request. Check your connection.')),
       );
     }
   }
@@ -106,7 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 12),
-                // Illustration Header from reference image 1
+                // Illustration Header
                 Center(
                   child: Image.asset(
                     'assets/images/auth_header.png',
@@ -171,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: GrBookTheme.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
                         if (_errorMessage != null) ...[
                           Container(
@@ -237,7 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 value: _rememberMe,
                                 activeColor: GrBookTheme.primary,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                                onChanged: (v) => setState(() => _rememberMe = v ?? true),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -264,16 +335,69 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 18),
 
-                        // Login Button
-                        GrBookGradientButton(
-                          text: 'Login',
-                          isLoading: _isSubmitting,
-                          onPressed: _submit,
-                          trailingIcon: Icons.arrow_forward_rounded,
+                        // Login Button & Fingerprint Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GrBookGradientButton(
+                                text: 'Login',
+                                isLoading: _isSubmitting,
+                                onPressed: _submit,
+                                trailingIcon: Icons.arrow_forward_rounded,
+                              ),
+                            ),
+                            if (_supportsBiometrics || _hasSavedCredentials) ...[
+                              const SizedBox(width: 12),
+                              Container(
+                                height: 52,
+                                width: 52,
+                                decoration: BoxDecoration(
+                                  gradient: GrBookTheme.primaryButtonGradient,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x330F7A42),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap: _isSubmitting ? null : _authenticateBiometricAndLogin,
+                                    child: const Center(
+                                      child: Icon(Icons.fingerprint_rounded, color: Colors.white, size: 30),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 20),
+
+                        if (_hasSavedCredentials) ...[
+                          const SizedBox(height: 10),
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: _isSubmitting ? null : _authenticateBiometricAndLogin,
+                              icon: const Icon(Icons.fingerprint_rounded, color: GrBookTheme.primary, size: 20),
+                              label: const Text(
+                                'Tap to unlock with Fingerprint',
+                                style: TextStyle(
+                                  color: GrBookTheme.primaryDark,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 14),
 
                         // OR Divider
                         Row(
@@ -293,7 +417,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
                           ],
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
                         // Create Account Outlined Button
                         GrBookOutlinedButton(
@@ -305,7 +429,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             );
                           },
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),

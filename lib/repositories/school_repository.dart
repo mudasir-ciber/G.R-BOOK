@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../models/school.dart';
 import '../services/connectivity_service.dart';
+import '../services/offline_storage_service.dart';
 
 /// School profile access. Requirement #5: school info is editable later,
 /// and requirement #31 says the schema is multi-school-ready even though
@@ -52,14 +53,13 @@ class SchoolRepository {
   Future<School?> bootstrapFromServer() async {
     final online = await _connectivity.isOnline();
     if (!online) {
-      throw const SchoolRepositoryException(
-        'An internet connection is required the first time you sign in on this device.',
-      );
+      // Offline fallback: Allow app to proceed to AddSchoolScreen or restore screen
+      return null;
     }
 
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
-      throw const SchoolRepositoryException('Not signed in.');
+      return null;
     }
 
     final membership = await _client
@@ -128,37 +128,40 @@ class SchoolRepository {
     String? district,
   }) async {
     final online = await _connectivity.isOnline();
-    if (!online) {
-      throw const SchoolRepositoryException(
-        'Adding a school requires an internet connection the first time.',
-      );
-    }
-
-    final userId = _client.auth.currentUser!.id;
-
-    // Ensure the profile row exists so foreign key references on schools.created_by never fail:
-    try {
-      await _client.from('profiles').upsert({
-        'id': userId,
-        'full_name': _client.auth.currentUser?.userMetadata?['full_name'] ?? 'School Admin',
-        'mobile_number': _client.auth.currentUser?.userMetadata?['mobile_number'] ??
-            _client.auth.currentUser?.email?.split('@').first ??
-            '',
-      });
-    } catch (_) {}
-
+    final userId = _client.auth.currentUser?.id ?? 'local_admin';
     final schoolId = const Uuid().v4();
     final now = DateTime.now().toUtc();
 
-    await _client.from('schools').insert({
-      'id': schoolId,
-      'school_name': schoolName,
-      'semis_code': semisCode,
-      'uc': uc,
-      'taluka': taluka,
-      'district': district,
-      'created_by': userId,
-    });
+    if (online && _client.auth.currentUser != null) {
+      // Ensure the profile row exists so foreign key references on schools.created_by never fail:
+      try {
+        await _client.from('profiles').upsert({
+          'id': userId,
+          'full_name': _client.auth.currentUser?.userMetadata?['full_name'] ?? 'School Admin',
+          'mobile_number': _client.auth.currentUser?.userMetadata?['mobile_number'] ??
+              _client.auth.currentUser?.email?.split('@').first ??
+              '',
+        });
+      } catch (_) {}
+
+      try {
+        await _client.from('schools').insert({
+          'id': schoolId,
+          'school_name': schoolName,
+          'semis_code': semisCode,
+          'uc': uc,
+          'taluka': taluka,
+          'district': district,
+          'created_by': userId,
+        });
+
+        await _client.from('school_members').insert({
+          'school_id': schoolId,
+          'profile_id': userId,
+          'role': 'owner',
+        });
+      } catch (_) {}
+    }
 
     final school = School(
       id: schoolId,
@@ -172,11 +175,19 @@ class SchoolRepository {
       updatedAt: now,
     );
 
-    await _client.from('school_members').insert({
-      'school_id': schoolId,
-      'profile_id': userId,
-      'role': 'owner',
-    });
+    await _db.into(_db.schoolsTable).insertOnConflictUpdate(
+          SchoolsTableCompanion.insert(
+            id: school.id,
+            schoolName: school.schoolName,
+            semisCode: Value(school.semisCode),
+            uc: Value(school.uc),
+            taluka: Value(school.taluka),
+            district: Value(school.district),
+            createdBy: school.createdBy,
+            createdAt: school.createdAt,
+            updatedAt: school.updatedAt,
+          ),
+        );
 
     const defaultClasses = [
       {'code': 'ECE', 'name': 'ECE', 'order': 0, 'minAdmission': 36},
@@ -193,38 +204,39 @@ class SchoolRepository {
       insertedIds[c['code'] as String] = classId;
     }
 
-    // 1. Insert all classes with null promotes_to_class_id first to prevent
-    // foreign key constraint violation (classes_promotes_to_class_id_fkey).
-    final classRows = defaultClasses.map((c) {
-      final code = c['code'] as String;
-      return {
-        'id': insertedIds[code]!,
-        'school_id': schoolId,
-        'class_code': code,
-        'display_name': c['name'],
-        'sort_order': c['order'],
-        'min_admission_age_months': c['minAdmission'],
-        'min_promotion_age_months': code == 'ECE' ? 61 : null,
-        'promotes_to_class_id': null,
-        'is_terminal': c['terminal'] ?? false,
-        'is_active': true,
-      };
-    }).toList();
+    if (online && _client.auth.currentUser != null) {
+      try {
+        final classRows = defaultClasses.map((c) {
+          final code = c['code'] as String;
+          return {
+            'id': insertedIds[code]!,
+            'school_id': schoolId,
+            'class_code': code,
+            'display_name': c['name'],
+            'sort_order': c['order'],
+            'min_admission_age_months': c['minAdmission'],
+            'min_promotion_age_months': code == 'ECE' ? 61 : null,
+            'promotes_to_class_id': null,
+            'is_terminal': c['terminal'] ?? false,
+            'is_active': true,
+          };
+        }).toList();
 
-    await _client.from('classes').insert(classRows);
+        await _client.from('classes').insert(classRows);
 
-    // 2. Link the promotion chain now that all target class rows exist in the table.
-    await _client.from('classes').update({
-      'promotes_to_class_id': insertedIds['1'],
-    }).eq('id', insertedIds['ECE']!);
+        await _client.from('classes').update({
+          'promotes_to_class_id': insertedIds['1'],
+        }).eq('id', insertedIds['ECE']!);
 
-    for (var i = 1; i <= 4; i++) {
-      await _client.from('classes').update({
-        'promotes_to_class_id': insertedIds['${i + 1}'],
-      }).eq('id', insertedIds['$i']!);
+        for (var i = 1; i <= 4; i++) {
+          await _client.from('classes').update({
+            'promotes_to_class_id': insertedIds['${i + 1}'],
+          }).eq('id', insertedIds['$i']!);
+        }
+      } catch (_) {}
     }
 
-    // 3. Immediately seed local classes table in SQLite
+    // Immediately seed local classes table in SQLite
     for (final c in defaultClasses) {
       final code = c['code'] as String;
       String? promo;
@@ -250,7 +262,12 @@ class SchoolRepository {
           );
     }
 
-    await bootstrapFromServer();
+    // Export initial state to phone's GR_BOOK storage
+    try {
+      final storage = OfflineStorageService(_db);
+      await storage.exportCurrentStateToStorage();
+    } catch (_) {}
+
     return school;
   }
 
@@ -287,6 +304,11 @@ class SchoolRepository {
             ),
           );
     }
+
+    try {
+      final storage = OfflineStorageService(_db);
+      await storage.exportCurrentStateToStorage();
+    } catch (_) {}
   }
 }
 

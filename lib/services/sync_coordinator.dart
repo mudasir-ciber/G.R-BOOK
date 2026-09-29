@@ -46,6 +46,9 @@ class _SyncCoordinatorState extends ConsumerState<SyncCoordinator> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await triggerSync(ref);
       await _maybeRunAutoBackup();
+      try {
+        await ref.read(offlineStorageServiceProvider).exportCurrentStateToStorage();
+      } catch (_) {}
     });
 
     // Auto-sync immediately whenever local database has pending changes
@@ -76,6 +79,9 @@ class _SyncCoordinatorState extends ConsumerState<SyncCoordinator> {
       if (isOnline) {
         await triggerSync(ref);
       }
+      try {
+        await ref.read(offlineStorageServiceProvider).exportCurrentStateToStorage();
+      } catch (_) {}
     });
   }
 

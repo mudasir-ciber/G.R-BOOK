@@ -15,9 +15,13 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <!-- Biometric app-lock (fingerprint/face) -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
     <!-- Local notification for backup/sync status (optional, Android 13+ requires runtime request) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -26,8 +30,9 @@
         android:label="G.R. Book"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:allowBackup="false"
-        android:fullBackupContent="false"
+        android:allowBackup="true"
+        android:fullBackupContent="true"
+        android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="false">
 
         <activity

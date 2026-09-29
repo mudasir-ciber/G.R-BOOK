@@ -7,6 +7,7 @@ import '../../providers/backup_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/google_drive_backup_service.dart';
 import '../auth/auth_providers.dart';
+import 'add_data_storage_screen.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -19,10 +20,12 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   bool _isSignedIn = false;
   bool _isBackingUp = false;
   bool _isRestoring = false;
+  bool _isExportingLocal = false;
   bool _autoBackupEnabled = false;
   DateTime? _lastBackupAt;
   List<DriveBackupSummary> _backups = [];
   String? _error;
+  String? _localBackupMessage;
 
   @override
   void initState() {
@@ -60,7 +63,33 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       setState(() => _isSignedIn = account != null);
       if (account != null) await _refreshBackups();
     } catch (e) {
-      setState(() => _error = 'Google sign-in failed: $e');
+      setState(() => _error = 'Google sign-in error: $e\n\nIf you see "Error 403: access_denied", your Google account must be added to the Google Cloud Console Test Users list, or use Local Phone Storage Backup.');
+    }
+  }
+
+  Future<void> _backupToLocalStorageNow() async {
+    setState(() {
+      _isExportingLocal = true;
+      _localBackupMessage = null;
+      _error = null;
+    });
+    try {
+      final storageService = ref.read(offlineStorageServiceProvider);
+      final path = await storageService.exportCurrentStateToStorage();
+      if (mounted) {
+        setState(() {
+          _localBackupMessage = '✓ Backup successfully created in:\n$path';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Offline backup successfully saved to phone!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Local export failed: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isExportingLocal = false);
     }
   }
 
@@ -79,10 +108,10 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       setState(() => _lastBackupAt = now);
       await _refreshBackups();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backup completed.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google Drive Backup completed.')));
       }
     } catch (e) {
-      setState(() => _error = 'Backup failed: $e');
+      setState(() => _error = 'Google Drive Backup failed: $e');
     } finally {
       if (mounted) setState(() => _isBackingUp = false);
     }
@@ -141,91 +170,220 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
             if (_error != null) ...[
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
-                child: Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.red.shade200)),
+                child: Text(_error!, style: TextStyle(color: Colors.red.shade800, fontSize: 13)),
               ),
               const SizedBox(height: 16),
             ],
-            if (!_isSignedIn) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.cloud_outlined, size: 40, color: GrBookTheme.primary),
-                      const SizedBox(height: 12),
-                      const Text('Sign in with Google to back up your school data to Drive.', textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(backgroundColor: GrBookTheme.primary),
-                        onPressed: _signIn,
-                        icon: const Icon(Icons.login),
-                        label: const Text('Sign in with Google'),
-                      ),
-                    ],
-                  ),
+
+            if (_localBackupMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.green.shade200)),
+                child: Text(_localBackupMessage!, style: TextStyle(color: Colors.green.shade800, fontSize: 13, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // 1. LOCAL PHONE STORAGE BACKUP (RECOMMENDED)
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: GrBookTheme.primaryLight,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.folder_special_rounded, color: GrBookTheme.primary, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Phone Storage Backup (Offline)',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.textPrimary),
+                              ),
+                              Text(
+                                'Recommended • 100% Offline & Reliable',
+                                style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Saves all classes, student records, and student photos into your phone\'s public GR BOOK folder. This folder survives app uninstallation and does not require Google verification.',
+                      style: TextStyle(fontSize: 13, color: GrBookTheme.textSecondary, height: 1.4),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: GrBookTheme.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onPressed: _isExportingLocal ? null : _backupToLocalStorageNow,
+                            icon: _isExportingLocal
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Icon(Icons.download_rounded, size: 18),
+                            label: const Text('Backup to Phone', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: GrBookTheme.primary),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const AddDataStorageScreen()),
+                            ),
+                            icon: const Icon(Icons.drive_folder_upload_rounded, color: GrBookTheme.primary, size: 18),
+                            label: const Text('Add Data / Restore', style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.primary)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ] else ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+            ),
+
+            const SizedBox(height: 16),
+
+            // 2. GOOGLE DRIVE BACKUP SECTION
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F0FE),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.cloud_outlined, color: Color(0xFF1967D2), size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Google Drive Cloud Backup',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.textPrimary),
+                              ),
+                              Text(
+                                'Requires Google account authorization',
+                                style: TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (!_isSignedIn) ...[
+                      const Text(
+                        'Note: If Google displays "Error 403: access_denied", Google Cloud requires adding your Gmail to the developer\'s Test Users list. You can use Phone Storage Backup above with no restrictions.',
+                        style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.4),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF1967D2)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: _signIn,
+                          icon: const Icon(Icons.login_rounded, color: Color(0xFF1967D2)),
+                          label: const Text('Sign in with Google Drive', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1967D2))),
+                        ),
+                      ),
+                    ] else ...[
                       Text(
-                        _lastBackupAt != null ? 'Last backup: ${dateFormat.format(_lastBackupAt!)}' : 'No backup yet.',
-                        style: TextStyle(color: Colors.grey[600]),
+                        _lastBackupAt != null ? 'Last Google Drive backup: ${dateFormat.format(_lastBackupAt!)}' : 'No cloud backup yet.',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          style: FilledButton.styleFrom(backgroundColor: GrBookTheme.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF1967D2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
                           onPressed: _isBackingUp ? null : _backupNow,
                           icon: _isBackingUp
                               ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.backup_outlined),
-                          label: const Text('Backup Now'),
+                              : const Icon(Icons.cloud_upload_outlined),
+                          label: const Text('Backup to Google Drive', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: _autoBackupEnabled,
-                        activeColor: GrBookTheme.primary,
-                        title: const Text('Automatic Backup'),
-                        subtitle: const Text('Backs up when you open the app if it has been more than 24 hours since the last backup.'),
+                        activeThumbColor: const Color(0xFF1967D2),
+                        title: const Text('Automatic Cloud Backup', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                        subtitle: const Text('Auto-uploads daily snapshot when app is opened.'),
                         onChanged: (v) async {
                           await ref.read(backupPreferencesProvider).setAutoBackupEnabled(v);
                           setState(() => _autoBackupEnabled = v);
                         },
                       ),
                     ],
+                  ],
+                ),
+              ),
+            ),
+
+            if (_isSignedIn && _backups.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('Cloud Backups on Drive', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              ..._backups.map(
+                (b) => Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.description_outlined, color: GrBookTheme.primaryDark),
+                    title: Text(b.createdTime != null ? dateFormat.format(b.createdTime!.toLocal()) : b.name),
+                    subtitle: Text(b.sizeBytes != null ? '${(b.sizeBytes! / 1024).toStringAsFixed(1)} KB' : ''),
+                    trailing: _isRestoring
+                        ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : OutlinedButton(
+                            onPressed: () => _restore(b),
+                            child: const Text('Restore'),
+                          ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Text('Previous Backups', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 8),
-              if (_backups.isEmpty)
-                const Padding(padding: EdgeInsets.all(16), child: Text('No backups found on Drive yet.'))
-              else
-                ..._backups.map(
-                  (b) => Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.description_outlined, color: GrBookTheme.primaryDark),
-                      title: Text(b.createdTime != null ? dateFormat.format(b.createdTime!.toLocal()) : b.name),
-                      subtitle: Text(b.sizeBytes != null ? '${(b.sizeBytes! / 1024).toStringAsFixed(1)} KB' : ''),
-                      trailing: _isRestoring
-                          ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : OutlinedButton(
-                              onPressed: () => _restore(b),
-                              child: const Text('Restore'),
-                            ),
-                    ),
-                  ),
-                ),
             ],
+            const SizedBox(height: 24),
           ],
         ),
       ),

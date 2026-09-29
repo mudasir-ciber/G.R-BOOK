@@ -6,6 +6,11 @@ import '../repositories/class_repository.dart';
 import '../repositories/school_repository.dart';
 import '../repositories/student_repository.dart';
 import '../services/connectivity_service.dart';
+import '../services/offline_storage_service.dart';
+
+final offlineStorageServiceProvider = Provider<OfflineStorageService>((ref) {
+  return OfflineStorageService(ref.watch(appDatabaseProvider));
+});
 
 final schoolRepositoryProvider = Provider<SchoolRepository>((ref) {
   return SchoolRepository(

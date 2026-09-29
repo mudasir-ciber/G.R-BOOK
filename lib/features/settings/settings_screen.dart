@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../providers/repository_providers.dart';
 import '../../widgets/gr_book_ui_components.dart';
-import '../audit/audit_log_screen.dart';
 import '../auth/auth_providers.dart';
 import '../auth/login_screen.dart';
 import '../classes/manage_classes_screen.dart';
@@ -12,6 +11,7 @@ import '../passout/pass_out_years_screen.dart';
 import '../school/school_profile_screen.dart';
 import '../security/app_lock_setup_screen.dart';
 import 'about_screen.dart';
+import 'add_data_storage_screen.dart';
 import 'backup_restore_screen.dart';
 import 'export_print_screen.dart';
 import 'my_account_screen.dart';
@@ -239,18 +239,18 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
 
-                    _buildSectionHeader('OTHER'),
+                    _buildSectionHeader('STORAGE & RESTORE'),
                     _buildTile(
-                      icon: Icons.history_rounded,
-                      title: 'Audit Log',
-                      subtitle: 'See every change made to your records',
-                      onTap: schoolId == null
-                          ? null
-                          : () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => AuditLogScreen(schoolId: schoolId),
-                                ),
-                              ),
+                      icon: Icons.drive_folder_upload_rounded,
+                      title: 'Add Data (Restore from Storage)',
+                      subtitle: 'Sync records from phone GR BOOK folder',
+                      badgeColor: GrBookTheme.primaryLight,
+                      iconColor: GrBookTheme.primaryDark,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AddDataStorageScreen(),
+                        ),
+                      ),
                     ),
                     _buildTile(
                       icon: Icons.info_outline_rounded,

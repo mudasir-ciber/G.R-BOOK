@@ -9,6 +9,7 @@ import '../database/app_database.dart';
 import '../models/enums.dart';
 import '../models/student.dart';
 import '../services/connectivity_service.dart';
+import '../services/offline_storage_service.dart';
 
 /// Offline-first student data access.
 ///
@@ -219,6 +220,9 @@ class StudentRepository {
     }
 
     await _enqueue(entityType: 'student', entityId: id, operation: 'create', payload: student.toMap());
+    try {
+      OfflineStorageService(_db).exportCurrentStateToStorage();
+    } catch (_) {}
     return student;
   }
 
@@ -288,6 +292,9 @@ class StudentRepository {
     }
 
     await _enqueue(entityType: 'student', entityId: next.id, operation: 'update', payload: next.toMap());
+    try {
+      OfflineStorageService(_db).exportCurrentStateToStorage();
+    } catch (_) {}
     return next;
   }
 
@@ -384,6 +391,9 @@ class StudentRepository {
       );
     }
     await autoCorrectSingleStudentSerialNumber(schoolId);
+    try {
+      OfflineStorageService(_db).exportCurrentStateToStorage();
+    } catch (_) {}
   }
 
   // ---------------------------------------------------------------
