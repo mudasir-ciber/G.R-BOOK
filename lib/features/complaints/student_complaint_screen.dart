@@ -10,10 +10,12 @@ import '../../core/theme.dart';
 import '../../models/enums.dart';
 import '../../models/school.dart';
 import '../../models/student.dart';
+import '../../providers/data_tools_providers.dart';
 import '../../providers/photo_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../repositories/complaint_repository.dart';
 import '../../repositories/student_photo_repository.dart';
+import '../../services/document_share_service.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import '../students/widgets/photo_picker_sheet.dart';
 
@@ -528,6 +530,41 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
     }
   }
 
+  Future<void> _shareNoteDocument() async {
+    await DocumentShareService.showShareOptions(
+      context,
+      title: 'Share Note Document',
+      baseFileName: 'Note_${widget.student.studentName}',
+      getPdfFile: () async {
+        final pdfService = ref.read(pdfExportServiceProvider);
+        return pdfService.generateNoticePdf(
+          school: widget.school,
+          student: widget.student,
+          className: widget.className,
+          noticeText: widget.complaintText,
+          attachedPhoto: widget.attachedPhoto,
+        );
+      },
+    );
+
+    // Record the note in complaint history
+    try {
+      await ref.read(complaintRepositoryProvider).createComplaint(
+            schoolId: widget.school.id,
+            studentId: widget.student.id,
+            studentName: widget.student.studentName,
+            grNumber: widget.student.grNumber,
+            className: widget.className,
+            parentName: widget.student.fatherName ?? '-',
+            parentMobile: widget.student.phoneNumber ?? '-',
+            complaintText: widget.complaintText,
+            attachedPhoto: widget.attachedPhoto,
+            communicationMethod: 'Shared as PDF/JPG Document',
+            communicationStatus: 'SENT',
+          );
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -574,7 +611,20 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
             if (_isSending)
               const Center(child: CircularProgressIndicator())
             else ...[
-              // Send Buttons
+              // Primary PDF / JPG document share button
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E3A8A), // Navy Blue
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: _shareNoteDocument,
+                icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
+                label: const Text('Share Note Document (PDF / JPG)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+              ),
+              const SizedBox(height: 12),
+
+              // WhatsApp button
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF25D366), // WhatsApp Green
@@ -583,7 +633,7 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
                 ),
                 onPressed: () => _shareVia('WhatsApp'),
                 icon: const Icon(Icons.chat_outlined, color: Colors.white),
-                label: const Text('Share via WhatsApp', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                label: const Text('Share Text via WhatsApp', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
               ),
               const SizedBox(height: 10),
               FilledButton.icon(

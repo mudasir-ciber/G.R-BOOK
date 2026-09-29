@@ -3,14 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme.dart';
 import '../../models/school.dart';
 import '../../models/student.dart';
 import '../../providers/data_tools_providers.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/document_share_service.dart';
 import '../../services/pdf_export_service.dart';
+import 'student_a4_profile_screen.dart';
 
 class CertificateScreen extends ConsumerStatefulWidget {
   const CertificateScreen({super.key, required this.student, required this.schoolClass});
@@ -98,9 +99,16 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(backgroundColor: GrBookTheme.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
-                    onPressed: _busy ? null : () => _run((f) => Share.shareXFiles([XFile(f.path)])),
-                    icon: const Icon(Icons.share),
-                    label: const Text('Share / Save'),
+                    onPressed: _busy
+                        ? null
+                        : () => _run((f) => DocumentShareService.showShareOptions(
+                              context,
+                              pdfFile: f,
+                              title: _type.title,
+                              studentName: widget.student.studentName,
+                            )),
+                    icon: const Icon(Icons.share_rounded),
+                    label: const Text('Share (PDF / JPG)', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -124,9 +132,22 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _busy ? null : () => _run((f) => Share.shareXFiles([XFile(f.path)]), profileOnly: true),
-                icon: const Icon(Icons.person_outline),
-                label: const Text('Student Profile (PDF)'),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: GrBookTheme.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => StudentA4ProfileScreen(
+                        student: widget.student,
+                        schoolClass: widget.schoolClass,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.assignment_ind_outlined),
+                label: const Text('View Student Profile (A4 Sheet & Photos)', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
             if (_busy) const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator())),

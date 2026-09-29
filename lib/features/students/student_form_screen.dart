@@ -16,6 +16,7 @@ import '../../repositories/student_photo_repository.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import '../complaints/complaint_history_screen.dart';
 import 'certificate_screen.dart';
+import 'student_a4_profile_screen.dart';
 import 'widgets/document_photo_tile.dart';
 import 'widgets/profile_photo_avatar.dart';
 
@@ -375,6 +376,23 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                     ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          IconButton(
+                            icon: const Icon(Icons.assignment_ind_outlined, color: GrBookTheme.primary, size: 22),
+                            tooltip: 'Student Profile (A4 Sheet)',
+                            onPressed: () {
+                              final currentClass = widget.schoolClass ??
+                                  (classesAsync.valueOrNull?.where((c) => c.id == widget.existingStudent!.classId).firstOrNull);
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => StudentA4ProfileScreen(
+                                    student: widget.existingStudent!,
+                                    schoolClass: currentClass,
+                                    pickedStudentPhoto: _pickedFiles[PhotoType.student],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                           IconButton(
                             icon: const Icon(Icons.workspace_premium_outlined, color: GrBookTheme.primary, size: 22),
                             tooltip: 'Certificates',
@@ -987,6 +1005,37 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
+
+                          if (widget.isEditing) ...[
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF1E3A8A),
+                                side: const BorderSide(color: Color(0xFF1E3A8A), width: 1.5),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                backgroundColor: const Color(0xFFEFF6FF),
+                              ),
+                              icon: const Icon(Icons.assignment_ind_rounded, color: Color(0xFF1E3A8A), size: 20),
+                              label: const Text(
+                                'View Student Profile (A4 Sheet & PDF / JPG)',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              onPressed: () {
+                                final currentClass = widget.schoolClass ??
+                                    (classesAsync.valueOrNull?.where((c) => c.id == widget.existingStudent!.classId).firstOrNull);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => StudentA4ProfileScreen(
+                                      student: widget.existingStudent!,
+                                      schoolClass: currentClass,
+                                      pickedStudentPhoto: _pickedFiles[PhotoType.student],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                          ],
 
                           // 10. Bottom Button ("Save Changes" or "Save Student")
                           GrBookGradientButton(

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
@@ -99,34 +100,120 @@ class PdfExportService {
     return _save(await doc.save(), 'Age_Report_$className');
   }
 
-  Future<File> exportStudentProfilePdf({required School school, required Student student, required String className}) async {
+  Future<File> exportStudentProfilePdf({
+    required School school,
+    required Student student,
+    required String className,
+    Uint8List? studentPhotoBytes,
+  }) async {
     final doc = pw.Document();
     final age = AgeCalculator.calculate(dateOfBirth: student.dateOfBirth, asOf: DateTime.now());
+    final signatureImage = await _loadPrincipalSignature();
+    final issueDate = _dateFormat.format(DateTime.now());
 
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(36),
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            _header(school, 'Student Profile'),
-            pw.SizedBox(height: 20),
-            _profileRow('Student Name', student.studentName),
-            _profileRow('GR Number', student.grNumber),
+            // Top Header: School Info + Student Picture
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(school.schoolName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                      if (school.semisCode != null) pw.Text('SEMIS Code: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
+                      if (school.district != null || school.taluka != null)
+                        pw.Text('${school.taluka ?? ''}, ${school.district ?? ''}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.SizedBox(height: 8),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                        child: pw.Text(
+                          'GENERAL REGISTER — STUDENT PROFILE (A4)',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(width: 16),
+                // Student Picture Box
+                pw.Container(
+                  width: 85,
+                  height: 100,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey600, width: 1.2),
+                    color: PdfColors.grey100,
+                  ),
+                  alignment: pw.Alignment.center,
+                  child: studentPhotoBytes != null && studentPhotoBytes.isNotEmpty
+                      ? pw.Image(pw.MemoryImage(studentPhotoBytes), fit: pw.BoxFit.cover)
+                      : pw.Text('Student\nPhoto', textAlign: pw.TextAlign.center, style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 9)),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 14),
+            pw.Divider(thickness: 1.2),
+            pw.SizedBox(height: 10),
+
+            // Profile Details Rows
+            _profileRow('Student Full Name', student.studentName),
+            _profileRow('G.R. Number', student.grNumber),
             _profileRow('Serial Number', '${student.serialNumber ?? '-'}'),
-            _profileRow('Class', className),
+            _profileRow('Enrolled Class', className),
+            _profileRow('Gender', student.gender == 'GIRL' ? 'Girl (Daughter of)' : 'Boy (Son of)'),
             _profileRow('Father Name', student.fatherName ?? '-'),
             _profileRow('Mother Name', student.motherName ?? '-'),
             _profileRow('Date of Birth', _dateFormat.format(student.dateOfBirth)),
-            _profileRow('Age', age.format()),
-            _profileRow('Gender', student.gender == 'GIRL' ? 'Girl (Daughter of)' : 'Boy (Son of)'),
+            _profileRow('Current Age', age.format()),
             _profileRow('Date of Admission', _dateFormat.format(student.dateOfAdmission)),
             _profileRow('Father CNIC', student.fatherCnic ?? '-'),
             _profileRow('B-Form Number', student.bFormNumber ?? '-'),
-            _profileRow('Phone Number', student.phoneNumber ?? '-'),
-            _profileRow('Address', student.address ?? '-'),
-            _profileRow('Previous School', student.previousSchool ?? '-'),
-            _profileRow('Status', student.status.dbValue),
+            _profileRow('Contact Number', student.phoneNumber ?? '-'),
+            _profileRow('Residential Address', student.address ?? '-'),
+            _profileRow('Previous School Attended', student.previousSchool ?? '-'),
+            _profileRow('Enrollment Status', student.status.dbValue),
+            if (student.cleanRemarks != null) _profileRow('Remarks / Notes', student.cleanRemarks!),
+
+            pw.Spacer(),
+
+            // Verification & Signatures Footer
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Date of Issue: $issueDate', style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 28),
+                    pw.SizedBox(width: 140, child: pw.Divider()),
+                    pw.Text('Class Teacher Signature', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    if (signatureImage != null)
+                      pw.Container(
+                        height: 42,
+                        width: 130,
+                        alignment: pw.Alignment.bottomCenter,
+                        child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
+                      ),
+                    pw.SizedBox(width: 140, child: pw.Divider()),
+                    pw.Text('Head Teacher / Principal', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -272,6 +359,103 @@ class PdfExportService {
 
     final safeTitle = certificateTitle.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     return _save(await doc.save(), '${safeTitle}_${student.grNumber}');
+  }
+
+  Future<File> generateNoticePdf({
+    required School school,
+    required Student student,
+    required String className,
+    required String noticeText,
+    File? attachedPhoto,
+  }) async {
+    final doc = pw.Document();
+    final issueDate = _dateFormat.format(DateTime.now());
+    final signatureImage = await _loadPrincipalSignature();
+    List<int>? photoBytes;
+    if (attachedPhoto != null && await attachedPhoto.exists()) {
+      photoBytes = await attachedPhoto.readAsBytes();
+    }
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(school.schoolName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            if (school.semisCode != null) pw.Text('SEMIS: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
+            pw.SizedBox(height: 16),
+            pw.Text(
+              'OFFICIAL NOTICE / NOTE',
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.grey400),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  _profileRow('Student Name', student.studentName),
+                  _profileRow('G.R Number', student.grNumber),
+                  _profileRow('Class', className),
+                  _profileRow('Parent / Guardian', student.fatherName ?? '-'),
+                  _profileRow('Contact Number', student.phoneNumber ?? '-'),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Container(
+              alignment: pw.Alignment.centerLeft,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Note / Notice Details:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13)),
+                  pw.SizedBox(height: 8),
+                  pw.Text(noticeText, style: const pw.TextStyle(fontSize: 12, lineSpacing: 3)),
+                ],
+              ),
+            ),
+            if (photoBytes != null) ...[
+              pw.SizedBox(height: 16),
+              pw.Container(
+                height: 160,
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Image(pw.MemoryImage(photoBytes as dynamic), fit: pw.BoxFit.contain),
+              ),
+            ],
+            pw.Spacer(),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text('Date: $issueDate'),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    if (signatureImage != null)
+                      pw.Container(
+                        height: 42,
+                        width: 130,
+                        alignment: pw.Alignment.bottomCenter,
+                        child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
+                      ),
+                    pw.SizedBox(width: 140, child: pw.Divider()),
+                    pw.Text('Head Teacher / Principal', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return _save(await doc.save(), 'Note_${student.grNumber}');
   }
 
   String _certificateBody(CertificateType type, Student student, String className, AgeResult age, String? note) {

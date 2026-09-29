@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme.dart';
 import '../../models/school.dart';
@@ -12,6 +11,7 @@ import '../../models/student.dart';
 import '../../providers/data_tools_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../repositories/certificate_repository.dart';
+import '../../services/document_share_service.dart';
 import '../../services/pdf_export_service.dart';
 import '../../widgets/gr_book_ui_components.dart';
 
@@ -510,25 +510,64 @@ class _CertificateStudentPickerScreenState
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             onPressed: () => _generateAndExecute((file) async {
-              await Printing.layoutPdf(onLayout: (_) => file.readAsBytes());
-            }, className: className),
-            icon: const Icon(Icons.print_rounded),
-            label: const Text('Print / Preview PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: GrBookTheme.primaryDark,
-              side: const BorderSide(color: GrBookTheme.primary, width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              backgroundColor: Colors.white,
-            ),
-            onPressed: () => _generateAndExecute((file) async {
-              await Share.shareXFiles([XFile(file.path)], text: '${widget.certificateType.title} - ${s.studentName}');
+              await DocumentShareService.showShareOptions(
+                context,
+                pdfFile: file,
+                title: widget.certificateType.title,
+                studentName: s.studentName,
+              );
             }, className: className),
             icon: const Icon(Icons.share_rounded),
-            label: const Text('Share PDF Document', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            label: const Text('Share Certificate (PDF / JPG)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFD32F2F),
+                    side: const BorderSide(color: Color(0xFFD32F2F)),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => _generateAndExecute((file) async {
+                    await DocumentShareService.sharePdf(file, text: '${widget.certificateType.title} - ${s.studentName}');
+                  }, className: className),
+                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                  label: const Text('Share PDF', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2E7D32),
+                    side: const BorderSide(color: Color(0xFF2E7D32)),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => _generateAndExecute((file) async {
+                    await DocumentShareService.shareJpg(file, text: '${widget.certificateType.title} - ${s.studentName}', outputFileName: widget.certificateType.title);
+                  }, className: className),
+                  icon: const Icon(Icons.image_rounded, size: 18),
+                  label: const Text('Share JPG', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: GrBookTheme.primaryDark,
+                  side: const BorderSide(color: GrBookTheme.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => _generateAndExecute((file) async {
+                  await Printing.layoutPdf(onLayout: (_) => file.readAsBytes());
+                }, className: className),
+                child: const Icon(Icons.print_rounded, size: 20),
+              ),
+            ],
           ),
         ],
       ],
