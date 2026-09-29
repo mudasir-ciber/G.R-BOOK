@@ -105,6 +105,9 @@ class SyncEngine {
       case 'update':
         await _replayStudentUpdate(item.entityId, payload);
         break;
+      case 'delete':
+        await _replayStudentDelete(item.entityId, payload);
+        break;
       default:
         return;
     }
@@ -168,6 +171,18 @@ class SyncEngine {
         syncState: const drift.Value('conflict'),
       ),
     );
+  }
+
+  Future<void> _replayStudentDelete(String studentId, Map<String, dynamic> payload) async {
+    try {
+      await _client.from('student_photos').delete().eq('student_id', studentId);
+    } catch (_) {}
+    try {
+      await _client.from('student_complaints').delete().eq('student_id', studentId);
+    } catch (_) {}
+    try {
+      await _client.from('students').delete().eq('id', studentId);
+    } catch (_) {}
   }
 
   Future<void> _drainPromotionQueue() async {

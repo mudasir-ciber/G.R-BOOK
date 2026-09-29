@@ -10,6 +10,7 @@ import '../../models/school.dart';
 import '../../models/student.dart';
 import '../../providers/photo_providers.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/sync_providers.dart';
 import '../../repositories/student_photo_repository.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import 'student_form_screen.dart';
@@ -326,7 +327,107 @@ class _StudentRowCard extends ConsumerWidget {
             ],
           ),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, color: GrBookTheme.primary, size: 24),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  builder: (ctx) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.edit_outlined, color: GrBookTheme.primary),
+                          title: const Text('Edit Student Profile'),
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            if (matchedClass != null) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => StudentFormScreen(
+                                    schoolClass: matchedClass!,
+                                    existingStudent: student,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+                          title: const Text('Delete Student Permanently', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                          onTap: () async {
+                            Navigator.of(ctx).pop();
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (dCtx) => AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                title: const Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+                                    SizedBox(width: 10),
+                                    Expanded(child: Text('Delete Student?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                                  ],
+                                ),
+                                content: Text(
+                                  'Are you sure you want to delete ${student.studentName} (G.R: ${student.grNumber}) permanently?\n\nAll records, photos, complaints, and history will be permanently deleted from this device and Supabase cloud. This action cannot be undone.',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(dCtx).pop(false),
+                                    child: const Text('NO, CANCEL', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                                  ),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.red.shade600,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: () => Navigator.of(dCtx).pop(true),
+                                    child: const Text('YES, DELETE', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirm == true && context.mounted) {
+                              try {
+                                await ref.read(studentRepositoryProvider).deleteStudentPermanently(
+                                  studentId: student.id,
+                                  schoolId: student.schoolId,
+                                );
+                                triggerSync(ref);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('${student.studentName} permanently deleted.')),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error deleting student: $e')),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const Icon(Icons.chevron_right_rounded, color: GrBookTheme.primary, size: 22),
+          ],
+        ),
         onTap: () {
           if (matchedClass != null) {
             Navigator.of(context).push(

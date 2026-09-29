@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -328,6 +329,72 @@ class StudentRepository {
         entityId: attemptedUpdate.id,
         operation: 'update',
         payload: attemptedUpdate.toMap(),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // PERMANENT DELETE (Deletes all records locally & from Supabase)
+  // ---------------------------------------------------------------
+
+  Future<void> deleteStudentPermanently({required String studentId, required String schoolId}) async {
+    final online = await _connectivity.isOnline();
+    final existing = await getById(studentId);
+
+    // 1. Audit Log before deletion
+    await _writeAuditLog(
+      schoolId: schoolId,
+      studentId: studentId,
+      action: 'STUDENT_PERMANENTLY_DELETED',
+      oldValue: existing?.toMap(),
+      newValue: null,
+    );
+
+    // 2. Delete student local photos from disk & table
+    try {
+      final photoRows = await (_db.select(_db.studentPhotosTable)..where((t) => t.studentId.equals(studentId))).get();
+      for (final pRow in photoRows) {
+        if (pRow.localPath != null && pRow.localPath!.isNotEmpty) {
+          final file = File(pRow.localPath!);
+          if (file.existsSync()) {
+            await file.delete();
+          }
+        }
+      }
+      await (_db.delete(_db.studentPhotosTable)..where((t) => t.studentId.equals(studentId))).go();
+    } catch (_) {}
+
+    // 3. Delete local complaints if any
+    try {
+      await _db.customStatement('DELETE FROM student_complaints WHERE student_id = ?', [studentId]);
+    } catch (_) {}
+
+    // 4. Delete existing pending sync queue items for this student
+    try {
+      await (_db.delete(_db.syncQueueTable)..where((t) => t.entityId.equals(studentId))).go();
+    } catch (_) {}
+
+    // 5. Delete student from local Drift database
+    await (_db.delete(_db.studentsTable)..where((t) => t.id.equals(studentId))).go();
+
+    // 6. Supabase Cloud Deletion
+    if (online) {
+      try {
+        await _client.from('student_photos').delete().eq('student_id', studentId);
+      } catch (_) {}
+      try {
+        await _client.from('student_complaints').delete().eq('student_id', studentId);
+      } catch (_) {}
+      try {
+        await _client.from('students').delete().eq('id', studentId);
+      } catch (_) {}
+    } else {
+      // Offline: Enqueue delete operation so it permanently deletes on Supabase when online
+      await _enqueue(
+        entityType: 'student',
+        entityId: studentId,
+        operation: 'delete',
+        payload: {'id': studentId, 'school_id': schoolId},
       );
     }
   }
