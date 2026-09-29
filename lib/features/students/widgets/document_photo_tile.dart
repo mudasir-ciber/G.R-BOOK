@@ -25,14 +25,17 @@ class DocumentPhotoTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: GrBookTheme.textPrimary),
+        ),
         const SizedBox(height: 8),
         Container(
-          height: 90,
+          height: 85,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
           ),
           clipBehavior: Clip.antiAlias,
           child: _buildContent(),
@@ -40,18 +43,21 @@ class DocumentPhotoTile extends StatelessWidget {
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
-          child: OutlinedButton.icon(
+          height: 36,
+          child: FilledButton.icon(
             onPressed: () async {
               final file = await showPhotoPickerSheet(context);
               if (file != null) onPicked(file);
             },
-            style: OutlinedButton.styleFrom(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDCF2E4),
               foregroundColor: GrBookTheme.primaryDark,
-              side: const BorderSide(color: GrBookTheme.primary),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             ),
-            icon: const Icon(Icons.camera_alt_outlined, size: 16),
-            label: const Text('Add Photo', style: TextStyle(fontSize: 13)),
+            icon: const Icon(Icons.camera_alt_outlined, size: 16, color: GrBookTheme.primary),
+            label: const Text('Add Photo', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           ),
         ),
       ],
@@ -60,7 +66,7 @@ class DocumentPhotoTile extends StatelessWidget {
 
   Widget _buildContent() {
     if (photo == null || !photo!.hasContent) {
-      return const Center(child: Icon(Icons.image_outlined, color: Colors.grey, size: 32));
+      return const Center(child: Icon(Icons.image_outlined, color: Color(0xFF94A3B8), size: 32));
     }
     if (photo!.localPath != null) {
       return Image.file(File(photo!.localPath!), fit: BoxFit.cover, width: double.infinity);

@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../providers/dashboard_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../repositories/dashboard_repository.dart';
+import '../../widgets/gr_book_ui_components.dart';
 import '../../widgets/sync_status_banner.dart';
 import 'class_age_stats_screen.dart';
 
@@ -33,145 +34,206 @@ class DashboardScreen extends ConsumerWidget {
     final dateFormat = DateFormat('dd-MM-yyyy');
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
-      appBar: AppBar(title: const Text('Dashboard')),
-      body: schoolAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (school) {
-          if (school == null) {
-            return const Center(child: Text('No school set up on this device yet.'));
-          }
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: GrBookTheme.mintBackgroundGradient,
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const GrBookTopBar(),
+              const GrBookPageHeader(
+                title: 'Dashboard',
+                subtitle: 'School and class records overview',
+              ),
+              const SyncStatusBanner(),
+              Expanded(
+                child: schoolAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Error: $e')),
+                  data: (school) {
+                    if (school == null) {
+                      return const Center(child: Text('No school set up on this device yet.'));
+                    }
 
-          final totalAsync = ref.watch(totalActiveStudentsProvider(school.id));
-          final classesAsync = ref.watch(classesWithCountsProvider(school.id));
+                    final totalAsync = ref.watch(totalActiveStudentsProvider(school.id));
+                    final classesAsync = ref.watch(classesWithCountsProvider(school.id));
 
-          return SafeArea(
-            child: Column(
-              children: [
-                const SyncStatusBanner(),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      // ---- Total Active Students hero card ----
-                      Card(
-                        color: GrBookTheme.primary,
-                        child: Padding(
+                    return ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      children: [
+                        // Total Active Students Hero Card
+                        Container(
                           padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: GrBookTheme.primaryButtonGradient,
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x280F7A42),
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
                           child: Row(
                             children: [
-                              const Icon(Icons.groups, color: Colors.white, size: 36),
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.18),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.groups_rounded, color: Colors.white, size: 28),
+                              ),
                               const SizedBox(width: 16),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Total Active Students', style: TextStyle(color: Colors.white70)),
+                                  const Text(
+                                    'Total Active Students',
+                                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 2),
                                   Text(
                                     totalAsync.valueOrNull?.toString() ?? '-',
-                                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.5,
+                                    ),
                                   ),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                      // ---- Age reference selector ----
-                      Text('Age Calculated As Of', style: Theme.of(context).textTheme.titleSmall),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          ChoiceChip(
-                            label: const Text('Today'),
-                            selected: ageReference == AgeReference.today,
-                            onSelected: (_) => ref.read(ageReferenceProvider.notifier).state = AgeReference.today,
+                        // Age Reference Selector
+                        const Text(
+                          'Age Calculated As Of',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: GrBookTheme.textPrimary,
                           ),
-                          ChoiceChip(
-                            label: const Text('Admission Date'),
-                            selected: ageReference == AgeReference.admissionDate,
-                            onSelected: (_) =>
-                                ref.read(ageReferenceProvider.notifier).state = AgeReference.admissionDate,
-                          ),
-                          ChoiceChip(
-                            label: Text(ageReference == AgeReference.custom && customDate != null
-                                ? dateFormat.format(customDate)
-                                : 'Custom Date'),
-                            selected: ageReference == AgeReference.custom,
-                            onSelected: (_) => _pickCustomDate(context, ref),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      Text('Classes', style: Theme.of(context).textTheme.titleSmall),
-                      const SizedBox(height: 8),
-
-                      classesAsync.when(
-                        loading: () => const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Center(child: CircularProgressIndicator()),
                         ),
-                        error: (e, _) => Text('Error: $e'),
-                        data: (classes) {
-                          if (classes.isEmpty) return const Text('No classes configured yet.');
-                          return GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 1.5,
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Today'),
+                              selected: ageReference == AgeReference.today,
+                              selectedColor: const Color(0xFFDCF2E4),
+                              labelStyle: TextStyle(
+                                color: ageReference == AgeReference.today
+                                    ? GrBookTheme.primaryDark
+                                    : GrBookTheme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              onSelected: (_) =>
+                                  ref.read(ageReferenceProvider.notifier).state = AgeReference.today,
                             ),
-                            itemCount: classes.length,
-                            itemBuilder: (context, index) {
-                              final entry = classes[index];
-                              return Card(
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(18),
+                            ChoiceChip(
+                              label: const Text('Admission Date'),
+                              selected: ageReference == AgeReference.admissionDate,
+                              selectedColor: const Color(0xFFDCF2E4),
+                              labelStyle: TextStyle(
+                                color: ageReference == AgeReference.admissionDate
+                                    ? GrBookTheme.primaryDark
+                                    : GrBookTheme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              onSelected: (_) =>
+                                  ref.read(ageReferenceProvider.notifier).state = AgeReference.admissionDate,
+                            ),
+                            ChoiceChip(
+                              label: Text(ageReference == AgeReference.custom && customDate != null
+                                  ? dateFormat.format(customDate)
+                                  : 'Custom Date'),
+                              selected: ageReference == AgeReference.custom,
+                              selectedColor: const Color(0xFFDCF2E4),
+                              labelStyle: TextStyle(
+                                color: ageReference == AgeReference.custom
+                                    ? GrBookTheme.primaryDark
+                                    : GrBookTheme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              onSelected: (_) => _pickCustomDate(context, ref),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        const Text(
+                          'Classes & Age Distribution',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: GrBookTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        classesAsync.when(
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (e, _) => Text('Error loading classes: $e'),
+                          data: (classes) => Column(
+                            children: classes.map((entry) {
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x06000000),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  leading: const GrBookIconBadge(icon: Icons.groups_rounded),
+                                  title: Text(
+                                    entry.schoolClass.displayName,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  ),
+                                  subtitle: Text(
+                                    '${entry.activeStudentCount} active students',
+                                    style: const TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right_rounded, color: GrBookTheme.primary),
                                   onTap: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (_) => ClassAgeStatsScreen(schoolClass: entry.schoolClass),
+                                        builder: (_) => ClassAgeStatsScreen(
+                                          schoolClass: entry.schoolClass,
+                                        ),
                                       ),
                                     );
                                   },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(14),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 16,
-                                          backgroundColor: GrBookTheme.primary.withOpacity(0.12),
-                                          child: Text(
-                                            entry.schoolClass.classCode,
-                                            style: const TextStyle(fontSize: 11, color: GrBookTheme.primaryDark, fontWeight: FontWeight.bold),
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Text(entry.schoolClass.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                        Text('${entry.activeStudentCount} active', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                                      ],
-                                    ),
-                                  ),
                                 ),
                               );
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    );
+                  },
                 ),
-              ],
-            ),
-          );
-        },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

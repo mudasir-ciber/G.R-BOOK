@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../models/school.dart';
 import '../../providers/repository_providers.dart';
+import '../../widgets/gr_book_ui_components.dart';
 
 /// Requirement #5: the school profile must be editable later.
 class SchoolProfileScreen extends ConsumerStatefulWidget {
@@ -62,60 +63,150 @@ class _SchoolProfileScreenState extends ConsumerState<SchoolProfileScreen> {
     }
   }
 
+  Widget _buildField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool isRequired = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: GrBookTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Container(
+              margin: const EdgeInsets.all(8),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: GrBookTheme.primaryLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: GrBookTheme.primary, size: 20),
+            ),
+          ),
+          validator: isRequired
+              ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null
+              : null,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final schoolAsync = ref.watch(currentSchoolProvider);
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
-      appBar: AppBar(title: const Text('School Profile')),
-      body: schoolAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Could not load school: $e')),
-        data: (school) {
-          if (school == null) {
-            return const Center(child: Text('No school found on this device yet.'));
-          }
-          _populateIfNeeded(school);
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'School Name'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(controller: _semisController, decoration: const InputDecoration(labelText: 'SEMIS Code')),
-                    const SizedBox(height: 16),
-                    TextFormField(controller: _ucController, decoration: const InputDecoration(labelText: 'U.C.')),
-                    const SizedBox(height: 16),
-                    TextFormField(controller: _talukaController, decoration: const InputDecoration(labelText: 'Taluka')),
-                    const SizedBox(height: 16),
-                    TextFormField(controller: _districtController, decoration: const InputDecoration(labelText: 'District')),
-                    const SizedBox(height: 28),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: GrBookTheme.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: GrBookTheme.mintBackgroundGradient,
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const GrBookTopBar(),
+              const GrBookPageHeader(
+                title: 'School Profile',
+                subtitle: 'View and edit your school information',
+              ),
+              Expanded(
+                child: schoolAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Could not load school: $e')),
+                  data: (school) {
+                    if (school == null) {
+                      return const Center(child: Text('No school found on this device yet.'));
+                    }
+                    _populateIfNeeded(school);
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x06000000),
+                              blurRadius: 8,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildField(
+                                controller: _nameController,
+                                label: 'School Name',
+                                hint: 'Enter School Name',
+                                icon: Icons.apartment_rounded,
+                                isRequired: true,
+                              ),
+                              const SizedBox(height: 14),
+                              _buildField(
+                                controller: _semisController,
+                                label: 'SEMIS Code',
+                                hint: 'Enter SEMIS Code',
+                                icon: Icons.qr_code_2_rounded,
+                              ),
+                              const SizedBox(height: 14),
+                              _buildField(
+                                controller: _ucController,
+                                label: 'U.C',
+                                hint: 'Enter U.C',
+                                icon: Icons.location_on_outlined,
+                              ),
+                              const SizedBox(height: 14),
+                              _buildField(
+                                controller: _talukaController,
+                                label: 'Taluka',
+                                hint: 'Enter Taluka',
+                                icon: Icons.location_city_outlined,
+                              ),
+                              const SizedBox(height: 14),
+                              _buildField(
+                                controller: _districtController,
+                                label: 'District',
+                                hint: 'Enter District',
+                                icon: Icons.map_outlined,
+                              ),
+                              const SizedBox(height: 24),
+                              GrBookGradientButton(
+                                text: 'Save Changes',
+                                icon: Icons.save_rounded,
+                                trailingIcon: null,
+                                isLoading: _isSaving,
+                                onPressed: _save,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      onPressed: _isSaving ? null : _save,
-                      child: _isSaving
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('Save Changes'),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
     );
   }

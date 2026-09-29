@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
 import '../../features/auth/auth_providers.dart';
@@ -9,8 +8,10 @@ import '../../models/student.dart';
 import '../../providers/promotion_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../repositories/promotion_repository.dart';
+import '../../widgets/gr_book_ui_components.dart';
 import 'promotion_preview_screen.dart';
 
+/// Screen 9: Promote Students Page matching reference UI image 9 exactly.
 class PromoteStudentsScreen extends ConsumerStatefulWidget {
   const PromoteStudentsScreen({super.key, required this.schoolClass});
 
@@ -21,12 +22,11 @@ class PromoteStudentsScreen extends ConsumerStatefulWidget {
 }
 
 class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
-  final _dateFormat = DateFormat('dd-MM-yyyy');
   final _searchController = TextEditingController();
   String _searchText = '';
 
   DateTime _promotionDate = DateTime.now();
-  String? _targetClassId; // null once resolved means "Passed Out"
+  String? _targetClassId;
   bool _targetIsPassOut = false;
   final Set<String> _selectedIds = {};
 
@@ -49,7 +49,6 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
         );
     _selectedIds.clear();
     if (widget.schoolClass.minPromotionAgeMonths != null) {
-      // Age-gated class (ECE -> Class 1): preselect eligible students.
       for (final c in candidates) {
         if (c.isAgeEligible) _selectedIds.add(c.student.id);
       }
@@ -59,19 +58,6 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
         _candidates = candidates;
         _isLoadingCandidates = false;
       });
-    }
-  }
-
-  Future<void> _pickPromotionDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _promotionDate,
-      firstDate: DateTime(1990),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() => _promotionDate = picked);
-      await _loadCandidates(); // ECE eligibility depends on the chosen date
     }
   }
 
@@ -109,39 +95,6 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
     }
   }
 
-  Future<void> _undoLastPromotion() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Undo Last Promotion'),
-        content: const Text('This restores every affected student\'s previous class and status. Continue?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Undo'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    final userId = ref.read(currentUserProvider)?.id;
-    final undone = await ref.read(promotionRepositoryProvider).undoLastPromotion(
-          schoolId: widget.schoolClass.schoolId,
-          fromClassId: widget.schoolClass.id,
-          performedBy: userId,
-        );
-    await _loadCandidates();
-    ref.invalidate(hasUndoableBatchProvider(widget.schoolClass.id));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(undone ? 'Last promotion undone.' : 'Nothing to undo.')),
-      );
-    }
-  }
-
   Future<void> _goToPreview(List<SchoolClass> allClasses) async {
     if (_selectedIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,217 +102,335 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
       );
       return;
     }
-    final targetClass = _targetIsPassOut
-        ? null
-        : allClasses.firstWhere((c) => c.id == _targetClassId, orElse: () => widget.schoolClass);
 
-    final selectedStudents = _candidates!
-        .where((c) => _selectedIds.contains(c.student.id))
-        .map((c) => c.student)
-        .toList();
+    final selectedCandidates = (_candidates ?? []).where((c) => _selectedIds.contains(c.student.id)).toList();
 
-    final confirmed = await Navigator.of(context).push<bool>(
+    SchoolClass? targetClass;
+    if (!_targetIsPassOut && _targetClassId != null) {
+      targetClass = allClasses.firstWhere((c) => c.id == _targetClassId);
+    }
+
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PromotionPreviewScreen(
           fromClass: widget.schoolClass,
           toClass: targetClass,
-          students: selectedStudents,
+          students: selectedCandidates.map((c) => c.student).toList(),
           promotionDate: _promotionDate,
         ),
       ),
     );
-
-    if (confirmed == true && mounted) {
-      Navigator.of(context).pop(); // back out of Promote Students to the class list
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final classesAsync = ref.watch(classesStreamProvider(widget.schoolClass.schoolId));
-    final undoableAsync = ref.watch(hasUndoableBatchProvider(widget.schoolClass.id));
 
-    final visibleCandidates = (_candidates ?? [])
-        .where((c) =>
-            _searchText.isEmpty ||
-            c.student.studentName.toLowerCase().contains(_searchText.toLowerCase()) ||
-            c.student.grNumber.toLowerCase().contains(_searchText.toLowerCase()))
-        .toList();
+    final visibleCandidates = (_candidates ?? []).where((c) {
+      if (_searchText.isEmpty) return true;
+      final query = _searchText.toLowerCase();
+      return c.student.studentName.toLowerCase().contains(query) ||
+          c.student.grNumber.toLowerCase().contains(query);
+    }).toList();
+
+    String targetLabel = 'Next Class';
+    if (_targetIsPassOut) {
+      targetLabel = 'Passed Out';
+    } else if (classesAsync.valueOrNull != null && _targetClassId != null) {
+      final match = classesAsync.value!.where((c) => c.id == _targetClassId).firstOrNull;
+      if (match != null) targetLabel = match.displayName;
+    }
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
-      appBar: AppBar(
-        title: const Text('Promote Students'),
-        actions: [
-          if (undoableAsync.valueOrNull == true)
-            IconButton(
-              icon: const Icon(Icons.undo),
-              tooltip: 'Undo Last Promotion',
-              onPressed: _undoLastPromotion,
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Column(
-                children: [
-                  Row(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: GrBookTheme.mintBackgroundGradient,
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const GrBookTopBar(),
+              GrBookPageHeader(
+                title: 'Promote Students',
+                subtitle: 'Select students to promote from ${widget.schoolClass.displayName} to next class',
+              ),
+
+              // Transition Card (Current Class ──> Promote To)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x06000000),
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
                     children: [
+                      // Current Class Box
                       Expanded(
-                        child: _LabelledBox(
-                          label: 'Current Class',
-                          child: Text(widget.schoolClass.displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Current Class',
+                              style: TextStyle(fontSize: 11, color: GrBookTheme.textSecondary),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const GrBookIconBadge(icon: Icons.groups_rounded, size: 30, iconSize: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    widget.schoolClass.displayName,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward, size: 18)),
+
+                      // Arrow
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(Icons.arrow_forward_rounded, color: GrBookTheme.primary, size: 20),
+                      ),
+
+                      // Promote To Dropdown Box
                       Expanded(
-                        child: classesAsync.when(
-                          loading: () => const _LabelledBox(label: 'Promote To', child: SizedBox(height: 20)),
-                          error: (_, __) => const _LabelledBox(label: 'Promote To', child: Text('Error')),
-                          data: (classes) {
-                            final otherClasses = classes.where((c) => c.id != widget.schoolClass.id).toList();
-                            return _LabelledBox(
-                              label: 'Promote To',
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                underline: const SizedBox.shrink(),
-                                value: _targetIsPassOut ? '__PASSOUT__' : _targetClassId,
-                                items: [
-                                  ...otherClasses.map((c) => DropdownMenuItem(value: c.id, child: Text(c.displayName))),
-                                  if (widget.schoolClass.isTerminal)
-                                    const DropdownMenuItem(value: '__PASSOUT__', child: Text('Passed Out')),
-                                ],
-                                onChanged: (v) {
-                                  setState(() {
-                                    _targetIsPassOut = v == '__PASSOUT__';
-                                    _targetClassId = _targetIsPassOut ? null : v;
-                                  });
-                                },
-                              ),
-                            );
-                          },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Promote To',
+                              style: TextStyle(fontSize: 11, color: GrBookTheme.textSecondary),
+                            ),
+                            const SizedBox(height: 2),
+                            classesAsync.when(
+                              loading: () => const SizedBox(height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                              error: (_, __) => const Text('Error'),
+                              data: (classes) {
+                                final otherClasses = classes.where((c) => c.id != widget.schoolClass.id).toList();
+                                return DropdownButton<String>(
+                                  isExpanded: true,
+                                  underline: const SizedBox.shrink(),
+                                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: GrBookTheme.primary),
+                                  value: _targetIsPassOut ? '__PASSOUT__' : _targetClassId,
+                                  items: [
+                                    ...otherClasses.map((c) => DropdownMenuItem(
+                                          value: c.id,
+                                          child: Text(c.displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        )),
+                                    if (widget.schoolClass.isTerminal)
+                                      const DropdownMenuItem(
+                                        value: '__PASSOUT__',
+                                        child: Text('Passed Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      ),
+                                  ],
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _targetIsPassOut = v == '__PASSOUT__';
+                                      _targetClassId = _targetIsPassOut ? null : v;
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  InkWell(
-                    onTap: _pickPromotionDate,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today_outlined, size: 16, color: GrBookTheme.primaryDark),
-                        const SizedBox(width: 6),
-                        Text('Promotion Date: ${_dateFormat.format(_promotionDate)}',
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(hintText: 'Search student name or GR No...', prefixIcon: Icon(Icons.search)),
-                onChanged: (v) => setState(() => _searchText = v),
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (!_isLoadingCandidates && _candidates != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Checkbox(
-                      value: _selectedIds.length == visibleCandidates.length && visibleCandidates.isNotEmpty,
-                      tristate: true,
-                      onChanged: (checked) {
-                        setState(() {
-                          if (checked == true) {
-                            _selectedIds.addAll(visibleCandidates.map((c) => c.student.id));
-                          } else {
-                            for (final c in visibleCandidates) {
-                              _selectedIds.remove(c.student.id);
-                            }
-                          }
-                        });
-                      },
-                    ),
-                    Text('Select All (${visibleCandidates.length} Students)'),
-                    const Spacer(),
-                    Text('Selected: ${_selectedIds.length}', style: const TextStyle(fontWeight: FontWeight.w600, color: GrBookTheme.primaryDark)),
-                  ],
                 ),
               ),
-            Expanded(
-              child: _isLoadingCandidates
-                  ? const Center(child: CircularProgressIndicator())
-                  : visibleCandidates.isEmpty
-                      ? const Center(child: Text('No active students in this class.'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          itemCount: visibleCandidates.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final candidate = visibleCandidates[index];
-                            final selected = _selectedIds.contains(candidate.student.id);
-                            return CheckboxListTile(
-                              value: selected,
-                              onChanged: (v) {
-                                setState(() {
-                                  if (v == true) {
-                                    _selectedIds.add(candidate.student.id);
-                                  } else {
-                                    _selectedIds.remove(candidate.student.id);
-                                  }
-                                });
-                              },
-                              controlAffinity: ListTileControlAffinity.leading,
-                              title: Text(candidate.student.studentName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text(
-                                'GR: ${candidate.student.grNumber}'
-                                '${!candidate.isAgeEligible ? '  •  Underage for this promotion' : ''}',
-                                style: TextStyle(color: candidate.isAgeEligible ? null : Colors.orange.shade800),
-                              ),
-                              secondary: IconButton(
-                                icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-                                tooltip: 'Mark as Failed',
-                                onPressed: () => _confirmFail(candidate.student),
-                              ),
-                            );
+
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Search student name or GR No...',
+                    prefixIcon: Icon(Icons.search, color: GrBookTheme.primary, size: 20),
+                  ),
+                  onChanged: (v) => setState(() => _searchText = v),
+                ),
+              ),
+
+              // Selection Header Row
+              if (!_isLoadingCandidates && _candidates != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: _selectedIds.length == visibleCandidates.length && visibleCandidates.isNotEmpty,
+                          tristate: true,
+                          activeColor: GrBookTheme.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          onChanged: (checked) {
+                            setState(() {
+                              if (checked == true) {
+                                _selectedIds.addAll(visibleCandidates.map((c) => c.student.id));
+                              } else {
+                                for (final c in visibleCandidates) {
+                                  _selectedIds.remove(c.student.id);
+                                }
+                              }
+                            });
                           },
                         ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: GrBookTheme.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Select All (${visibleCandidates.length} Students)',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: GrBookTheme.textPrimary),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Selected: ${_selectedIds.length}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.primary, fontSize: 13),
+                      ),
+                    ],
                   ),
+                ),
+
+              // Candidate List
+              Expanded(
+                child: _isLoadingCandidates
+                    ? const Center(child: CircularProgressIndicator())
+                    : visibleCandidates.isEmpty
+                        ? const Center(child: Text('No active students in this class.'))
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            itemCount: visibleCandidates.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final candidate = visibleCandidates[index];
+                              final selected = _selectedIds.contains(candidate.student.id);
+
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: selected ? GrBookTheme.primary : GrBookTheme.borderColor,
+                                    width: selected ? 1.4 : 1,
+                                  ),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () {
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedIds.remove(candidate.student.id);
+                                      } else {
+                                        _selectedIds.add(candidate.student.id);
+                                      }
+                                    });
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: Checkbox(
+                                            value: selected,
+                                            activeColor: GrBookTheme.primary,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                            onChanged: (v) {
+                                              setState(() {
+                                                if (v == true) {
+                                                  _selectedIds.add(candidate.student.id);
+                                                } else {
+                                                  _selectedIds.remove(candidate.student.id);
+                                                }
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        CircleAvatar(
+                                          radius: 18,
+                                          backgroundColor: GrBookTheme.primaryLight,
+                                          child: Text(
+                                            candidate.student.studentName.isNotEmpty ? candidate.student.studentName[0].toUpperCase() : '?',
+                                            style: const TextStyle(color: GrBookTheme.primaryDark, fontWeight: FontWeight.bold, fontSize: 13),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF1F8F4),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            candidate.student.grNumber,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: GrBookTheme.primaryDark),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                candidate.student.studentName,
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                              ),
+                                              if (!candidate.isAgeEligible)
+                                                Text(
+                                                  'Underage for promotion',
+                                                  style: TextStyle(color: Colors.orange.shade800, fontSize: 11),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                                          tooltip: 'Mark as Failed',
+                                          onPressed: () => _confirmFail(candidate.student),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+
+              // Bottom Button: "Promote to [TargetClass] →"
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: GrBookGradientButton(
+                  text: 'Promote to $targetLabel',
+                  icon: Icons.school_rounded,
                   onPressed: (classesAsync.valueOrNull == null || _isLoadingCandidates || _candidates == null)
                       ? null
                       : () => _goToPreview(classesAsync.value!),
-                  icon: const Icon(Icons.school),
-                  label: Text(
-                    _targetIsPassOut
-                        ? 'Promote to Passed Out'
-                        : 'Promote to ${classesAsync.valueOrNull?.firstWhere(
-                              (c) => c.id == _targetClassId,
-                              orElse: () => widget.schoolClass,
-                            ).displayName ?? '...'}',
-                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -369,31 +440,5 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-}
-
-class _LabelledBox extends StatelessWidget {
-  const _LabelledBox({required this.label, required this.child});
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-          const SizedBox(height: 2),
-          child,
-        ],
-      ),
-    );
   }
 }

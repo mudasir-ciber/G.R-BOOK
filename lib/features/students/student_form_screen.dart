@@ -14,6 +14,7 @@ import '../../providers/repository_providers.dart';
 import '../../repositories/student_photo_repository.dart';
 import '../audit/audit_log_screen.dart';
 import 'certificate_screen.dart';
+import '../../widgets/gr_book_ui_components.dart';
 import '../../widgets/sync_status_banner.dart';
 import 'widgets/document_photo_tile.dart';
 import 'widgets/profile_photo_avatar.dart';
@@ -236,53 +237,77 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
-      appBar: AppBar(
-        title: Text(widget.isEditing ? 'Student Profile' : 'Add Student'),
-        actions: [
-          if (widget.isEditing)
-            IconButton(
-              icon: const Icon(Icons.workspace_premium_outlined),
-              tooltip: 'Certificates',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => CertificateScreen(
-                      student: widget.existingStudent!,
-                      schoolClass: widget.schoolClass,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: GrBookTheme.mintBackgroundGradient,
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GrBookTopBar(
+                trailing: widget.isEditing
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.workspace_premium_outlined, color: GrBookTheme.primary, size: 22),
+                            tooltip: 'Certificates',
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => CertificateScreen(
+                                    student: widget.existingStudent!,
+                                    schoolClass: widget.schoolClass,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.history, color: GrBookTheme.primary, size: 22),
+                            tooltip: 'History',
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => AuditLogScreen(
+                                    schoolId: widget.existingStudent!.schoolId,
+                                    studentId: widget.existingStudent!.id,
+                                    title: '${widget.existingStudent!.studentName} — History',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      )
+                    : null,
+              ),
+              GrBookPageHeader(
+                title: widget.isEditing ? 'Student Profile' : 'Add Student',
+                subtitle: widget.isEditing ? 'View and edit student information' : 'Register a new student',
+              ),
+              if (widget.isEditing) const SyncStatusBanner(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x06000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
                     ),
-                  ),
-                );
-              },
-            ),
-          if (widget.isEditing)
-            IconButton(
-              icon: const Icon(Icons.history),
-              tooltip: 'History',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AuditLogScreen(
-                      schoolId: widget.existingStudent!.schoolId,
-                      studentId: widget.existingStudent!.id,
-                      title: '${widget.existingStudent!.studentName} — History',
-                    ),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (widget.isEditing) const SyncStatusBanner(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
                     children: [
                       if (_errorMessage != null) ...[
                         Container(
@@ -522,32 +547,24 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                       ],
 
                       // ---- Save / Edit Data button ----
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: GrBookTheme.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                          onPressed: _isSubmitting ? null : _submit,
-                          icon: _isSubmitting
-                              ? const SizedBox(
-                                  height: 18, width: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : Icon(widget.isEditing ? Icons.edit_outlined : Icons.person_add_alt_1),
-                          label: Text(widget.isEditing ? 'Edit Data' : 'Add Student'),
-                        ),
+                      GrBookGradientButton(
+                        text: widget.isEditing ? 'Edit Data' : 'Add Student',
+                        isLoading: _isSubmitting,
+                        icon: widget.isEditing ? Icons.edit_rounded : Icons.person_add_rounded,
+                        trailingIcon: null,
+                        onPressed: _isSubmitting ? null : _submit,
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   Future<void> _onPhotoPicked(PhotoType type, File file) async {

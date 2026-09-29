@@ -3,16 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../providers/repository_providers.dart';
+import '../../widgets/gr_book_ui_components.dart';
 import '../audit/audit_log_screen.dart';
 import '../auth/auth_providers.dart';
 import '../auth/login_screen.dart';
 import '../passout/pass_out_years_screen.dart';
+import 'about_screen.dart';
 import 'backup_restore_screen.dart';
 import 'export_print_screen.dart';
-import '../school/school_profile_screen.dart';
-import 'about_screen.dart';
 import 'my_account_screen.dart';
+import '../school/school_profile_screen.dart';
 
+/// Screen 5: Settings Page matching reference UI image 5 exactly.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -49,149 +51,222 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, top: 18, bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF6B7E73),
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    VoidCallback? onTap,
+    Color? iconColor,
+    Color? badgeColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                GrBookIconBadge(
+                  icon: icon,
+                  backgroundColor: badgeColor,
+                  iconColor: iconColor,
+                  size: 42,
+                  iconSize: 22,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: GrBookTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: GrBookTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: GrBookTheme.primary,
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final schoolAsync = ref.watch(currentSchoolProvider);
     final schoolId = schoolAsync.valueOrNull?.id;
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
-      appBar: AppBar(title: const Text('Settings')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            _SectionHeader('ACCOUNT'),
-            _SettingsTile(
-              icon: Icons.person_outline,
-              title: 'My Account',
-              subtitle: 'View your name and mobile number',
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyAccountScreen())),
-            ),
-            _SectionHeader('SCHOOL'),
-            _SettingsTile(
-              icon: Icons.school_outlined,
-              title: 'School Profile',
-              subtitle: 'View and edit your school information',
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SchoolProfileScreen())),
-            ),
-            _SettingsTile(
-              icon: Icons.groups_outlined,
-              title: 'Manage Classes',
-              subtitle: 'Add, rename or remove classes',
-              onTap: () => _notAvailableYet(context, 'Manage Classes', 'a later phase'),
-            ),
-            _SettingsTile(
-              icon: Icons.workspace_premium_outlined,
-              title: 'Pass Out Years',
-              subtitle: 'Add or manage pass out years',
-              onTap: schoolId == null
-                  ? null
-                  : () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => PassOutYearsScreen(schoolId: schoolId)),
-                      ),
-            ),
-            _SectionHeader('DATA'),
-            _SettingsTile(
-              icon: Icons.backup_outlined,
-              title: 'Backup & Restore',
-              subtitle: 'Backup your data and restore when needed',
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BackupRestoreScreen())),
-            ),
-            _SettingsTile(
-              icon: Icons.description_outlined,
-              title: 'Export & Print',
-              subtitle: 'Export student records or generate PDF',
-              onTap: schoolId == null
-                  ? null
-                  : () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => ExportPrintScreen(schoolId: schoolId)),
-                      ),
-            ),
-            _SectionHeader('SECURITY'),
-            _SettingsTile(
-              icon: Icons.shield_outlined,
-              title: 'App Security',
-              subtitle: 'App lock, PIN, fingerprint and auto-lock',
-              onTap: () => _notAvailableYet(context, 'App Security', 'Phase 10'),
-            ),
-            _SectionHeader('OTHER'),
-            _SettingsTile(
-              icon: Icons.history,
-              title: 'Audit Log',
-              subtitle: 'See every change made to your records',
-              onTap: schoolId == null
-                  ? null
-                  : () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => AuditLogScreen(schoolId: schoolId)),
-                      ),
-            ),
-            _SettingsTile(
-              icon: Icons.info_outline,
-              title: 'About G.R. Book',
-              subtitle: 'App version, help and support',
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutScreen())),
-            ),
-            _SettingsTile(
-              icon: Icons.logout,
-              title: 'Logout',
-              subtitle: 'Sign out from your account',
-              iconColor: Colors.red,
-              onTap: () => _confirmLogout(context, ref),
-            ),
-            const SizedBox(height: 24),
-          ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: GrBookTheme.mintBackgroundGradient,
         ),
-      ),
-    );
-  }
-}
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const GrBookTopBar(),
+              const GrBookPageHeader(
+                title: 'Settings',
+                subtitle: 'Manage your school, account and app settings',
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  children: [
+                    _buildSectionHeader('ACCOUNT'),
+                    _buildTile(
+                      icon: Icons.person_rounded,
+                      title: 'My Account',
+                      subtitle: 'View and update your name, mobile number and password',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const MyAccountScreen()),
+                      ),
+                    ),
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.text);
-  final String text;
+                    _buildSectionHeader('SCHOOL'),
+                    _buildTile(
+                      icon: Icons.apartment_rounded,
+                      title: 'School Profile',
+                      subtitle: 'View and edit your school information',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SchoolProfileScreen()),
+                      ),
+                    ),
+                    _buildTile(
+                      icon: Icons.groups_rounded,
+                      title: 'Manage Classes',
+                      subtitle: 'Add, rename or remove classes',
+                      onTap: () => _notAvailableYet(context, 'Manage Classes', 'Phase 10'),
+                    ),
+                    _buildTile(
+                      icon: Icons.school_rounded,
+                      title: 'Pass Out Years',
+                      subtitle: 'Add or manage pass out years',
+                      onTap: schoolId == null
+                          ? null
+                          : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => PassOutYearsScreen(schoolId: schoolId),
+                                ),
+                              ),
+                    ),
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 0.5),
-      ),
-    );
-  }
-}
+                    _buildSectionHeader('DATA'),
+                    _buildTile(
+                      icon: Icons.cloud_sync_rounded,
+                      title: 'Backup & Restore',
+                      subtitle: 'Backup your data and restore when needed',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BackupRestoreScreen()),
+                      ),
+                    ),
+                    _buildTile(
+                      icon: Icons.description_rounded,
+                      title: 'Export & Print',
+                      subtitle: 'Export student records or generate PDF',
+                      onTap: schoolId == null
+                          ? null
+                          : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ExportPrintScreen(schoolId: schoolId),
+                                ),
+                              ),
+                    ),
 
-class _SettingsTile extends StatelessWidget {
-  const _SettingsTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.iconColor,
-  });
+                    _buildSectionHeader('SECURITY'),
+                    _buildTile(
+                      icon: Icons.shield_rounded,
+                      title: 'App Security',
+                      subtitle: 'App lock, PIN, fingerprint and auto-lock',
+                      onTap: () => _notAvailableYet(context, 'App Security', 'Phase 10'),
+                    ),
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final Color? iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Card(
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: (iconColor ?? GrBookTheme.primary).withOpacity(0.12),
-            child: Icon(icon, color: iconColor ?? GrBookTheme.primaryDark),
+                    _buildSectionHeader('OTHER'),
+                    _buildTile(
+                      icon: Icons.history_rounded,
+                      title: 'Audit Log',
+                      subtitle: 'See every change made to your records',
+                      onTap: schoolId == null
+                          ? null
+                          : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => AuditLogScreen(schoolId: schoolId),
+                                ),
+                              ),
+                    ),
+                    _buildTile(
+                      icon: Icons.info_outline_rounded,
+                      title: 'About G.R. Book',
+                      subtitle: 'App version, help and support',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AboutScreen()),
+                      ),
+                    ),
+                    _buildTile(
+                      icon: Icons.logout_rounded,
+                      title: 'Logout',
+                      subtitle: 'Sign out from your account',
+                      iconColor: Colors.red.shade600,
+                      badgeColor: Colors.red.shade50,
+                      onTap: () => _confirmLogout(context, ref),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ],
           ),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: onTap,
         ),
       ),
     );

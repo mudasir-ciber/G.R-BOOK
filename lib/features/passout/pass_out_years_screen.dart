@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../providers/pass_out_providers.dart';
+import '../../widgets/gr_book_ui_components.dart';
 import 'pass_out_students_screen.dart';
 
+/// Screen 6: Pass Out Years Page matching reference UI image 6 exactly.
 class PassOutYearsScreen extends ConsumerWidget {
   const PassOutYearsScreen({super.key, required this.schoolId});
 
@@ -15,6 +17,7 @@ class PassOutYearsScreen extends ConsumerWidget {
     final year = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Add New Year'),
         content: TextField(
           controller: controller,
@@ -25,7 +28,10 @@ class PassOutYearsScreen extends ConsumerWidget {
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: GrBookTheme.primary),
+            style: FilledButton.styleFrom(
+              backgroundColor: GrBookTheme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () {
               final parsed = int.tryParse(controller.text.trim());
               if (parsed == null || parsed < 2000 || parsed > 2100) {
@@ -58,65 +64,108 @@ class PassOutYearsScreen extends ConsumerWidget {
     final yearsAsync = ref.watch(passOutYearsProvider(schoolId));
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
-      appBar: AppBar(title: const Text('Pass Out Years')),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: yearsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
-                data: (years) {
-                  if (years.isEmpty) {
-                    return const Center(child: Text('No pass-out years yet. Add one to get started.'));
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: years.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final year = years[index];
-                      return Card(
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                          leading: CircleAvatar(
-                            backgroundColor: GrBookTheme.primary.withOpacity(0.12),
-                            child: const Icon(Icons.school, color: GrBookTheme.primaryDark),
-                          ),
-                          title: Text('$year', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => PassOutStudentsScreen(schoolId: schoolId, initialYear: year, availableYears: years),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  );
-                },
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: GrBookTheme.mintBackgroundGradient,
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const GrBookTopBar(),
+              const GrBookPageHeader(
+                title: 'Pass Out Years',
+                subtitle: 'Manage pass out years',
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: GrBookTheme.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: () => _addYear(context, ref, yearsAsync.valueOrNull ?? []),
-                  icon: const Icon(Icons.add_circle_outline),
-                  label: const Text('Add New Year'),
+              Expanded(
+                child: yearsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Error: $e')),
+                  data: (years) {
+                    if (years.isEmpty) {
+                      return const Center(child: Text('No pass-out years yet. Tap below to add one.'));
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: years.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final year = years[index];
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x08000000),
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PassOutStudentsScreen(
+                                      schoolId: schoolId,
+                                      initialYear: year,
+                                      availableYears: years,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                                child: Row(
+                                  children: [
+                                    const GrBookIconBadge(icon: Icons.school_rounded),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      '$year',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 17,
+                                        color: GrBookTheme.textPrimary,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: GrBookTheme.primary,
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
-            ),
-          ],
+
+              // Bottom Button: + Add New Year
+              yearsAsync.maybeWhen(
+                data: (years) => Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: GrBookGradientButton(
+                    text: 'Add New Year',
+                    icon: Icons.add_circle_outline_rounded,
+                    trailingIcon: null,
+                    onPressed: () => _addYear(context, ref, years),
+                  ),
+                ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ),
     );
