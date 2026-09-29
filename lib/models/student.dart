@@ -48,18 +48,20 @@ class Student {
 
   String get gender {
     if (remarks != null) {
-      if (remarks!.contains('[GENDER:GIRL]')) return 'GIRL';
-      if (remarks!.contains('[GENDER:BOY]')) return 'BOY';
+      if (remarks!.contains('[GENDER:FEMALE]') || remarks!.contains('[GENDER:GIRL]')) return 'FEMALE';
+      if (remarks!.contains('[GENDER:MALE]') || remarks!.contains('[GENDER:BOY]')) return 'MALE';
     }
-    return 'BOY';
+    return 'MALE';
   }
 
-  bool get isGirl => gender == 'GIRL';
-  bool get isBoy => gender == 'BOY';
+  bool get isGirl => gender == 'FEMALE' || gender == 'GIRL';
+  bool get isBoy => gender == 'MALE' || gender == 'BOY';
+  bool get isFemale => isGirl;
+  bool get isMale => isBoy;
 
   String? get cleanRemarks {
     if (remarks == null) return null;
-    final cleaned = remarks!.replaceAll(RegExp(r'\[GENDER:(BOY|GIRL)\]'), '').trim();
+    final cleaned = remarks!.replaceAll(RegExp(r'\[GENDER:(BOY|GIRL|MALE|FEMALE)\]'), '').trim();
     return cleaned.isEmpty ? null : cleaned;
   }
 

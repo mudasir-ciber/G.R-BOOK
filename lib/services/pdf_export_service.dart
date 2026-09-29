@@ -136,7 +136,7 @@ class PdfExportService {
                         padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                         child: pw.Text(
-                          'GENERAL REGISTER — STUDENT PROFILE (A4)',
+                          'GENERAL REGISTER - STUDENT PROFILE (A4)',
                           style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
                         ),
                       ),
@@ -168,7 +168,7 @@ class PdfExportService {
             _profileRow('G.R. Number', student.grNumber),
             _profileRow('Serial Number', '${student.serialNumber ?? '-'}'),
             _profileRow('Enrolled Class', className),
-            _profileRow('Gender', student.gender == 'GIRL' ? 'Girl (Daughter of)' : 'Boy (Son of)'),
+            _profileRow('Gender', student.isFemale ? 'Female (Daughter of)' : 'Male (Son of)'),
             _profileRow('Father Name', student.fatherName ?? '-'),
             _profileRow('Mother Name', student.motherName ?? '-'),
             _profileRow('Date of Birth', _dateFormat.format(student.dateOfBirth)),
@@ -305,7 +305,7 @@ class PdfExportService {
     final doc = pw.Document();
     final issueDate = _dateFormat.format(DateTime.now());
     final signatureImage = await _loadPrincipalSignature();
-    final relation = student.gender == 'GIRL' ? 'daughter of' : 'son of';
+    final relation = student.isFemale ? 'daughter of' : 'son of';
 
     final bodyText = 'This is to certify that ${student.studentName}, $relation '
         '${student.fatherName ?? '_______'}, GR Number ${student.grNumber}, was admitted on '
@@ -459,7 +459,7 @@ class PdfExportService {
   }
 
   String _certificateBody(CertificateType type, Student student, String className, AgeResult age, String? note) {
-    final relation = student.gender == 'GIRL' ? 'daughter of' : 'son of';
+    final relation = student.isFemale ? 'daughter of' : 'son of';
     switch (type) {
       case CertificateType.schoolLeaving:
         return 'This is to certify that ${student.studentName}, $relation '

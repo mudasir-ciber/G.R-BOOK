@@ -41,6 +41,7 @@ class StudentRepository {
   // ---------------------------------------------------------------
 
   Stream<List<Student>> watchActiveStudentsForClass(String classId) {
+    _autoCorrectSerialNumbersForClass(classId);
     final query = _db.select(_db.studentsTable)
       ..where((t) =>
           t.classId.equals(classId) &
@@ -104,6 +105,7 @@ class StudentRepository {
     String? classId,
     int? passOutYear,
   }) async {
+    await autoCorrectSingleStudentSerialNumber(schoolId);
     final query = _db.select(_db.studentsTable)
       ..where((t) {
         var cond = t.schoolId.equals(schoolId) & t.isDeleted.equals(false);
@@ -173,24 +175,8 @@ class StudentRepository {
     final id = _uuid.v4();
     final now = DateTime.now();
     final online = await _connectivity.isOnline();
-
-    int? serialNumber;
+    final serialNumber = await _determineNextSerialNumber(schoolId, online);
     SyncState syncState = SyncState.pendingCreate;
-
-    if (online) {
-      try {
-        final serialResult = await _client.rpc(
-          'next_serial_number',
-          params: {'p_school_id': schoolId},
-        );
-        serialNumber = serialResult as int;
-      } catch (_) {
-        // RPC failed despite connectivity (e.g. transient network drop) —
-        // fall back to the offline path below rather than losing the
-        // student's data.
-        serialNumber = null;
-      }
-    }
 
     final student = Student(
       id: id,
@@ -213,7 +199,7 @@ class StudentRepository {
       updatedAt: now,
       createdAt: now,
       createdBy: _client.auth.currentUser?.id,
-      syncState: serialNumber != null ? SyncState.pendingCreate : syncState,
+      syncState: syncState,
     );
 
     await _insertLocal(student);
@@ -397,6 +383,110 @@ class StudentRepository {
         payload: {'id': studentId, 'school_id': schoolId},
       );
     }
+    await autoCorrectSingleStudentSerialNumber(schoolId);
+  }
+
+  // ---------------------------------------------------------------
+  // Serial number management & auto-correction
+  // ---------------------------------------------------------------
+
+  Future<int> _determineNextSerialNumber(String schoolId, bool online) async {
+    // 1. Check local DB for non-deleted students in this school
+    final localRows = await (_db.select(_db.studentsTable)
+          ..where((t) => t.schoolId.equals(schoolId) & t.isDeleted.equals(false)))
+        .get();
+
+    int? maxLocal;
+    for (final r in localRows) {
+      if (r.serialNumber != null) {
+        if (maxLocal == null || r.serialNumber! > maxLocal) {
+          maxLocal = r.serialNumber;
+        }
+      }
+    }
+
+    int? maxServer;
+    int serverCount = 0;
+    if (online) {
+      try {
+        final res = await _client
+            .from('students')
+            .select('serial_number')
+            .eq('school_id', schoolId)
+            .eq('is_deleted', false);
+        serverCount = res.length;
+        for (final item in res) {
+          final sn = item['serial_number'];
+          if (sn is int) {
+            if (maxServer == null || sn > maxServer) {
+              maxServer = sn;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // If there are currently NO active/registered students locally or on server
+    if (localRows.isEmpty && serverCount == 0) {
+      return 1;
+    }
+
+    final effectiveMax = (maxLocal != null && maxServer != null)
+        ? (maxLocal > maxServer ? maxLocal : maxServer)
+        : (maxLocal ?? maxServer);
+
+    if (effectiveMax == null || effectiveMax <= 0) {
+      final effectiveCount = localRows.length > serverCount ? localRows.length : serverCount;
+      return effectiveCount + 1;
+    }
+
+    return effectiveMax + 1;
+  }
+
+  /// If there is only 1 registered student in the school, their serial
+  /// number must be 1. If it was assigned 4 (e.g. from previous deleted students),
+  /// this automatically corrects it locally and on Supabase.
+  Future<void> autoCorrectSingleStudentSerialNumber(String schoolId) async {
+    try {
+      final active = await (_db.select(_db.studentsTable)
+            ..where((t) => t.schoolId.equals(schoolId) & t.isDeleted.equals(false)))
+          .get();
+
+      if (active.length == 1 && active.first.serialNumber != 1) {
+        final target = active.first;
+        await (_db.update(_db.studentsTable)..where((t) => t.id.equals(target.id))).write(
+          const StudentsTableCompanion(serialNumber: Value(1)),
+        );
+
+        final online = await _connectivity.isOnline();
+        if (online) {
+          try {
+            await _client.from('students').update({'serial_number': 1}).eq('id', target.id);
+          } catch (_) {}
+        } else {
+          await _enqueue(
+            entityType: 'student',
+            entityId: target.id,
+            operation: 'update',
+            payload: {'id': target.id, 'serial_number': 1, 'school_id': schoolId},
+          );
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _autoCorrectSerialNumbersForClass(String classId) {
+    // Fire and forget auto-correction
+    () async {
+      try {
+        final studentsInClass = await (_db.select(_db.studentsTable)
+              ..where((t) => t.classId.equals(classId) & t.isDeleted.equals(false)))
+            .get();
+        if (studentsInClass.isNotEmpty) {
+          await autoCorrectSingleStudentSerialNumber(studentsInClass.first.schoolId);
+        }
+      } catch (_) {}
+    }();
   }
 
   // ---------------------------------------------------------------

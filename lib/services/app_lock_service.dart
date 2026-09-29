@@ -54,7 +54,8 @@ class AppLockService {
     try {
       final canCheck = await _localAuth.canCheckBiometrics;
       final isSupported = await _localAuth.isDeviceSupported();
-      return canCheck && isSupported;
+      final enrolled = await _localAuth.getAvailableBiometrics();
+      return canCheck || isSupported || enrolled.isNotEmpty;
     } catch (_) {
       return false;
     }
@@ -63,8 +64,12 @@ class AppLockService {
   Future<bool> authenticateWithBiometrics() async {
     try {
       return await _localAuth.authenticate(
-        localizedReason: 'Unlock G.R. Book',
-        options: const AuthenticationOptions(biometricOnly: true, stickyAuth: true),
+        localizedReason: 'Scan fingerprint to unlock G.R. Book',
+        options: const AuthenticationOptions(
+          biometricOnly: false,
+          stickyAuth: true,
+          useErrorDialogs: true,
+        ),
       );
     } catch (_) {
       return false;

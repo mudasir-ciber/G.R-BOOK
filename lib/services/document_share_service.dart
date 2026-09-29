@@ -24,7 +24,14 @@ class DocumentShareService {
       final pngBytes = await page.toPng();
       final decoded = img.decodeImage(pngBytes);
       if (decoded != null) {
-        jpgBytes = Uint8List.fromList(img.encodeJpg(decoded, quality: 95));
+        // Create a solid white canvas to eliminate transparency turning pitch black in JPG
+        final whiteCanvas = img.Image(
+          width: decoded.width,
+          height: decoded.height,
+        );
+        img.fill(whiteCanvas, color: img.ColorRgb8(255, 255, 255));
+        img.compositeImage(whiteCanvas, decoded);
+        jpgBytes = Uint8List.fromList(img.encodeJpg(whiteCanvas, quality: 95));
       }
       break;
     }

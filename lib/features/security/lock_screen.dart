@@ -144,9 +144,16 @@ class _NumPad extends ConsumerWidget {
               color: GrBookTheme.primary,
               onPressed: () async {
                 final service = ref.read(appLockServiceProvider);
-                if (await service.isBiometricEnabled() && await service.deviceSupportsBiometrics()) {
-                  final ok = await service.authenticateWithBiometrics();
-                  if (ok) ref.read(isLockedProvider.notifier).state = false;
+                final ok = await service.authenticateWithBiometrics();
+                if (ok) {
+                  ref.read(isLockedProvider.notifier).state = false;
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Fingerprint not verified. Please use your PIN.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
                 }
               },
             ),

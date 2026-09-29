@@ -74,7 +74,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
     _cnicController = TextEditingController(text: s?.fatherCnic ?? '');
     _bFormController = TextEditingController(text: s?.bFormNumber ?? '');
     _remarksController = TextEditingController(text: s?.cleanRemarks ?? s?.remarks ?? '');
-    _selectedGender = s?.gender ?? 'BOY';
+    _selectedGender = (s?.isFemale == true) ? 'FEMALE' : 'MALE';
     _dateOfBirth = s?.dateOfBirth;
     _dateOfAdmission = s?.dateOfAdmission ?? DateTime.now();
     _selectedClassId = s?.classId ?? widget.schoolClass?.id ?? '';
@@ -376,58 +376,84 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                     ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.assignment_ind_outlined, color: GrBookTheme.primary, size: 22),
-                            tooltip: 'Student Profile (A4 Sheet)',
-                            onPressed: () {
-                              final currentClass = widget.schoolClass ??
-                                  (classesAsync.valueOrNull?.where((c) => c.id == widget.existingStudent!.classId).firstOrNull);
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => StudentA4ProfileScreen(
-                                    student: widget.existingStudent!,
-                                    schoolClass: currentClass,
-                                    pickedStudentPhoto: _pickedFiles[PhotoType.student],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.workspace_premium_outlined, color: GrBookTheme.primary, size: 22),
-                            tooltip: 'Certificates',
-                            onPressed: () {
-                              final currentClass = widget.schoolClass ??
-                                  (classesAsync.valueOrNull?.where((c) => c.id == widget.existingStudent!.classId).firstOrNull);
-                              if (currentClass != null) {
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.assignment_ind_outlined, color: GrBookTheme.primary, size: 20),
+                              tooltip: 'Student Profile (A4 Sheet)',
+                              onPressed: () {
+                                final currentClass = widget.schoolClass ??
+                                    (classesAsync.valueOrNull?.where((c) => c.id == widget.existingStudent!.classId).firstOrNull);
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (_) => CertificateScreen(
+                                    builder: (_) => StudentA4ProfileScreen(
                                       student: widget.existingStudent!,
                                       schoolClass: currentClass,
+                                      pickedStudentPhoto: _pickedFiles[PhotoType.student],
                                     ),
                                   ),
                                 );
-                              }
-                            },
+                              },
+                            ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.rate_review_outlined, color: GrBookTheme.primary, size: 22),
-                            tooltip: 'Complaint History',
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ComplaintHistoryScreen(student: widget.existingStudent!),
-                                ),
-                              );
-                            },
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.workspace_premium_outlined, color: GrBookTheme.primary, size: 20),
+                              tooltip: 'Certificates',
+                              onPressed: () {
+                                final currentClass = widget.schoolClass ??
+                                    (classesAsync.valueOrNull?.where((c) => c.id == widget.existingStudent!.classId).firstOrNull);
+                                if (currentClass != null) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => CertificateScreen(
+                                        student: widget.existingStudent!,
+                                        schoolClass: currentClass,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
                           ),
-                          IconButton(
-                            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade600, size: 22),
-                            tooltip: 'Delete Student',
-                            onPressed: () async {
-                              final s = widget.existingStudent!;
-                              final confirm = await showDialog<bool>(
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.rate_review_outlined, color: GrBookTheme.primary, size: 20),
+                              tooltip: 'Complaint History',
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ComplaintHistoryScreen(student: widget.existingStudent!),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                              icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade600, size: 20),
+                              tooltip: 'Delete Student',
+                              onPressed: () async {
+                                final s = widget.existingStudent!;
+                                final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (dCtx) => AlertDialog(
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -482,8 +508,9 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                               }
                             },
                           ),
-                        ],
-                      )
+                        ),
+                      ],
+                    )
                     : null,
               ),
 
@@ -772,86 +799,109 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // 10. Gender Section (BOY / GIRL)
+                          // 10. Gender Section (Matching reference image: Female / Male radio buttons)
                           _ProfileFieldCard(
                             icon: Icons.wc_rounded,
                             label: 'Gender',
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(10),
-                                    onTap: () => setState(() => _selectedGender = 'BOY'),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 9),
-                                      decoration: BoxDecoration(
-                                        color: _selectedGender == 'BOY' ? const Color(0xFFDCF2E4) : const Color(0xFFF8FAFC),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: _selectedGender == 'BOY' ? GrBookTheme.primary : const Color(0xFFCBD5E1),
-                                          width: _selectedGender == 'BOY' ? 1.8 : 1,
-                                        ),
-                                      ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  // Female
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () => setState(() => _selectedGender = 'FEMALE'),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(
-                                            Icons.male_rounded,
-                                            size: 20,
-                                            color: _selectedGender == 'BOY' ? GrBookTheme.primaryDark : const Color(0xFF94A3B8),
+                                          Container(
+                                            width: 22,
+                                            height: 22,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: (_selectedGender == 'FEMALE' || _selectedGender == 'GIRL')
+                                                    ? const Color(0xFF2E7D32)
+                                                    : const Color(0xFF9E9E9E),
+                                                width: 2,
+                                              ),
+                                            ),
+                                            padding: const EdgeInsets.all(3.5),
+                                            child: (_selectedGender == 'FEMALE' || _selectedGender == 'GIRL')
+                                                ? Container(
+                                                    decoration: const BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: Color(0xFF4CAF50),
+                                                    ),
+                                                  )
+                                                : null,
                                           ),
-                                          const SizedBox(width: 6),
+                                          const SizedBox(width: 8),
                                           Text(
-                                            'BOY (Son of)',
+                                            'Female',
                                             style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: _selectedGender == 'BOY' ? GrBookTheme.primaryDark : const Color(0xFF64748B),
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: (_selectedGender == 'FEMALE' || _selectedGender == 'GIRL')
+                                                  ? Colors.black87
+                                                  : const Color(0xFF616161),
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(10),
-                                    onTap: () => setState(() => _selectedGender = 'GIRL'),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 9),
-                                      decoration: BoxDecoration(
-                                        color: _selectedGender == 'GIRL' ? const Color(0xFFFCE4EC) : const Color(0xFFF8FAFC),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: _selectedGender == 'GIRL' ? const Color(0xFFD81B60) : const Color(0xFFCBD5E1),
-                                          width: _selectedGender == 'GIRL' ? 1.8 : 1,
-                                        ),
-                                      ),
+                                  const SizedBox(width: 32),
+                                  // Male
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () => setState(() => _selectedGender = 'MALE'),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(
-                                            Icons.female_rounded,
-                                            size: 20,
-                                            color: _selectedGender == 'GIRL' ? const Color(0xFFD81B60) : const Color(0xFF94A3B8),
+                                          Container(
+                                            width: 22,
+                                            height: 22,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: (_selectedGender == 'MALE' || _selectedGender == 'BOY')
+                                                    ? const Color(0xFF2E7D32)
+                                                    : const Color(0xFF9E9E9E),
+                                                width: 2,
+                                              ),
+                                            ),
+                                            padding: const EdgeInsets.all(3.5),
+                                            child: (_selectedGender == 'MALE' || _selectedGender == 'BOY')
+                                                ? Container(
+                                                    decoration: const BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: Color(0xFF4CAF50),
+                                                    ),
+                                                  )
+                                                : null,
                                           ),
-                                          const SizedBox(width: 6),
+                                          const SizedBox(width: 8),
                                           Text(
-                                            'GIRL (Daughter of)',
+                                            'Male',
                                             style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: _selectedGender == 'GIRL' ? const Color(0xFFAD1457) : const Color(0xFF64748B),
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: (_selectedGender == 'MALE' || _selectedGender == 'BOY')
+                                                  ? Colors.black87
+                                                  : const Color(0xFF616161),
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                           const SizedBox(height: 10),

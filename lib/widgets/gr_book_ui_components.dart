@@ -42,41 +42,43 @@ class GrBookTopBar extends StatelessWidget implements PreferredSizeWidget {
             else
               const SizedBox(width: 40),
 
-            // Center branding: Book logo + "G.R. Book"
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: Image.asset(
-                      'assets/images/book_logo.png',
-                      height: 24,
-                      width: 24,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.menu_book_rounded,
-                        color: GrBookTheme.primary,
-                        size: 24,
-                      ),
+            const SizedBox(width: 10),
+
+            // Left branding: Book logo + "G.R. Book"
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset(
+                    'assets/images/book_logo.png',
+                    height: 24,
+                    width: 24,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.menu_book_rounded,
+                      color: GrBookTheme.primary,
+                      size: 24,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'G.R. Book',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: GrBookTheme.primaryDark,
-                      letterSpacing: -0.3,
-                    ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'G.R. Book',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: GrBookTheme.primaryDark,
+                    letterSpacing: -0.3,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
 
-            // Right trailing action or spacer
-            if (trailing != null) trailing! else const SizedBox(width: 40),
+            const Spacer(),
+
+            // Right trailing action
+            if (trailing != null) trailing!,
           ],
         ),
       ),
