@@ -11,6 +11,7 @@ import '../../models/school.dart';
 import '../../models/student.dart';
 import '../../providers/photo_providers.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/sync_providers.dart';
 import '../../repositories/student_photo_repository.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import '../../widgets/sync_status_banner.dart';
@@ -226,6 +227,9 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
           rawFile: entry.value,
         );
       }
+
+      // Auto-sync changes immediately to cloud in background
+      triggerSync(ref);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -32,8 +32,9 @@ class SyncCoordinator extends ConsumerStatefulWidget {
 
 class _SyncCoordinatorState extends ConsumerState<SyncCoordinator> {
   StreamSubscription<bool>? _connectivitySub;
+  ProviderSubscription<AsyncValue<int>>? _pendingSyncSub;
   Timer? _periodicTimer;
-  bool _wasOnline = true;
+  Timer? _autoSyncDebounce;
 
   @override
   void initState() {
@@ -47,15 +48,34 @@ class _SyncCoordinatorState extends ConsumerState<SyncCoordinator> {
       await _maybeRunAutoBackup();
     });
 
-    _connectivitySub = ref.read(connectivityServiceProvider).onStatusChange.listen((online) {
-      if (online && !_wasOnline) {
-        triggerSync(ref);
+    // Auto-sync immediately whenever local database has pending changes
+    _pendingSyncSub = ref.listenManual(pendingSyncCountProvider, (previous, next) {
+      final count = next.valueOrNull ?? 0;
+      if (count > 0) {
+        _triggerAutoSyncDebounced();
       }
-      _wasOnline = online;
     });
 
-    _periodicTimer = Timer.periodic(const Duration(minutes: 3), (_) {
-      triggerSync(ref);
+    // Auto-sync whenever device reconnects to internet
+    _connectivitySub = ref.read(connectivityServiceProvider).onStatusChange.listen((online) {
+      if (online) {
+        _triggerAutoSyncDebounced();
+      }
+    });
+
+    // Periodic safety check every 1 minute
+    _periodicTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _triggerAutoSyncDebounced();
+    });
+  }
+
+  void _triggerAutoSyncDebounced() {
+    _autoSyncDebounce?.cancel();
+    _autoSyncDebounce = Timer(const Duration(milliseconds: 500), () async {
+      final isOnline = await ref.read(connectivityServiceProvider).isOnline();
+      if (isOnline) {
+        await triggerSync(ref);
+      }
     });
   }
 
@@ -93,8 +113,10 @@ class _SyncCoordinatorState extends ConsumerState<SyncCoordinator> {
 
   @override
   void dispose() {
+    _pendingSyncSub?.close();
     _connectivitySub?.cancel();
     _periodicTimer?.cancel();
+    _autoSyncDebounce?.cancel();
     super.dispose();
   }
 
