@@ -11,6 +11,7 @@ import '../core/age_calculator.dart';
 import '../models/enums.dart';
 import '../models/school.dart';
 import '../models/student.dart';
+import 'signature_processing_service.dart';
 
 enum CertificateType { schoolLeaving, character, birth }
 
@@ -229,7 +230,8 @@ class PdfExportService {
       if (await sigFile.exists()) {
         final bytes = await sigFile.readAsBytes();
         if (bytes.isNotEmpty) {
-          return pw.MemoryImage(bytes);
+          final cleanBytes = await SignatureProcessingService.ensureTransparentBackground(bytes);
+          return pw.MemoryImage(cleanBytes);
         }
       }
     } catch (_) {}

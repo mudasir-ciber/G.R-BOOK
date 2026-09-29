@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/theme.dart';
+import '../../services/signature_processing_service.dart';
 import '../../widgets/full_screen_image_viewer.dart';
 import '../auth/auth_providers.dart';
 import '../auth/auth_service.dart';
@@ -43,6 +44,12 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
       final docDir = await getApplicationDocumentsDirectory();
       final pFile = File('${docDir.path}/principal_profile.png');
       final sFile = File('${docDir.path}/principal_signature.png');
+      if (sFile.existsSync()) {
+        // Auto-remove paper background if needed
+        SignatureProcessingService.processSignatureFile(sFile).then((_) {
+          if (mounted) setState(() {});
+        });
+      }
       setState(() {
         if (pFile.existsSync()) _profilePhotoFile = pFile;
         if (sFile.existsSync()) _signatureFile = sFile;
@@ -73,13 +80,16 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
     if (file != null) {
       final docDir = await getApplicationDocumentsDirectory();
       final target = File('${docDir.path}/principal_signature.png');
-      await file.copy(target.path);
+      // Automatically remove background and convert to transparent PNG
+      await SignatureProcessingService.processSignatureFile(file, outputFile: target);
+      imageCache.clear();
+      imageCache.clearLiveImages();
       setState(() => _signatureFile = target);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: Color(0xFF0F9D58),
-            content: Text('Principal signature saved. It will now appear on all certificates!'),
+            content: Text('✓ Signature background removed! Saved as transparent PNG.'),
           ),
         );
       }
@@ -336,23 +346,55 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                             onImageChanged: (newFile) async {
                               final docDir = await getApplicationDocumentsDirectory();
                               final target = File('${docDir.path}/principal_signature.png');
-                              await newFile.copy(target.path);
+                              await SignatureProcessingService.processSignatureFile(newFile, outputFile: target);
+                              imageCache.clear();
+                              imageCache.clearLiveImages();
                               setState(() => _signatureFile = target);
                             },
                             aspectRatio: 2.5,
                           );
                         },
-                        child: Container(
-                          width: double.infinity,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: GrBookTheme.primary, width: 1.5),
-                          ),
-                          alignment: Alignment.center,
-                          padding: const EdgeInsets.all(8),
-                          child: Image.file(_signatureFile!, fit: BoxFit.contain),
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: GrBookTheme.primary, width: 1.5),
+                              ),
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.all(12),
+                              child: Image.file(
+                                _signatureFile!,
+                                key: ValueKey('${_signatureFile!.path}_${_signatureFile!.existsSync() ? _signatureFile!.lastModifiedSync().millisecondsSinceEpoch : 0}'),
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F9D58),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle_rounded, color: Colors.white, size: 12),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Transparent PNG',
+                                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 10),
