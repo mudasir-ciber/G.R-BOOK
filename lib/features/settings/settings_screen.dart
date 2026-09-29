@@ -254,7 +254,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     _buildTile(
                       icon: Icons.info_outline_rounded,
-                      title: 'About G.R. Book',
+                      title: 'About G.R BOOK',
                       subtitle: 'App version, help and support',
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const AboutScreen()),

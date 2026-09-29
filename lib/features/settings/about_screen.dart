@@ -11,23 +11,36 @@ class AboutScreen extends StatelessWidget {
   static const String creatorFormattedPhone = '+92 336 8456907';
 
   Future<void> _openWhatsApp(BuildContext context) async {
-    final uri = Uri.parse('https://wa.me/$creatorWhatsApp?text=Assalam-o-Alaikum%20Mudasir%20Bhai,%20G.R.%20Book%20App%20ke%20hawale%20se%20rabta%20kiya%20hai.');
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open WhatsApp. Number: $creatorFormattedPhone')),
-          );
+    final message = Uri.encodeComponent('Assalam-o-Alaikum Mudasir Bhai, G.R BOOK App ke hawale se rabta kiya hai.');
+    final uris = [
+      Uri.parse('whatsapp://send?phone=$creatorWhatsApp&text=$message'),
+      Uri.parse('https://api.whatsapp.com/send?phone=$creatorWhatsApp&text=$message'),
+      Uri.parse('https://wa.me/$creatorWhatsApp?text=$message'),
+    ];
+
+    bool launched = false;
+    for (final uri in uris) {
+      try {
+        if (await canLaunchUrl(uri)) {
+          launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+          if (launched) break;
         }
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('WhatsApp: $creatorFormattedPhone')),
+      } catch (_) {}
+    }
+
+    if (!launched) {
+      try {
+        launched = await launchUrl(
+          Uri.parse('https://wa.me/$creatorWhatsApp?text=$message'),
+          mode: LaunchMode.externalApplication,
         );
-      }
+      } catch (_) {}
+    }
+
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('WhatsApp: $creatorFormattedPhone')),
+      );
     }
   }
 
@@ -57,7 +70,7 @@ class AboutScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: GrBookTheme.background,
       appBar: AppBar(
-        title: const Text('About G.R. Book'),
+        title: const Text('About G.R BOOK'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -72,30 +85,31 @@ class AboutScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 86,
+                      height: 86,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [GrBookTheme.primary, GrBookTheme.primaryDark],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: GrBookTheme.primary.withValues(alpha: 0.3),
+                            color: GrBookTheme.primary.withValues(alpha: 0.25),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Icon(Icons.menu_book_rounded, size: 44, color: Colors.white),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.asset(
+                        'assets/images/app_logo.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.menu_book_rounded, size: 44, color: GrBookTheme.primary),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'G.R. Book',
+                      'G.R BOOK',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -193,25 +207,29 @@ class AboutScreen extends StatelessWidget {
                         alignment: Alignment.bottomRight,
                         children: [
                           Container(
-                            width: 76,
-                            height: 76,
+                            width: 84,
+                            height: 84,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFD4AF37), Color(0xFFFFE57F)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                              border: Border.all(color: const Color(0xFFFFD700), width: 2.5),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  blurRadius: 8,
+                                  color: Colors.black.withValues(alpha: 0.35),
+                                  blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: const Center(
-                              child: Icon(Icons.person_rounded, size: 48, color: Color(0xFF0F5132)),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.asset(
+                              'assets/images/creator_face.png',
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFF0F5132),
+                                child: const Center(
+                                  child: Icon(Icons.person_rounded, size: 48, color: Color(0xFFFFD700)),
+                                ),
+                              ),
                             ),
                           ),
                           Container(
@@ -255,7 +273,7 @@ class AboutScreen extends StatelessWidget {
                           border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                         ),
                         child: const Text(
-                          'A passionate innovator and visionary in educational software. Mudasir Ahmed Ghanghro has masterminded and crafted G.R. Book to eliminate manual register paperwork and bring complete digital empowerment to schools. With a steadfast commitment to offline-first speed, biometric privacy, and flawless register tracking, his vision sets the benchmark for modern school management applications in Pakistan.',
+                          'A passionate innovator and visionary in educational software. Mudasir Ahmed Ghanghro has masterminded and crafted G.R BOOK to eliminate manual register paperwork and bring complete digital empowerment to schools. With a steadfast commitment to offline-first speed, biometric privacy, and flawless register tracking, his vision sets the benchmark for modern school management applications in Pakistan.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12.5,
@@ -359,7 +377,7 @@ class AboutScreen extends StatelessWidget {
               const SizedBox(height: 24),
               Center(
                 child: Text(
-                  '© ${DateTime.now().year} G.R. Book. All rights reserved.\nCrafted with pride by Mudasir Ahmed Ghanghro.',
+                  '© ${DateTime.now().year} G.R BOOK. All rights reserved.\nCrafted with pride by Mudasir Ahmed Ghanghro.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.4),
                 ),

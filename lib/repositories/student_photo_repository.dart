@@ -8,6 +8,7 @@ import '../database/app_database.dart';
 import '../models/enums.dart';
 import '../services/connectivity_service.dart';
 import '../services/image_compression_service.dart';
+import '../services/offline_storage_service.dart';
 import '../services/photo_storage_service.dart';
 
 class StudentPhoto {
@@ -139,6 +140,9 @@ class StudentPhotoRepository {
             syncState: const drift.Value('synced'),
           ),
         );
+        try {
+          OfflineStorageService(_db).exportCurrentStateToStorage();
+        } catch (_) {}
         return;
       } catch (_) {
         // Fall through to queueing — network dropped mid-upload.
@@ -161,6 +165,9 @@ class StudentPhotoRepository {
             }),
           ),
         );
+    try {
+      OfflineStorageService(_db).exportCurrentStateToStorage();
+    } catch (_) {}
   }
 
   StudentPhoto _fromRow(StudentPhotosTableData row) => StudentPhoto(

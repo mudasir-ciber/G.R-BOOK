@@ -288,7 +288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'G.R. Book',
+                              'G.R BOOK',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,

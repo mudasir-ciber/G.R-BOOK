@@ -49,22 +49,22 @@ class GrBookTopBar extends StatelessWidget implements PreferredSizeWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                   child: Image.asset(
-                    'assets/images/book_logo.png',
-                    height: 24,
-                    width: 24,
+                    'assets/images/app_logo.png',
+                    height: 28,
+                    width: 28,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => const Icon(
                       Icons.menu_book_rounded,
                       color: GrBookTheme.primary,
-                      size: 24,
+                      size: 28,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  'G.R. Book',
+                  'G.R BOOK',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,

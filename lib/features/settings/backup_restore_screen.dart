@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme.dart';
 import '../../providers/backup_providers.dart';
@@ -88,6 +91,31 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       if (mounted) {
         setState(() => _error = 'Local export failed: $e');
       }
+    } finally {
+      if (mounted) setState(() => _isExportingLocal = false);
+    }
+  }
+
+  Future<void> _shareBackupFile() async {
+    setState(() {
+      _isExportingLocal = true;
+      _error = null;
+    });
+    try {
+      final storageService = ref.read(offlineStorageServiceProvider);
+      final dirPath = await storageService.exportCurrentStateToStorage();
+      final backupFile = File('$dirPath/gr_book_complete_backup.json');
+      if (await backupFile.exists()) {
+        await Share.shareXFiles(
+          [XFile(backupFile.path, mimeType: 'application/json')],
+          text: 'G.R BOOK Complete School Records Backup',
+          subject: 'G.R BOOK School Backup File',
+        );
+      } else {
+        throw Exception('Backup file could not be generated.');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Share/Save failed: $e');
     } finally {
       if (mounted) setState(() => _isExportingLocal = false);
     }
@@ -228,35 +256,47 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                       style: TextStyle(fontSize: 13, color: GrBookTheme.textSecondary, height: 1.4),
                     ),
                     const SizedBox(height: 16),
-                    Row(
+                    Column(
                       children: [
-                        Expanded(
+                        SizedBox(
+                          width: double.infinity,
                           child: FilledButton.icon(
                             style: FilledButton.styleFrom(
                               backgroundColor: GrBookTheme.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 0,
                             ),
                             onPressed: _isExportingLocal ? null : _backupToLocalStorageNow,
                             icon: _isExportingLocal
-                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Icon(Icons.download_rounded, size: 18),
-                            label: const Text('Backup to Phone', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Icon(Icons.save_alt_rounded, size: 20),
+                            label: const Text(
+                              'Save Backup to Phone Now',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: GrBookTheme.primary),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              foregroundColor: GrBookTheme.primary,
+                              side: const BorderSide(color: GrBookTheme.primary, width: 1.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              backgroundColor: GrBookTheme.primaryLight.withValues(alpha: 0.35),
                             ),
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute(builder: (_) => const AddDataStorageScreen()),
                             ),
-                            icon: const Icon(Icons.drive_folder_upload_rounded, color: GrBookTheme.primary, size: 18),
-                            label: const Text('Add Data / Restore', style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.primary)),
+                            icon: const Icon(Icons.drive_folder_upload_rounded, color: GrBookTheme.primary, size: 20),
+                            label: const Text(
+                              'Add Data / Restore from Storage',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
                           ),
                         ),
                       ],
@@ -296,7 +336,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.textPrimary),
                               ),
                               Text(
-                                'Requires Google account authorization',
+                                'Cloud sync & one-tap Drive sharing',
                                 style: TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
                               ),
                             ],
@@ -304,25 +344,52 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
+
+                    // Universal One-Tap Share to Drive / Apps
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1967D2),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                        ),
+                        onPressed: _isExportingLocal ? null : _shareBackupFile,
+                        icon: const Icon(Icons.drive_file_move_rounded, size: 20),
+                        label: const Text(
+                          'Save to Google Drive & Share',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '⚡ Instantly upload backup to Google Drive or send via WhatsApp/Gmail using your phone\'s native sharing (No Error 403 access restrictions).',
+                      style: TextStyle(fontSize: 11.5, color: Colors.black54, height: 1.35),
+                    ),
+
+                    const Divider(height: 28),
 
                     if (!_isSignedIn) ...[
                       const Text(
-                        'Note: If Google displays "Error 403: access_denied", Google Cloud requires adding your Gmail to the developer\'s Test Users list. You can use Phone Storage Backup above with no restrictions.',
+                        'Direct Cloud API Sign-in:\nNote: If Google displays "Error 403: access_denied", Google Cloud Console requires registering your Gmail as a developer Test User. You can use "Save to Google Drive & Share" above without any restrictions.',
                         style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.4),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0xFF1967D2)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.symmetric(vertical: 13),
                           ),
                           onPressed: _signIn,
                           icon: const Icon(Icons.login_rounded, color: Color(0xFF1967D2)),
-                          label: const Text('Sign in with Google Drive', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1967D2))),
+                          label: const Text('Direct Sign in with Google Drive', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1967D2))),
                         ),
                       ),
                     ] else ...[

@@ -188,7 +188,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Icon(Icons.menu_book_rounded, size: 54, color: GrBookTheme.primary),
                         SizedBox(height: 8),
                         Text(
-                          'G.R. Book',
+                          'G.R BOOK',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,

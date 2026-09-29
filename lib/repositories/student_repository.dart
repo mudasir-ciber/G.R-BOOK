@@ -215,6 +215,9 @@ class StudentRepository {
       final pushed = await _tryPushCreate(student);
       if (pushed) {
         await _markSynced(id);
+        try {
+          OfflineStorageService(_db).exportCurrentStateToStorage();
+        } catch (_) {}
         return (await getById(id))!;
       }
     }
@@ -275,6 +278,9 @@ class StudentRepository {
 
         if ((rows as List).isNotEmpty) {
           await _markSynced(next.id);
+          try {
+            OfflineStorageService(_db).exportCurrentStateToStorage();
+          } catch (_) {}
           return (await getById(next.id))!;
         } else {
           // Version conflict: another device/session updated this

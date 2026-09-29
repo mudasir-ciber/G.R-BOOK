@@ -64,7 +64,7 @@ class AppLockService {
   Future<bool> authenticateWithBiometrics() async {
     try {
       return await _localAuth.authenticate(
-        localizedReason: 'Scan fingerprint to unlock G.R. Book',
+        localizedReason: 'Scan fingerprint to unlock G.R BOOK',
         options: const AuthenticationOptions(
           biometricOnly: false,
           stickyAuth: true,

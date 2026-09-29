@@ -107,7 +107,7 @@ class GoogleDriveBackupService {
     final fileName = '$_fileNamePrefix${schoolId}_${DateTime.now().millisecondsSinceEpoch}.json.gz';
     final driveFile = drive.File()
       ..name = fileName
-      ..description = 'G.R. Book backup — school, students, promotion/pass-out/struck-off history, audit log.';
+      ..description = 'G.R BOOK backup — school, students, promotion/pass-out/struck-off history, audit log.';
     final media = drive.Media(Stream.value(compressed), compressed.length);
 
     final created = await api.files.create(driveFile, uploadMedia: media);

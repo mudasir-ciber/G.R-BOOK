@@ -136,7 +136,7 @@ class OfflineStorageService {
       // 1. Write full complete backup JSON (for one-tap restore)
       final fullPayload = {
         'backup_version': 2,
-        'app_name': 'G.R. Book',
+        'app_name': 'G.R BOOK',
         'creator': 'Mudasir Ahmed Ghanghro',
         'generated_at': DateTime.now().toIso8601String(),
         'school_id': schoolId,
@@ -250,6 +250,29 @@ class OfflineStorageService {
       final jsonStr = await targetBackupFile.readAsString();
       final payload = jsonDecode(jsonStr) as Map<String, dynamic>;
 
+  int? _parseInt(dynamic val) {
+    if (val == null) return null;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val);
+    return null;
+  }
+
+  bool _parseBool(dynamic val, {bool fallback = false}) {
+    if (val == null) return fallback;
+    if (val is bool) return val;
+    if (val is num) return val != 0;
+    if (val is String) return val.toLowerCase() == 'true' || val == '1';
+    return fallback;
+  }
+
+  DateTime? _parseDateTime(dynamic val) {
+    if (val == null) return null;
+    if (val is DateTime) return val;
+    if (val is String) return DateTime.tryParse(val);
+    return null;
+  }
+
       // 1. Restore School
       final schoolMap = payload['school'] as Map<String, dynamic>?;
       if (schoolMap == null) {
@@ -263,18 +286,18 @@ class OfflineStorageService {
         );
       }
 
-      final schoolName = schoolMap['schoolName'] as String? ?? 'Restored School';
+      final schoolName = schoolMap['schoolName']?.toString() ?? 'Restored School';
       await _db.into(_db.schoolsTable).insertOnConflictUpdate(
             SchoolsTableCompanion.insert(
-              id: schoolMap['id'] as String,
+              id: schoolMap['id'].toString(),
               schoolName: schoolName,
-              semisCode: drift.Value(schoolMap['semisCode'] as String?),
-              uc: drift.Value(schoolMap['uc'] as String?),
-              taluka: drift.Value(schoolMap['taluka'] as String?),
-              district: drift.Value(schoolMap['district'] as String?),
-              createdBy: schoolMap['createdBy'] as String? ?? 'local_admin',
-              createdAt: schoolMap['createdAt'] != null ? DateTime.parse(schoolMap['createdAt'] as String) : DateTime.now(),
-              updatedAt: schoolMap['updatedAt'] != null ? DateTime.parse(schoolMap['updatedAt'] as String) : DateTime.now(),
+              semisCode: drift.Value(schoolMap['semisCode']?.toString()),
+              uc: drift.Value(schoolMap['uc']?.toString()),
+              taluka: drift.Value(schoolMap['taluka']?.toString()),
+              district: drift.Value(schoolMap['district']?.toString()),
+              createdBy: schoolMap['createdBy']?.toString() ?? 'local_admin',
+              createdAt: _parseDateTime(schoolMap['createdAt']) ?? DateTime.now(),
+              updatedAt: _parseDateTime(schoolMap['updatedAt']) ?? DateTime.now(),
             ),
           );
 
@@ -284,16 +307,16 @@ class OfflineStorageService {
         final c = item as Map<String, dynamic>;
         await _db.into(_db.classesTable).insertOnConflictUpdate(
               ClassesTableCompanion.insert(
-                id: c['id'] as String,
-                schoolId: c['schoolId'] as String,
-                classCode: c['classCode'] as String,
-                displayName: c['displayName'] as String,
-                sortOrder: drift.Value(c['sortOrder'] as int? ?? 0),
-                minAdmissionAgeMonths: drift.Value(c['minAdmissionAgeMonths'] as int?),
-                minPromotionAgeMonths: drift.Value(c['minPromotionAgeMonths'] as int?),
-                promotesToClassId: drift.Value(c['promotesToClassId'] as String?),
-                isTerminal: drift.Value(c['isTerminal'] as bool? ?? false),
-                isActive: drift.Value(c['isActive'] as bool? ?? true),
+                id: c['id'].toString(),
+                schoolId: c['schoolId'].toString(),
+                classCode: c['classCode'].toString(),
+                displayName: c['displayName'].toString(),
+                sortOrder: drift.Value(_parseInt(c['sortOrder']) ?? 0),
+                minAdmissionAgeMonths: drift.Value(_parseInt(c['minAdmissionAgeMonths'])),
+                minPromotionAgeMonths: drift.Value(_parseInt(c['minPromotionAgeMonths'])),
+                promotesToClassId: drift.Value(c['promotesToClassId']?.toString()),
+                isTerminal: drift.Value(_parseBool(c['isTerminal'], fallback: false)),
+                isActive: drift.Value(_parseBool(c['isActive'], fallback: true)),
               ),
             );
       }
@@ -304,34 +327,34 @@ class OfflineStorageService {
         final s = item as Map<String, dynamic>;
         await _db.into(_db.studentsTable).insertOnConflictUpdate(
               StudentsTableCompanion.insert(
-                id: s['id'] as String,
-                clientGeneratedId: s['clientGeneratedId'] as String? ?? s['id'] as String,
-                schoolId: s['schoolId'] as String,
-                classId: s['classId'] as String,
-                grNumber: s['grNumber'] as String,
-                serialNumber: drift.Value(s['serialNumber'] as int?),
-                studentName: s['studentName'] as String,
-                fatherName: drift.Value(s['fatherName'] as String?),
-                motherName: drift.Value(s['motherName'] as String?),
-                dateOfBirth: DateTime.parse(s['dateOfBirth'] as String),
-                dateOfAdmission: DateTime.parse(s['dateOfAdmission'] as String),
-                fatherCnic: drift.Value(s['fatherCnic'] as String?),
-                bFormNumber: drift.Value(s['bFormNumber'] as String?),
-                phoneNumber: drift.Value(s['phoneNumber'] as String?),
-                address: drift.Value(s['address'] as String?),
-                previousSchool: drift.Value(s['previousSchool'] as String?),
-                remarks: drift.Value(s['remarks'] as String?),
-                status: drift.Value(s['status'] as String? ?? 'ACTIVE'),
-                promotionStatus: drift.Value(s['promotionStatus'] as String? ?? 'NONE'),
-                struckOffDate: drift.Value(s['struckOffDate'] != null ? DateTime.parse(s['struckOffDate'] as String) : null),
-                struckOffReason: drift.Value(s['struckOffReason'] as String?),
-                passOutYear: drift.Value(s['passOutYear'] as int?),
-                version: drift.Value(s['version'] as int? ?? 1),
-                updatedAt: DateTime.parse(s['updatedAt'] as String),
-                createdAt: DateTime.parse(s['createdAt'] as String),
-                createdBy: drift.Value(s['createdBy'] as String?),
-                updatedBy: drift.Value(s['updatedBy'] as String?),
-                isDeleted: drift.Value(s['isDeleted'] as bool? ?? false),
+                id: s['id'].toString(),
+                clientGeneratedId: (s['clientGeneratedId'] ?? s['id']).toString(),
+                schoolId: s['schoolId'].toString(),
+                classId: s['classId'].toString(),
+                grNumber: s['grNumber'].toString(),
+                serialNumber: drift.Value(_parseInt(s['serialNumber'])),
+                studentName: s['studentName'].toString(),
+                fatherName: drift.Value(s['fatherName']?.toString()),
+                motherName: drift.Value(s['motherName']?.toString()),
+                dateOfBirth: _parseDateTime(s['dateOfBirth']) ?? DateTime.now(),
+                dateOfAdmission: _parseDateTime(s['dateOfAdmission']) ?? DateTime.now(),
+                fatherCnic: drift.Value(s['fatherCnic']?.toString()),
+                bFormNumber: drift.Value(s['bFormNumber']?.toString()),
+                phoneNumber: drift.Value(s['phoneNumber']?.toString()),
+                address: drift.Value(s['address']?.toString()),
+                previousSchool: drift.Value(s['previousSchool']?.toString()),
+                remarks: drift.Value(s['remarks']?.toString()),
+                status: drift.Value(s['status']?.toString() ?? 'ACTIVE'),
+                promotionStatus: drift.Value(s['promotionStatus']?.toString() ?? 'NONE'),
+                struckOffDate: drift.Value(_parseDateTime(s['struckOffDate'])),
+                struckOffReason: drift.Value(s['struckOffReason']?.toString()),
+                passOutYear: drift.Value(_parseInt(s['passOutYear'])),
+                version: drift.Value(_parseInt(s['version']) ?? 1),
+                updatedAt: _parseDateTime(s['updatedAt']) ?? DateTime.now(),
+                createdAt: _parseDateTime(s['createdAt']) ?? DateTime.now(),
+                createdBy: drift.Value(s['createdBy']?.toString()),
+                updatedBy: drift.Value(s['updatedBy']?.toString()),
+                isDeleted: drift.Value(_parseBool(s['isDeleted'], fallback: false)),
                 syncState: const drift.Value('synced'),
               ),
             );
@@ -344,7 +367,7 @@ class OfflineStorageService {
 
       for (final item in photoList) {
         final pItem = item as Map<String, dynamic>;
-        String? resolvedLocalPath = pItem['localPath'] as String?;
+        String? resolvedLocalPath = pItem['localPath']?.toString();
 
         // If localPath doesn't exist anymore (e.g. after uninstall), resolve from GR_BOOK/photos
         if (resolvedLocalPath == null || !File(resolvedLocalPath).existsSync()) {
@@ -359,14 +382,14 @@ class OfflineStorageService {
 
         await _db.into(_db.studentPhotosTable).insertOnConflictUpdate(
               StudentPhotosTableCompanion.insert(
-                id: pItem['id'] as String,
-                studentId: pItem['studentId'] as String,
-                photoType: pItem['photoType'] as String,
+                id: pItem['id'].toString(),
+                studentId: pItem['studentId'].toString(),
+                photoType: pItem['photoType'].toString(),
                 localPath: drift.Value(resolvedLocalPath),
-                remoteStoragePath: drift.Value(pItem['remoteStoragePath'] as String?),
-                version: drift.Value(pItem['version'] as int? ?? 1),
+                remoteStoragePath: drift.Value(pItem['remoteStoragePath']?.toString()),
+                version: drift.Value(_parseInt(pItem['version']) ?? 1),
                 syncState: const drift.Value('synced'),
-                createdAt: drift.Value(pItem['createdAt'] != null ? DateTime.parse(pItem['createdAt'] as String) : DateTime.now()),
+                createdAt: drift.Value(_parseDateTime(pItem['createdAt']) ?? DateTime.now()),
               ),
             );
         if (resolvedLocalPath != null && File(resolvedLocalPath).existsSync()) {
@@ -378,12 +401,13 @@ class OfflineStorageService {
       final passOutYears = (payload['pass_out_years'] as List?) ?? [];
       for (final item in passOutYears) {
         final y = item as Map<String, dynamic>;
+        final yVal = _parseInt(y['year']) ?? DateTime.now().year;
         await _db.into(_db.passOutYearsTable).insertOnConflictUpdate(
               PassOutYearsTableCompanion.insert(
-                id: y['id'] as String,
-                schoolId: y['schoolId'] as String,
-                year: y['year'] as int,
-                createdAt: drift.Value(y['createdAt'] != null ? DateTime.parse(y['createdAt'] as String) : DateTime.now()),
+                id: y['id'].toString(),
+                schoolId: y['schoolId'].toString(),
+                year: yVal,
+                createdAt: drift.Value(_parseDateTime(y['createdAt']) ?? DateTime.now()),
                 syncState: const drift.Value('synced'),
               ),
             );
@@ -395,16 +419,16 @@ class OfflineStorageService {
         final so = item as Map<String, dynamic>;
         await _db.into(_db.struckOffRecordsTable).insertOnConflictUpdate(
               StruckOffRecordsTableCompanion.insert(
-                id: so['id'] as String,
-                schoolId: so['schoolId'] as String,
-                studentId: so['studentId'] as String,
-                struckOffDate: DateTime.parse(so['struckOffDate'] as String),
-                reason: so['reason'] as String,
-                reAdmitted: drift.Value(so['reAdmitted'] as bool? ?? false),
-                reAdmittedDate: drift.Value(so['reAdmittedDate'] != null ? DateTime.parse(so['reAdmittedDate'] as String) : null),
-                reAdmittedBy: drift.Value(so['reAdmittedBy'] as String?),
-                createdBy: drift.Value(so['createdBy'] as String?),
-                createdAt: drift.Value(so['createdAt'] != null ? DateTime.parse(so['createdAt'] as String) : DateTime.now()),
+                id: so['id'].toString(),
+                schoolId: so['schoolId'].toString(),
+                studentId: so['studentId'].toString(),
+                struckOffDate: _parseDateTime(so['struckOffDate']) ?? DateTime.now(),
+                reason: so['reason']?.toString() ?? 'Struck Off',
+                reAdmitted: drift.Value(_parseBool(so['reAdmitted'], fallback: false)),
+                reAdmittedDate: drift.Value(_parseDateTime(so['reAdmittedDate'])),
+                reAdmittedBy: drift.Value(so['reAdmittedBy']?.toString()),
+                createdBy: drift.Value(so['createdBy']?.toString()),
+                createdAt: drift.Value(_parseDateTime(so['createdAt']) ?? DateTime.now()),
                 syncState: const drift.Value('synced'),
               ),
             );
