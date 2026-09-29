@@ -41,6 +41,7 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
+      ref.read(appUnlockedProvider.notifier).state = false;
       await ref.read(authServiceProvider).logout();
       if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(

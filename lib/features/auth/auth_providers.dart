@@ -31,3 +31,9 @@ final currentUserProvider = Provider<User?>((ref) {
   final authState = ref.watch(authStateChangesProvider).valueOrNull;
   return authState?.session?.user ?? ref.watch(authServiceProvider).currentUser;
 });
+
+/// Tracks whether the user has authenticated in the current session.
+/// Resets to false whenever the app process starts, ensuring the user must enter
+/// their credentials every time the app is reopened to protect student records.
+final appUnlockedProvider = StateProvider<bool>((ref) => false);
+

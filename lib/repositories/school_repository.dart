@@ -207,6 +207,7 @@ class SchoolRepository {
         'min_promotion_age_months': code == 'ECE' ? 61 : null,
         'promotes_to_class_id': null,
         'is_terminal': c['terminal'] ?? false,
+        'is_active': true,
       };
     }).toList();
 
@@ -221,6 +222,32 @@ class SchoolRepository {
       await _client.from('classes').update({
         'promotes_to_class_id': insertedIds['${i + 1}'],
       }).eq('id', insertedIds['$i']!);
+    }
+
+    // 3. Immediately seed local classes table in SQLite
+    for (final c in defaultClasses) {
+      final code = c['code'] as String;
+      String? promo;
+      if (code == 'ECE') promo = insertedIds['1'];
+      if (code == '1') promo = insertedIds['2'];
+      if (code == '2') promo = insertedIds['3'];
+      if (code == '3') promo = insertedIds['4'];
+      if (code == '4') promo = insertedIds['5'];
+
+      await _db.into(_db.classesTable).insertOnConflictUpdate(
+            ClassesTableCompanion.insert(
+              id: insertedIds[code]!,
+              schoolId: schoolId,
+              classCode: code,
+              displayName: c['name'] as String,
+              sortOrder: Value(c['order'] as int? ?? 0),
+              minAdmissionAgeMonths: Value(c['minAdmission'] as int?),
+              minPromotionAgeMonths: Value(code == 'ECE' ? 61 : null),
+              promotesToClassId: Value(promo),
+              isTerminal: Value((c['terminal'] as bool?) ?? false),
+              isActive: const Value(true),
+            ),
+          );
     }
 
     await bootstrapFromServer();

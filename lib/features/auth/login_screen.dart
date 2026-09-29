@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../main.dart';
+import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
@@ -53,6 +55,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             password: _passwordController.text,
             rememberMe: _rememberMe,
           );
+      ref.read(appUnlockedProvider.notifier).state = true;
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const SyncCoordinator(child: SchoolGate()),
+        ),
+        (route) => false,
+      );
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {

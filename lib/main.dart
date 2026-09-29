@@ -33,23 +33,15 @@ class GrBookApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateChangesProvider);
+    final isUnlocked = ref.watch(appUnlockedProvider);
 
     return MaterialApp(
       title: 'G.R. Book',
       debugShowCheckedModeBanner: false,
       theme: GrBookTheme.themeData,
-      home: authState.when(
-        data: (state) {
-          final session = state.session ?? Supabase.instance.client.auth.currentSession;
-          if (session != null) {
-            return const SyncCoordinator(child: _SchoolGate());
-          }
-          return const LoginScreen();
-        },
-        loading: () => const _SplashScreen(),
-        error: (_, __) => const LoginScreen(),
-      ),
+      home: isUnlocked
+          ? const SyncCoordinator(child: SchoolGate())
+          : const LoginScreen(),
     );
   }
 }
@@ -74,16 +66,16 @@ class _SplashScreen extends StatelessWidget {
 ///     local yet to fall back to.
 ///  3. If bootstrap finds no school membership at all, this is a brand
 ///     new account: send the user to Add School.
-class _SchoolGate extends ConsumerStatefulWidget {
-  const _SchoolGate();
+class SchoolGate extends ConsumerStatefulWidget {
+  const SchoolGate({super.key});
 
   @override
-  ConsumerState<_SchoolGate> createState() => _SchoolGateState();
+  ConsumerState<SchoolGate> createState() => _SchoolGateState();
 }
 
 enum _BootstrapPhase { notStarted, running, done, failed }
 
-class _SchoolGateState extends ConsumerState<_SchoolGate> {
+class _SchoolGateState extends ConsumerState<SchoolGate> {
   _BootstrapPhase _phase = _BootstrapPhase.notStarted;
   String? _bootstrapError;
 

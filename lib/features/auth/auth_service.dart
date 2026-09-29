@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -19,6 +21,13 @@ class AuthService {
 
   static const _rememberMeKey = 'grbook_remember_me';
   static const _lastMobileKey = 'grbook_last_mobile';
+  static const _offlineMobileKey = 'grbook_offline_mobile';
+  static const _offlineHashKey = 'grbook_offline_hash';
+
+  String _hashCredentials(String digits, String password) {
+    final bytes = utf8.encode('$digits:$password:grbook_secure_salt_2026');
+    return sha256.convert(bytes).toString();
+  }
 
   User? get currentUser => _client.auth.currentUser;
   Session? get currentSession => _client.auth.currentSession;
@@ -67,6 +76,11 @@ class AuthService {
       } catch (_) {
         // Ignore if unconfirmed session prevents immediate profile write
       }
+
+      final digits = mobileNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      final hash = _hashCredentials(digits, password);
+      await _secureStorage.write(key: _offlineMobileKey, value: digits);
+      await _secureStorage.write(key: _offlineHashKey, value: hash);
     } on AuthException catch (e) {
       final msg = e.message.toLowerCase();
       if (msg.contains('rate limit')) {
@@ -84,11 +98,29 @@ class AuthService {
     required bool rememberMe,
   }) async {
     final email = _syntheticEmail(mobileNumber);
+    final digits = mobileNumber.replaceAll(RegExp(r'[^0-9]'), '');
 
     try {
       await _client.auth.signInWithPassword(email: email, password: password);
+      final hash = _hashCredentials(digits, password);
+      await _secureStorage.write(key: _offlineMobileKey, value: digits);
+      await _secureStorage.write(key: _offlineHashKey, value: hash);
     } on AuthException catch (e) {
       throw AuthServiceException(_friendlyLoginError(e));
+    } catch (e) {
+      // Offline fallback: verify against securely stored local hash
+      final savedMobile = await _secureStorage.read(key: _offlineMobileKey);
+      final savedHash = await _secureStorage.read(key: _offlineHashKey);
+      if (savedMobile == digits && savedHash != null) {
+        final computedHash = _hashCredentials(digits, password);
+        if (computedHash != savedHash) {
+          throw const AuthServiceException('Mobile number or password is incorrect.');
+        }
+      } else {
+        throw const AuthServiceException(
+          'Login requires an active internet connection for first-time login.',
+        );
+      }
     }
 
     await _secureStorage.write(key: _rememberMeKey, value: rememberMe.toString());
@@ -132,6 +164,7 @@ class AuthService {
 
   Future<void> logout() async {
     await _client.auth.signOut();
+    await _secureStorage.delete(key: _offlineHashKey);
   }
 }
 

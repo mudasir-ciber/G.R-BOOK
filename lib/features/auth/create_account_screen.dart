@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../main.dart';
+import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
@@ -38,10 +40,20 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
             password: _passwordController.text,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created. You can now add your school.')),
-      );
-      Navigator.of(context).pop();
+      if (ref.read(authServiceProvider).currentUser != null) {
+        ref.read(appUnlockedProvider.notifier).state = true;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const SyncCoordinator(child: SchoolGate()),
+          ),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created. Please log in.')),
+        );
+        Navigator.of(context).pop();
+      }
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
