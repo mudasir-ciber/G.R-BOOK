@@ -178,30 +178,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           child: Container(
                             width: 42,
                             height: 42,
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1B2921) : Colors.white,
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isDark ? const Color(0xFF24382B) : const Color(0xFFD6E8DC),
-                                width: 1.2,
-                              ),
-                              boxShadow: const [
+                              boxShadow: [
                                 BoxShadow(
-                                  color: Color(0x08000000),
+                                  color: Color(0x18000000),
                                   blurRadius: 6,
                                   offset: Offset(0, 2),
                                 ),
                               ],
                             ),
-                            padding: const EdgeInsets.all(3),
                             child: ClipOval(
                               child: Image.asset(
                                 'assets/images/theme_moon.png',
+                                width: 42,
+                                height: 42,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Icon(
                                   isDark ? Icons.wb_sunny_rounded : Icons.nightlight_round,
                                   color: isDark ? const Color(0xFFFBBF24) : GrBookTheme.primary,
-                                  size: 22,
+                                  size: 24,
                                 ),
                               ),
                             ),
