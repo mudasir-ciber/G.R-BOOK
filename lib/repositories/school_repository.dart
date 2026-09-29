@@ -193,35 +193,34 @@ class SchoolRepository {
       insertedIds[c['code'] as String] = classId;
     }
 
-    for (final c in defaultClasses) {
+    // 1. Insert all classes with null promotes_to_class_id first to prevent
+    // foreign key constraint violation (classes_promotes_to_class_id_fkey).
+    final classRows = defaultClasses.map((c) {
       final code = c['code'] as String;
-      final classId = insertedIds[code]!;
-      String? promotesTo;
-      int? minPromoAge;
-      if (code == 'ECE') {
-        promotesTo = insertedIds['1'];
-        minPromoAge = 61; // 5y1m
-      } else if (code == '1') {
-        promotesTo = insertedIds['2'];
-      } else if (code == '2') {
-        promotesTo = insertedIds['3'];
-      } else if (code == '3') {
-        promotesTo = insertedIds['4'];
-      } else if (code == '4') {
-        promotesTo = insertedIds['5'];
-      }
-
-      await _client.from('classes').insert({
-        'id': classId,
+      return {
+        'id': insertedIds[code]!,
         'school_id': schoolId,
         'class_code': code,
         'display_name': c['name'],
         'sort_order': c['order'],
         'min_admission_age_months': c['minAdmission'],
-        'min_promotion_age_months': minPromoAge,
-        'promotes_to_class_id': promotesTo,
+        'min_promotion_age_months': code == 'ECE' ? 61 : null,
+        'promotes_to_class_id': null,
         'is_terminal': c['terminal'] ?? false,
-      });
+      };
+    }).toList();
+
+    await _client.from('classes').insert(classRows);
+
+    // 2. Link the promotion chain now that all target class rows exist in the table.
+    await _client.from('classes').update({
+      'promotes_to_class_id': insertedIds['1'],
+    }).eq('id', insertedIds['ECE']!);
+
+    for (var i = 1; i <= 4; i++) {
+      await _client.from('classes').update({
+        'promotes_to_class_id': insertedIds['${i + 1}'],
+      }).eq('id', insertedIds['$i']!);
     }
 
     await bootstrapFromServer();
