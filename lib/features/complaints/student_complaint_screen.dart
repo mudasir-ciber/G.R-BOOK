@@ -568,8 +568,13 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
-      appBar: AppBar(title: const Text('Complaint Note Preview')),
+      backgroundColor: GrBookTheme.getCardBackground(context),
+      appBar: AppBar(
+        title: Text(
+          'Complaint Letter Preview',
+          style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.getTextPrimary(context)),
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -578,9 +583,9 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: GrBookTheme.getCardBackground(context),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: GrBookTheme.borderColor),
+                border: Border.all(color: GrBookTheme.getBorderColor(context)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,7 +596,7 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
                   _row('Parent / Guardian', widget.student.fatherName ?? '-'),
                   _row('Parent Mobile', widget.student.phoneNumber ?? '-'),
                   const Divider(height: 24),
-                  const Text('Complaint / Notice Content:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.textSecondary)),
+                  Text('Complaint Letter Details:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextSecondary(context))),
                   const SizedBox(height: 6),
                   Text(widget.complaintText, style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, height: 1.4)),
                   if (widget.attachedPhoto != null) ...[

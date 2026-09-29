@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/theme.dart';
+import '../widgets/gallery_save_success_dialog.dart';
 import 'gallery_saver_service.dart';
 
 class DocumentShareService {
@@ -72,17 +73,10 @@ class DocumentShareService {
 
       if (context.mounted) {
         if (ok) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              backgroundColor: Color(0xFF0F9D58),
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 10),
-                  Expanded(child: Text('Document image (JPG) saved to Gallery in "Pictures/GR_Book"')),
-                ],
-              ),
-            ),
+          GallerySaveSuccessDialog.show(
+            context,
+            title: 'Saved to Gallery!',
+            message: 'Image successfully saved in Pictures/GR_Book',
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

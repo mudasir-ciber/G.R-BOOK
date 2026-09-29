@@ -128,8 +128,8 @@ class PdfExportService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(school.schoolName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                      if (school.semisCode != null) pw.Text('SEMIS Code: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.Text(formatSchoolName(school.schoolName), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                      if (school.semisCode != null) pw.Text('SEMIS CODE: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
                       if (school.district != null || school.taluka != null)
                         pw.Text('${school.taluka ?? ''}, ${school.district ?? ''}', style: const pw.TextStyle(fontSize: 10)),
                       pw.SizedBox(height: 8),
@@ -223,6 +223,34 @@ class PdfExportService {
     return _save(await doc.save(), 'Profile_${student.grNumber}');
   }
 
+  static String formatSchoolName(String name) {
+    var formatted = name.trim();
+    if (formatted.toUpperCase().startsWith('GBPS ')) {
+      formatted = 'Government Boys Primary School ${formatted.substring(5).trim()}';
+    } else if (formatted.toUpperCase().startsWith('GBPS-')) {
+      formatted = 'Government Boys Primary School ${formatted.substring(5).trim()}';
+    } else if (formatted.toUpperCase() == 'GBPS') {
+      formatted = 'Government Boys Primary School';
+    } else if (formatted.contains('GBPS')) {
+      formatted = formatted.replaceAll('GBPS', 'Government Boys Primary School');
+    } else if (formatted.toUpperCase().startsWith('GGPS ')) {
+      formatted = 'Government Girls Primary School ${formatted.substring(5).trim()}';
+    }
+    return formatted;
+  }
+
+  Future<String?> _loadPrincipalName() async {
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final nameFile = File('${docDir.path}/principal_name.txt');
+      if (await nameFile.exists()) {
+        final text = (await nameFile.readAsString()).trim();
+        if (text.isNotEmpty) return text;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<pw.MemoryImage?> _loadPrincipalSignature() async {
     try {
       final docDir = await getApplicationDocumentsDirectory();
@@ -258,8 +286,8 @@ class PdfExportService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(school.schoolName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-            if (school.semisCode != null) pw.Text('SEMIS: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
+            pw.Text(formatSchoolName(school.schoolName), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+            if (school.semisCode != null) pw.Text('SEMIS CODE: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
             pw.SizedBox(height: 24),
             pw.Text(type.title, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
             pw.SizedBox(height: 32),
@@ -323,8 +351,8 @@ class PdfExportService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(school.schoolName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-            if (school.semisCode != null) pw.Text('SEMIS: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
+            pw.Text(formatSchoolName(school.schoolName), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
+            if (school.semisCode != null) pw.Text('SEMIS CODE: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
             pw.SizedBox(height: 24),
             pw.Text(certificateTitle, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
             pw.SizedBox(height: 32),
@@ -373,6 +401,7 @@ class PdfExportService {
     final doc = pw.Document();
     final issueDate = _dateFormat.format(DateTime.now());
     final signatureImage = await _loadPrincipalSignature();
+    final principalName = await _loadPrincipalName();
     List<int>? photoBytes;
     if (attachedPhoto != null && await attachedPhoto.exists()) {
       photoBytes = await attachedPhoto.readAsBytes();
@@ -385,11 +414,27 @@ class PdfExportService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(school.schoolName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-            if (school.semisCode != null) pw.Text('SEMIS: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
+            pw.Text(
+              formatSchoolName(school.schoolName),
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+              textAlign: pw.TextAlign.center,
+            ),
+            pw.SizedBox(height: 3),
+            if (school.semisCode != null && school.semisCode!.isNotEmpty)
+              pw.Text(
+                'SEMIS CODE: ${school.semisCode}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            if (principalName != null && principalName.isNotEmpty) ...[
+              pw.SizedBox(height: 2),
+              pw.Text(
+                'Principal: $principalName',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            ],
             pw.SizedBox(height: 16),
             pw.Text(
-              'OFFICIAL NOTICE / NOTE',
+              'Complaint Letter',
               style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline),
             ),
             pw.SizedBox(height: 20),
@@ -486,8 +531,8 @@ class PdfExportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(school.schoolName, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-        if (school.semisCode != null) pw.Text('SEMIS: ${school.semisCode}', style: const pw.TextStyle(fontSize: 9)),
+        pw.Text(formatSchoolName(school.schoolName), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+        if (school.semisCode != null) pw.Text('SEMIS CODE: ${school.semisCode}', style: const pw.TextStyle(fontSize: 9)),
         pw.SizedBox(height: 6),
         pw.Text(title, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
         pw.Divider(),

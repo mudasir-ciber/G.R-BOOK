@@ -63,12 +63,12 @@ class GrBookTopBar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'G.R BOOK',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: GrBookTheme.primaryDark,
+                    color: GrBookTheme.isDark(context) ? Colors.white : GrBookTheme.primaryDark,
                     letterSpacing: -0.3,
                   ),
                 ),
@@ -97,9 +97,9 @@ class _CircleButton extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GrBookTheme.getCardBackground(context),
         shape: BoxShape.circle,
-        border: Border.all(color: GrBookTheme.borderColor, width: 1),
+        border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A000000),
@@ -110,7 +110,7 @@ class _CircleButton extends StatelessWidget {
       ),
       child: IconButton(
         padding: EdgeInsets.zero,
-        icon: Icon(icon, color: GrBookTheme.primary, size: 20),
+        icon: Icon(icon, color: GrBookTheme.isDark(context) ? const Color(0xFF68D391) : GrBookTheme.primary, size: 20),
         onPressed: onPressed,
       ),
     );
@@ -145,10 +145,10 @@ class GrBookPageHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: GrBookTheme.textPrimary,
+                    color: GrBookTheme.getTextPrimary(context),
                     letterSpacing: -0.2,
                   ),
                 ),
@@ -156,9 +156,9 @@ class GrBookPageHeader extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: GrBookTheme.textSecondary,
+                      color: GrBookTheme.getTextSecondary(context),
                     ),
                   ),
                 ],

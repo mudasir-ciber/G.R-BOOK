@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../features/students/widgets/photo_picker_sheet.dart';
 import '../services/gallery_saver_service.dart';
+import 'gallery_save_success_dialog.dart';
 
 class FullScreenImageViewer extends StatefulWidget {
   const FullScreenImageViewer({
@@ -92,17 +93,10 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
 
       if (!mounted) return;
       if (ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Color(0xFF0F9D58),
-            content: Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 10),
-                Expanded(child: Text('Image saved to Mobile Gallery in "Pictures/GR_Book"')),
-              ],
-            ),
-          ),
+        GallerySaveSuccessDialog.show(
+          context,
+          title: 'Saved to Gallery!',
+          message: 'Image successfully saved in Pictures/GR_Book',
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

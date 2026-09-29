@@ -112,16 +112,35 @@ class _StudentA4ProfileScreenState extends ConsumerState<StudentA4ProfileScreen>
     }
   }
 
+  Future<void> _printDocument() async {
+    try {
+      final bytes = await _generatePdfBytes();
+      await Printing.layoutPdf(
+        onLayout: (_) => bytes,
+        name: 'Profile_${widget.student.grNumber}.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Print error: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: GrBookTheme.getCardBackground(context),
       appBar: AppBar(
         title: Text(
           '${widget.student.studentName} — A4 Profile',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.print_rounded, color: Color(0xFF1E3A8A)),
+            tooltip: 'Print',
+            onPressed: _printDocument,
+          ),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.red),
             tooltip: 'Share as PDF',
@@ -144,26 +163,12 @@ class _StudentA4ProfileScreenState extends ConsumerState<StudentA4ProfileScreen>
         children: [
           PdfPreview(
             build: (_) => _generatePdfBytes(),
+            useActions: false,
             canChangeOrientation: false,
             canChangePageFormat: false,
             canDebug: false,
             dynamicLayout: false,
             previewPageMargin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            actions: [
-              PdfPreviewAction(
-                icon: const Icon(Icons.share_rounded),
-                onPressed: (ctx, build, pageFormat) {
-                  if (_generatedPdfFile != null) {
-                    DocumentShareService.showShareOptions(
-                      context,
-                      pdfFile: _generatedPdfFile!,
-                      title: 'Student Profile (A4)',
-                      studentName: widget.student.studentName,
-                    );
-                  }
-                },
-              ),
-            ],
           ),
           if (_isConverting)
             Container(
@@ -180,57 +185,6 @@ class _StudentA4ProfileScreenState extends ConsumerState<StudentA4ProfileScreen>
               ),
             ),
         ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFD32F2F),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-                  label: const Text('Share PDF', style: TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: _shareAsPdf,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  icon: const Icon(Icons.image_rounded, size: 18),
-                  label: const Text('Share JPG', style: TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: _shareAsJpg,
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton.filled(
-                style: IconButton.styleFrom(backgroundColor: GrBookTheme.primary),
-                icon: const Icon(Icons.save_alt_rounded, color: Colors.white, size: 20),
-                tooltip: 'Save to Gallery',
-                onPressed: _saveJpgToGallery,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

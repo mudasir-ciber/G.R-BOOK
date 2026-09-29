@@ -50,6 +50,10 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
           if (mounted) setState(() {});
         });
       }
+      final nameFile = File('${docDir.path}/principal_name.txt');
+      if (nameFile.existsSync() && _nameController.text.trim().isEmpty) {
+        _nameController.text = nameFile.readAsStringSync().trim();
+      }
       setState(() {
         if (pFile.existsSync()) _profilePhotoFile = pFile;
         if (sFile.existsSync()) _signatureFile = sFile;
@@ -119,6 +123,8 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
       _nameError = null;
     });
     try {
+      final docDir = await getApplicationDocumentsDirectory();
+      await File('${docDir.path}/principal_name.txt').writeAsString(name);
       await ref.read(authServiceProvider).updateFullName(name);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

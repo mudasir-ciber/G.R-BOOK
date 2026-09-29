@@ -12,6 +12,8 @@ import 'features/security/app_lock_gate.dart';
 import 'providers/repository_providers.dart';
 import 'services/sync_coordinator.dart';
 
+import 'providers/theme_provider.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -35,11 +37,14 @@ class GrBookApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isUnlocked = ref.watch(appUnlockedProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
       title: 'G.R. Book',
       debugShowCheckedModeBanner: false,
       theme: GrBookTheme.themeData,
+      darkTheme: GrBookTheme.darkThemeData,
+      themeMode: themeMode,
       home: isUnlocked
           ? const AppLockGate(child: SyncCoordinator(child: SchoolGate()))
           : const LoginScreen(),

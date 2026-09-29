@@ -37,10 +37,12 @@ class _AllStudentsScreenState extends ConsumerState<AllStudentsScreen> {
   Widget build(BuildContext context) {
     final schoolAsync = ref.watch(currentSchoolProvider);
 
+    final isDark = GrBookTheme.isDark(context);
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -57,6 +59,7 @@ class _AllStudentsScreenState extends ConsumerState<AllStudentsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: TextField(
                   controller: _searchController,
+                  style: TextStyle(color: GrBookTheme.getTextPrimary(context)),
                   onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
                   decoration: InputDecoration(
                     hintText: 'Search by student name or G.R number...',
@@ -71,15 +74,15 @@ class _AllStudentsScreenState extends ConsumerState<AllStudentsScreen> {
                           )
                         : null,
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: isDark ? const Color(0xFF14221A) : Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: GrBookTheme.borderColor),
+                      borderSide: BorderSide(color: GrBookTheme.getBorderColor(context)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(color: GrBookTheme.borderColor),
+                      borderSide: BorderSide(color: GrBookTheme.getBorderColor(context)),
                     ),
                   ),
                 ),
@@ -135,19 +138,15 @@ class _AllStudentsScreenState extends ConsumerState<AllStudentsScreen> {
                       return const Center(child: Text('No school profile found.'));
                     }
 
-                    return StreamBuilder<List<Student>>(
-                      stream: ref.read(studentRepositoryProvider).watchGlobalSearch(
-                            schoolId: school.id,
-                            queryText: _searchQuery,
-                          ),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
+                    final searchAsync = ref.watch(globalSearchProvider((schoolId: school.id, query: _searchQuery)));
 
-                        var students = snapshot.data ?? [];
+                    return searchAsync.when(
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(child: Text('Error: $e')),
+                      data: (rawStudents) {
+                        var students = rawStudents;
                         if (_selectedClassId != null) {
-                          students = students.where((s) => s.classId == _selectedClassId).toList();
+                          students = students.where((s) => s.classId.trim() == _selectedClassId!.trim()).toList();
                         }
 
                         if (students.isEmpty) {
@@ -159,7 +158,7 @@ class _AllStudentsScreenState extends ConsumerState<AllStudentsScreen> {
                                 const SizedBox(height: 12),
                                 Text(
                                   _searchQuery.isEmpty ? 'No students found in this class.' : 'No students found matching "$_searchQuery".',
-                                  style: const TextStyle(color: GrBookTheme.textSecondary, fontSize: 14),
+                                  style: TextStyle(color: GrBookTheme.getTextSecondary(context), fontSize: 14),
                                 ),
                               ],
                             ),
@@ -216,10 +215,10 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? GrBookTheme.primary : Colors.white,
+          color: isSelected ? GrBookTheme.primary : GrBookTheme.getCardBackground(context),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? GrBookTheme.primary : GrBookTheme.borderColor,
+            color: isSelected ? GrBookTheme.primary : GrBookTheme.getBorderColor(context),
           ),
           boxShadow: isSelected
               ? const [BoxShadow(color: Color(0x200F7A42), blurRadius: 4, offset: Offset(0, 2))]
@@ -228,7 +227,7 @@ class _FilterChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : GrBookTheme.textPrimary,
+            color: isSelected ? Colors.white : GrBookTheme.getTextPrimary(context),
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             fontSize: 12.5,
           ),
@@ -253,13 +252,14 @@ class _StudentRowCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final photoAsync = ref.watch(studentPhotosProvider(student.id));
     final studentPhoto = photoAsync.valueOrNull?[PhotoType.student];
+    final isDark = GrBookTheme.isDark(context);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GrBookTheme.getCardBackground(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: GrBookTheme.borderColor, width: 1.1),
+        border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.1),
         boxShadow: const [
           BoxShadow(color: Color(0x06000000), blurRadius: 6, offset: Offset(0, 2)),
         ],
@@ -270,9 +270,9 @@ class _StudentRowCard extends ConsumerWidget {
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
+            color: isDark ? const Color(0xFF14221A) : const Color(0xFFF1F5F9),
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+            border: Border.all(color: isDark ? const Color(0xFF24382B) : const Color(0xFFCBD5E1), width: 1.2),
           ),
           clipBehavior: Clip.antiAlias,
           child: _buildAvatar(ref, studentPhoto),
@@ -282,7 +282,7 @@ class _StudentRowCard extends ConsumerWidget {
             Expanded(
               child: Text(
                 student.studentName,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: GrBookTheme.textPrimary),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: GrBookTheme.getTextPrimary(context)),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -290,12 +290,12 @@ class _StudentRowCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+                color: isDark ? const Color(0xFF133622) : const Color(0xFFE8F5E9),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 className,
-                style: const TextStyle(color: GrBookTheme.primaryDark, fontSize: 11, fontWeight: FontWeight.bold),
+                style: TextStyle(color: isDark ? const Color(0xFF68D391) : GrBookTheme.primaryDark, fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -306,7 +306,7 @@ class _StudentRowCard extends ConsumerWidget {
             children: [
               Text(
                 'S.No: ${student.serialNumber ?? '-'}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: GrBookTheme.textSecondary),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: GrBookTheme.getTextSecondary(context)),
               ),
               const SizedBox(width: 12),
               Text(
@@ -318,7 +318,7 @@ class _StudentRowCard extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     '• ${student.fatherName}',
-                    style: const TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                    style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

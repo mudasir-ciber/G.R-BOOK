@@ -46,7 +46,7 @@ class StudentRepository {
     final query = _db.select(_db.studentsTable)
       ..where((t) =>
           t.classId.equals(classId) &
-          t.status.equals('ACTIVE') &
+          (t.status.equals('ACTIVE') | t.status.equals('active')) &
           t.isDeleted.equals(false))
       ..orderBy([(t) => OrderingTerm(expression: t.serialNumber)]);
     return query.watch().map((rows) => rows.map(_fromRow).toList());
@@ -71,11 +71,14 @@ class StudentRepository {
   /// [watchSearch] (used inside one class's student list), this is
   /// scoped to the whole school and also matches by class name/code —
   /// searching "class 3" surfaces every Class 3 student even with no
-  /// name/GR match.
+  /// name/GR match. If queryText is empty, returns all students.
   Stream<List<Student>> watchGlobalSearch({required String schoolId, required String queryText}) async* {
     final trimmed = queryText.trim();
     if (trimmed.isEmpty) {
-      yield [];
+      final query = _db.select(_db.studentsTable)
+        ..where((t) => t.schoolId.equals(schoolId) & t.isDeleted.equals(false))
+        ..orderBy([(t) => OrderingTerm(expression: t.serialNumber), (t) => OrderingTerm(expression: t.studentName)]);
+      yield* query.watch().map((rows) => rows.map(_fromRow).toList());
       return;
     }
     final like = '%$trimmed%';
@@ -93,7 +96,7 @@ class StudentRepository {
             matchingClassIds.isNotEmpty ? (nameOrGrMatch | t.classId.isIn(matchingClassIds)) : nameOrGrMatch;
         return t.schoolId.equals(schoolId) & t.isDeleted.equals(false) & anyMatch;
       })
-      ..orderBy([(t) => OrderingTerm(expression: t.studentName)]);
+      ..orderBy([(t) => OrderingTerm(expression: t.serialNumber), (t) => OrderingTerm(expression: t.studentName)]);
 
     yield* query.watch().map((rows) => rows.map(_fromRow).toList());
   }

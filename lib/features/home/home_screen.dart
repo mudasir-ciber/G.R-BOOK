@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../providers/repository_providers.dart';
-import '../../providers/sync_providers.dart';
+import '../../providers/theme_provider.dart';
 import '../auth/auth_providers.dart';
 import '../certificates/certificates_hub_screen.dart';
 import '../complaints/student_complaint_screen.dart';
@@ -80,166 +80,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     }
   }
 
-  void _showNotificationsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final pendingCountAsync = ref.watch(pendingSyncCountProvider);
-            final isSyncing = ref.watch(isSyncingProvider);
-            final pendingCount = pendingCountAsync.valueOrNull ?? 0;
-
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.notifications_active_rounded, color: Color(0xFF0F9D58), size: 24),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Notifications & Status',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(sheetContext).pop(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: GrBookTheme.borderColor),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                pendingCount == 0 ? Icons.check_circle_outline_rounded : Icons.cloud_upload_outlined,
-                                color: pendingCount == 0 ? const Color(0xFF0F9D58) : const Color(0xFFE65100),
-                                size: 24,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      pendingCount == 0 ? 'All Changes Synced' : '$pendingCount Items Pending Sync',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      isSyncing
-                                          ? 'Syncing changes to cloud...'
-                                          : (pendingCount == 0
-                                              ? 'Local database is fully updated.'
-                                              : 'Changes will sync automatically when online.'),
-                                      style: const TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              FilledButton(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0F9D58),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                onPressed: () {
-                                  triggerSync(ref);
-                                  Navigator.of(sheetContext).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Sync triggered...')),
-                                  );
-                                },
-                                child: const Text('Sync Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 24),
-                          Row(
-                            children: [
-                              const Icon(Icons.cloud_sync_rounded, color: Color(0xFF0284C7), size: 24),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Google Drive Backup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                    SizedBox(height: 2),
-                                    Text('Keep your school data safe', style: TextStyle(fontSize: 12, color: GrBookTheme.textSecondary)),
-                                  ],
-                                ),
-                              ),
-                              OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF0284C7),
-                                  side: const BorderSide(color: Color(0xFF0284C7)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                onPressed: () {
-                                  Navigator.of(sheetContext).pop();
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const BackupRestoreScreen()),
-                                  );
-                                },
-                                child: const Text('Open Backup', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final schoolAsync = ref.watch(currentSchoolProvider);
     final user = ref.watch(currentUserProvider);
-    final pendingCountAsync = ref.watch(pendingSyncCountProvider);
-    final pendingCount = pendingCountAsync.valueOrNull ?? 0;
 
     final schoolName = schoolAsync.valueOrNull?.schoolName ?? 'Govt. Boys High School';
     final userFullName = user?.userMetadata?['full_name'] as String? ?? '';
     final userInitial = userFullName.trim().isNotEmpty ? userFullName.trim()[0].toUpperCase() : 'U';
 
+    final isDark = GrBookTheme.isDark(context);
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
@@ -247,7 +103,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. TOP HEADER (Logo Badge on left, Notifications + Profile on right)
+                // 1. TOP HEADER (Logo Badge on left, Theme Toggle + Profile on right)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -258,9 +114,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark ? const Color(0xFF18261E) : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFD6E8DC), width: 1.2),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF24382B) : const Color(0xFFD6E8DC),
+                              width: 1.2,
+                            ),
                             boxShadow: const [
                               BoxShadow(
                                 color: Color(0x0A000000),
@@ -284,7 +143,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
@@ -292,7 +151,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F2D1F),
+                                color: GrBookTheme.getTextPrimary(context),
                                 letterSpacing: 0.2,
                               ),
                             ),
@@ -301,7 +160,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
-                                color: Color(0xFF4A7A60),
+                                color: GrBookTheme.getTextSecondary(context),
                               ),
                             ),
                           ],
@@ -309,20 +168,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       ],
                     ),
 
-                    // Right: Notifications Bell + User Profile Avatar
+                    // Right: Theme Toggle (Moon Icon) + User Profile Avatar
                     Row(
                       children: [
-                        // Notification Bell with Red Badge
+                        // Theme Toggle Icon
                         InkWell(
-                          onTap: () => _showNotificationsSheet(context),
+                          onTap: () => ref.read(themeModeProvider.notifier).toggleTheme(),
                           borderRadius: BorderRadius.circular(22),
                           child: Container(
                             width: 42,
                             height: 42,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: isDark ? const Color(0xFF1B2921) : Colors.white,
                               shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFFD6E8DC), width: 1.2),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF24382B) : const Color(0xFFD6E8DC),
+                                width: 1.2,
+                              ),
                               boxShadow: const [
                                 BoxShadow(
                                   color: Color(0x08000000),
@@ -331,28 +193,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                 ),
                               ],
                             ),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.notifications_outlined,
-                                  color: Color(0xFF0F2D1F),
+                            padding: const EdgeInsets.all(3),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/theme_moon.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  isDark ? Icons.wb_sunny_rounded : Icons.nightlight_round,
+                                  color: isDark ? const Color(0xFFFBBF24) : GrBookTheme.primary,
                                   size: 22,
                                 ),
-                                if (pendingCount > 0)
-                                  Positioned(
-                                    top: 9,
-                                    right: 9,
-                                    child: Container(
-                                      width: 9,
-                                      height: 9,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFEF4444),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
@@ -405,19 +256,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 // 2. DYNAMIC GREETING & SCHOOL NAME
                 Text(
                   _getDynamicGreeting(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF2E6348),
+                    color: isDark ? const Color(0xFF68D391) : const Color(0xFF2E6348),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   schoolName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F2D1F),
+                    color: GrBookTheme.getTextPrimary(context),
                     letterSpacing: -0.3,
                   ),
                 ),
@@ -598,7 +449,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     );
   }
 
-  /// Clean white feature card matching reference UI image
+  /// Clean feature card matching reference UI image with dark mode support
   Widget _buildFeatureCard({
     required String title,
     required String subtitle,
@@ -607,11 +458,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     required Color iconBgColor,
     required VoidCallback onTap,
   }) {
+    final isDark = GrBookTheme.isDark(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GrBookTheme.getCardBackground(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
         boxShadow: const [
           BoxShadow(
             color: Color(0x06000000),
@@ -634,7 +487,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: iconBgColor,
+                    color: isDark ? iconColor.withValues(alpha: 0.2) : iconBgColor,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: iconColor, size: 26),
@@ -648,19 +501,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: GrBookTheme.getTextPrimary(context),
                           letterSpacing: -0.2,
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF64748B),
+                          color: GrBookTheme.getTextSecondary(context),
                         ),
                       ),
                     ],
@@ -668,9 +521,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ),
 
                 // Subtle chevron
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: Color(0xFF94A3B8),
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                   size: 24,
                 ),
               ],
