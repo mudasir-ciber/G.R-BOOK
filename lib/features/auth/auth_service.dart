@@ -33,12 +33,36 @@ class AuthService {
   Session? get currentSession => _client.auth.currentSession;
   Stream<AuthState> get onAuthStateChange => _client.auth.onAuthStateChange;
 
+  String _normalizeMobile(String mobile) {
+    var digits = mobile.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('92') && digits.length == 12) {
+      digits = '0${digits.substring(2)}';
+    } else if (!digits.startsWith('0') && digits.length == 10) {
+      digits = '0$digits';
+    }
+    return digits;
+  }
+
   String _syntheticEmail(String mobileNumber) {
-    final digits = mobileNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final digits = _normalizeMobile(mobileNumber);
     if (digits.isEmpty) {
       throw ArgumentError('Mobile number must contain digits.');
     }
     return '$digits@grbook.local';
+  }
+
+  bool _isNetworkError(dynamic e) {
+    if (e is AuthRetryableFetchException) return true;
+    final msg = e.toString().toLowerCase();
+    return msg.contains('failed host lookup') ||
+        msg.contains('socketexception') ||
+        msg.contains('clientexception') ||
+        msg.contains('network') ||
+        msg.contains('connection') ||
+        msg.contains('timeout') ||
+        msg.contains('offline') ||
+        msg.contains('unreachable') ||
+        msg.contains('handshake');
   }
 
   Future<void> createAccount({
@@ -77,7 +101,7 @@ class AuthService {
         // Ignore if unconfirmed session prevents immediate profile write
       }
 
-      final digits = mobileNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      final digits = _normalizeMobile(mobileNumber);
       final hash = _hashCredentials(digits, password);
       await _secureStorage.write(key: _offlineMobileKey, value: digits);
       await _secureStorage.write(key: _offlineHashKey, value: hash);
@@ -98,28 +122,33 @@ class AuthService {
     required bool rememberMe,
   }) async {
     final email = _syntheticEmail(mobileNumber);
-    final digits = mobileNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final digits = _normalizeMobile(mobileNumber);
 
     try {
       await _client.auth.signInWithPassword(email: email, password: password);
       final hash = _hashCredentials(digits, password);
       await _secureStorage.write(key: _offlineMobileKey, value: digits);
       await _secureStorage.write(key: _offlineHashKey, value: hash);
-    } on AuthException catch (e) {
-      throw AuthServiceException(_friendlyLoginError(e));
     } catch (e) {
-      // Offline fallback: verify against securely stored local hash
-      final savedMobile = await _secureStorage.read(key: _offlineMobileKey);
-      final savedHash = await _secureStorage.read(key: _offlineHashKey);
-      if (savedMobile == digits && savedHash != null) {
-        final computedHash = _hashCredentials(digits, password);
-        if (computedHash != savedHash) {
-          throw const AuthServiceException('Mobile number or password is incorrect.');
+      if (_isNetworkError(e)) {
+        // Device is offline or network unreachable — perform offline login
+        final savedMobile = await _secureStorage.read(key: _offlineMobileKey);
+        final savedHash = await _secureStorage.read(key: _offlineHashKey);
+        if (savedMobile == digits && savedHash != null) {
+          final computedHash = _hashCredentials(digits, password);
+          if (computedHash != savedHash) {
+            throw const AuthServiceException('Mobile number or password is incorrect.');
+          }
+          // Offline credentials valid! Allow entry.
+        } else {
+          throw const AuthServiceException(
+            'Internet connection is required for first-time login on this device.',
+          );
         }
+      } else if (e is AuthException) {
+        throw AuthServiceException(_friendlyLoginError(e));
       } else {
-        throw const AuthServiceException(
-          'Login requires an active internet connection for first-time login.',
-        );
+        throw AuthServiceException('Login failed: ${e.toString()}');
       }
     }
 

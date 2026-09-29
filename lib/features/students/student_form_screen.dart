@@ -12,18 +12,16 @@ import '../../models/student.dart';
 import '../../providers/photo_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../repositories/student_photo_repository.dart';
-import '../audit/audit_log_screen.dart';
-import 'certificate_screen.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import '../../widgets/sync_status_banner.dart';
+import '../audit/audit_log_screen.dart';
+import 'certificate_screen.dart';
 import 'widgets/document_photo_tile.dart';
 import 'widgets/profile_photo_avatar.dart';
 
-/// Single screen used both to add a new student (existingStudent ==
-/// null) and to view/edit one (existingStudent provided) — matching the
-/// provided UI reference ("Student Profile" screen), where one form
-/// serves both purposes and the bottom button reads "Edit Data" once a
-/// student already exists.
+/// Screen 8: Student Profile / Add Student matching reference UI image 8 exactly.
+/// Serves both as "Add Student" and "Student Profile" with full photo picker support
+/// for Student Photo, B-Form, Father CNIC, and Token Picture.
 class StudentFormScreen extends ConsumerStatefulWidget {
   const StudentFormScreen({super.key, required this.schoolClass, this.existingStudent});
 
@@ -57,6 +55,8 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
   bool _showAdditionalFields = false;
+
+  final Map<PhotoType, File> _pickedFiles = {};
 
   @override
   void initState() {
@@ -109,7 +109,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
       final age = AgeCalculator.calculate(dateOfBirth: _dateOfBirth!, asOf: _dateOfAdmission!);
       final minYears = (minMonths / 12).floor();
       final minRemMonths = minMonths % 12;
-      return 'Student is only ${age.format()} old on the admission date. '
+      return 'Student is only ${age.format()} old on admission date. '
           '${targetClass.displayName} requires at least '
           '$minYears years${minRemMonths > 0 ? ' $minRemMonths months' : ''}.';
     }
@@ -123,7 +123,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
         title: const Text('Duplicate GR Number'),
         content: Text(
           'GR number "$grNumber" is already used by another student in this school. '
-          'You can still save this student if this is intentional.',
+          'Do you still want to proceed?',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
@@ -178,6 +178,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
     setState(() => _isSubmitting = true);
     try {
       final repo = ref.read(studentRepositoryProvider);
+      final Student targetStudent;
       if (widget.isEditing) {
         final updated = widget.existingStudent!.copyWith(
           classId: _selectedClassId,
@@ -195,10 +196,9 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
           remarks: _emptyToNull(_remarksController.text),
         );
         await repo.updateStudent(updated);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student updated.')));
+        targetStudent = updated;
       } else {
-        await repo.createStudent(
+        targetStudent = await repo.createStudent(
           schoolId: widget.schoolClass.schoolId,
           classId: _selectedClassId,
           grNumber: grNumber,
@@ -215,7 +215,22 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
           remarks: _emptyToNull(_remarksController.text),
         );
       }
+
+      // Save all picked photos immediately (works online and offline)
+      final photoRepo = ref.read(studentPhotoRepositoryProvider);
+      for (final entry in _pickedFiles.entries) {
+        await photoRepo.captureAndSave(
+          schoolId: targetStudent.schoolId,
+          studentId: targetStudent.id,
+          photoType: entry.key,
+          rawFile: entry.value,
+        );
+      }
+
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.isEditing ? 'Student updated successfully.' : 'Student registered successfully.')),
+      );
       Navigator.of(context).pop();
     } catch (e) {
       setState(() => _errorMessage = 'Could not save student. ${e.toString()}');
@@ -283,300 +298,488 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                       )
                     : null,
               ),
-              GrBookPageHeader(
-                title: widget.isEditing ? 'Student Profile' : 'Add Student',
-                subtitle: widget.isEditing ? 'View and edit student information' : 'Register a new student',
+
+              // Subtitle matching reference image 8
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    widget.isEditing ? 'Student Profile' : 'Add Student',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: GrBookTheme.primaryDark,
+                    ),
+                  ),
+                ),
               ),
+
               if (widget.isEditing) const SyncStatusBanner(),
+
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
                   child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
                       boxShadow: const [
                         BoxShadow(
-                          color: Color(0x06000000),
-                          blurRadius: 8,
-                          offset: Offset(0, 3),
+                          color: Color(0x08000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
                         ),
                       ],
                     ),
                     child: Form(
                       key: _formKey,
                       child: Column(
-                    children: [
-                      if (_errorMessage != null) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
-                          child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade700)),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // ---- Profile photo (camera-badged circle) ----
-                      Center(
-                        child: widget.isEditing
-                            ? ProfilePhotoAvatar(
-                                photo: photosByType[PhotoType.student],
-                                fallbackInitial: _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : '?',
-                                onPicked: (file) => _onPhotoPicked(PhotoType.student, file),
-                                resolveSignedUrl: (p) => ref.read(studentPhotoRepositoryProvider).signedUrlFor(p),
-                              )
-                            : CircleAvatar(
-                                radius: 52,
-                                backgroundColor: GrBookTheme.primary.withOpacity(0.10),
-                                child: const Icon(Icons.person_outline, size: 44, color: GrBookTheme.primary),
-                              ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (!widget.isEditing)
-                        Text(
-                          'You can add the student photo after saving',
-                          style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                        ),
-                      const SizedBox(height: 16),
-
-                      // ---- Student Name ----
-                      TextFormField(
-                        controller: _nameController,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                        decoration: const InputDecoration(hintText: 'Student Name'),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Student name is required' : null,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // ---- G.R No | Class ----
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _grController,
-                              decoration: const InputDecoration(labelText: 'G.R No', prefixIcon: Icon(Icons.badge_outlined)),
-                              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                          if (_errorMessage != null) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
+                              child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: classesAsync.when(
-                              loading: () => const SizedBox(height: 56),
-                              error: (_, __) => const SizedBox(height: 56),
-                              data: (classes) => DropdownButtonFormField<String>(
-                                initialValue: classes.any((c) => c.id == _selectedClassId) ? _selectedClassId : null,
-                                decoration: const InputDecoration(labelText: 'Class', prefixIcon: Icon(Icons.school_outlined)),
-                                items: classes
-                                    .map((c) => DropdownMenuItem(value: c.id, child: Text(c.displayName)))
-                                    .toList(),
-                                onChanged: (v) => setState(() => _selectedClassId = v ?? _selectedClassId),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // ---- Father Name | Mobile No. ----
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _fatherNameController,
-                              decoration: const InputDecoration(labelText: 'Father Name', prefixIcon: Icon(Icons.person_outline)),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _mobileController,
-                              keyboardType: TextInputType.phone,
-                              decoration: const InputDecoration(labelText: 'Mobile No.', prefixIcon: Icon(Icons.phone_outlined)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // ---- Mother Name | Last School ----
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _motherNameController,
-                              decoration: const InputDecoration(labelText: 'Mother Name', prefixIcon: Icon(Icons.person_outline)),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _lastSchoolController,
-                              decoration: const InputDecoration(labelText: 'Last School', prefixIcon: Icon(Icons.school_outlined)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // ---- Date of Birth | Age Here ----
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _DateField(
-                              label: 'Date of Birth',
-                              value: _dateOfBirth,
-                              format: _dateFormat,
-                              onTap: () => _pickDate(isDob: true),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(child: _AgeHereDisplay(age: age)),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // ---- Date of Admission ----
-                      _DateField(
-                        label: 'Date of Admission',
-                        value: _dateOfAdmission,
-                        format: _dateFormat,
-                        onTap: () => _pickDate(isDob: false),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // ---- Address ----
-                      TextFormField(
-                        controller: _addressController,
-                        maxLines: 2,
-                        decoration: const InputDecoration(labelText: 'Address', prefixIcon: Icon(Icons.location_on_outlined)),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Additional fields required by the data model
-                      // (CNIC/B-Form numbers, remarks) but not shown in
-                      // the reference screens — tucked behind a toggle
-                      // so the primary layout stays visually identical.
-                      TextButton.icon(
-                        onPressed: () => setState(() => _showAdditionalFields = !_showAdditionalFields),
-                        icon: Icon(_showAdditionalFields ? Icons.expand_less : Icons.expand_more),
-                        label: const Text('Additional Details'),
-                      ),
-                      if (_showAdditionalFields) ...[
-                        TextFormField(
-                          controller: _cnicController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Father CNIC Number'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _bFormController,
-                          decoration: const InputDecoration(labelText: 'B-Form Number'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _remarksController,
-                          maxLines: 2,
-                          decoration: const InputDecoration(labelText: 'Remarks'),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      const SizedBox(height: 12),
-
-                      // ---- Document photo tiles ----
-                      if (widget.isEditing) ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: DocumentPhotoTile(
-                                label: 'B-Form Picture',
-                                photo: photosByType[PhotoType.bForm],
-                                onPicked: (file) => _onPhotoPicked(PhotoType.bForm, file),
-                                resolveSignedUrl: (p) => ref.read(studentPhotoRepositoryProvider).signedUrlFor(p),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: DocumentPhotoTile(
-                                label: 'Father CNIC Picture',
-                                photo: photosByType[PhotoType.fatherCnic],
-                                onPicked: (file) => _onPhotoPicked(PhotoType.fatherCnic, file),
-                                resolveSignedUrl: (p) => ref.read(studentPhotoRepositoryProvider).signedUrlFor(p),
-                              ),
-                            ),
+                            const SizedBox(height: 14),
                           ],
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: 160,
-                          child: DocumentPhotoTile(
-                            label: 'Student Token Pic',
-                            photo: photosByType[PhotoType.token],
-                            onPicked: (file) => _onPhotoPicked(PhotoType.token, file),
-                            resolveSignedUrl: (p) => ref.read(studentPhotoRepositoryProvider).signedUrlFor(p),
+
+                          // 1. Profile photo (matching reference image 8 circular avatar with camera badge)
+                          Center(
+                            child: ProfilePhotoAvatar(
+                              photo: photosByType[PhotoType.student],
+                              pickedFile: _pickedFiles[PhotoType.student],
+                              fallbackInitial: _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : '?',
+                              onPicked: (file) => setState(() => _pickedFiles[PhotoType.student] = file),
+                              resolveSignedUrl: (p) => ref.read(studentPhotoRepositoryProvider).signedUrlFor(p),
+                              radius: 46,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                      ] else ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
-                          child: Row(
+                          const SizedBox(height: 14),
+
+                          // 2. Student Name Pill Field (Centered in rounded box)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFD6E8DC), width: 1.2),
+                            ),
+                            child: TextFormField(
+                              controller: _nameController,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                border: InputBorder.none,
+                                hintText: 'Student Name',
+                                hintStyle: TextStyle(fontSize: 13.5, color: Color(0xFF94A3B8)),
+                              ),
+                              validator: (v) => (v == null || v.trim().isEmpty) ? 'Student name is required' : null,
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 3. Row 1: G.R No. | Class
+                          Row(
                             children: [
-                              Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
-                              const SizedBox(width: 8),
                               Expanded(
-                                child: Text(
-                                  'Save the student first, then add B-Form, CNIC and Token photos from their profile.',
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                child: _ProfileFieldCard(
+                                  icon: Icons.assignment_outlined,
+                                  label: 'G.R No.',
+                                  child: TextFormField(
+                                    controller: _grController,
+                                    keyboardType: TextInputType.text,
+                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.bold),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      border: InputBorder.none,
+                                      hintText: '001',
+                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                    ),
+                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ProfileFieldCard(
+                                  icon: Icons.school_outlined,
+                                  label: 'Class',
+                                  trailing: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: GrBookTheme.textSecondary),
+                                  child: classesAsync.when(
+                                    loading: () => const Text('Loading...', style: TextStyle(fontSize: 12)),
+                                    error: (_, __) => const Text('Error', style: TextStyle(fontSize: 12)),
+                                    data: (classes) => DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: classes.any((c) => c.id == _selectedClassId) ? _selectedClassId : null,
+                                        isDense: true,
+                                        icon: const SizedBox.shrink(),
+                                        style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.bold),
+                                        items: classes
+                                            .map((c) => DropdownMenuItem(value: c.id, child: Text(c.displayName)))
+                                            .toList(),
+                                        onChanged: (v) {
+                                          if (v != null) setState(() => _selectedClassId = v);
+                                        },
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
+                          const SizedBox(height: 10),
 
-                      // ---- Save / Edit Data button ----
-                      GrBookGradientButton(
-                        text: widget.isEditing ? 'Edit Data' : 'Add Student',
-                        isLoading: _isSubmitting,
-                        icon: widget.isEditing ? Icons.edit_rounded : Icons.person_add_rounded,
-                        trailingIcon: null,
-                        onPressed: _isSubmitting ? null : _submit,
+                          // 4. Row 2: Father Name | Mobile No.
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ProfileFieldCard(
+                                  icon: Icons.person,
+                                  label: 'Father Name',
+                                  child: TextFormField(
+                                    controller: _fatherNameController,
+                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      border: InputBorder.none,
+                                      hintText: 'Enter father name',
+                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ProfileFieldCard(
+                                  icon: Icons.phone,
+                                  label: 'Mobile No.',
+                                  child: TextFormField(
+                                    controller: _mobileController,
+                                    keyboardType: TextInputType.phone,
+                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      border: InputBorder.none,
+                                      hintText: 'Enter mobile number',
+                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 5. Row 3: Mother Name | Last School
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ProfileFieldCard(
+                                  icon: Icons.person,
+                                  label: 'Mother Name',
+                                  child: TextFormField(
+                                    controller: _motherNameController,
+                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      border: InputBorder.none,
+                                      hintText: 'Enter mother name',
+                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ProfileFieldCard(
+                                  icon: Icons.apartment_rounded,
+                                  label: 'Last School',
+                                  child: TextFormField(
+                                    controller: _lastSchoolController,
+                                    style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      border: InputBorder.none,
+                                      hintText: 'Enter last school',
+                                      hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 6. Row 4: Date of Birth | Age Here
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ProfileFieldCard(
+                                  icon: Icons.calendar_today_outlined,
+                                  label: 'Date of Birth',
+                                  onTap: () => _pickDate(isDob: true),
+                                  trailing: const Icon(Icons.calendar_month_outlined, size: 18, color: Color(0xFF94A3B8)),
+                                  child: Text(
+                                    _dateOfBirth != null ? _dateFormat.format(_dateOfBirth!) : 'Select date',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: _dateOfBirth != null ? GrBookTheme.textPrimary : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ProfileFieldCard(
+                                  icon: Icons.person_outline,
+                                  label: 'Age Here',
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            age != null ? '${age.years} Yr' : 'Year',
+                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            age != null ? '${age.months} Mo' : 'Month',
+                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            age != null ? '${age.days} D' : 'Days',
+                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 7. Row 5: Date of Admission
+                          _ProfileFieldCard(
+                            icon: Icons.calendar_today_outlined,
+                            label: 'Date of Admission',
+                            onTap: () => _pickDate(isDob: false),
+                            trailing: const Icon(Icons.calendar_month_outlined, size: 18, color: Color(0xFF94A3B8)),
+                            child: Text(
+                              _dateOfAdmission != null ? _dateFormat.format(_dateOfAdmission!) : 'Select date',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: _dateOfAdmission != null ? GrBookTheme.textPrimary : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 8. Row 6: Address
+                          _ProfileFieldCard(
+                            icon: Icons.location_on,
+                            label: 'Address',
+                            child: TextFormField(
+                              controller: _addressController,
+                              style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                                border: InputBorder.none,
+                                hintText: 'Enter address',
+                                hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Optional details toggle
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: () => setState(() => _showAdditionalFields = !_showAdditionalFields),
+                              icon: Icon(_showAdditionalFields ? Icons.expand_less : Icons.expand_more, size: 18, color: GrBookTheme.primary),
+                              label: Text(
+                                _showAdditionalFields ? 'Hide Additional Details' : 'More Details (CNIC, B-Form, Remarks)',
+                                style: const TextStyle(fontSize: 12, color: GrBookTheme.primary, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                          if (_showAdditionalFields) ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _ProfileFieldCard(
+                                    icon: Icons.credit_card_rounded,
+                                    label: 'Father CNIC No.',
+                                    child: TextFormField(
+                                      controller: _cnicController,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        border: InputBorder.none,
+                                        hintText: 'e.g. 45302-XXXXXXX-X',
+                                        hintStyle: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _ProfileFieldCard(
+                                    icon: Icons.badge_outlined,
+                                    label: 'B-Form Number',
+                                    child: TextFormField(
+                                      controller: _bFormController,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        border: InputBorder.none,
+                                        hintText: 'e.g. 45302-XXXXXXX-X',
+                                        hintStyle: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            _ProfileFieldCard(
+                              icon: Icons.notes_rounded,
+                              label: 'Remarks',
+                              child: TextFormField(
+                                controller: _remarksController,
+                                style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  border: InputBorder.none,
+                                  hintText: 'Optional notes or remarks',
+                                  hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          const SizedBox(height: 12),
+
+                          // 9. Document Photos Section (Matching reference image 8)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F8F4),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFD6E8DC), width: 1),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: DocumentPhotoTile(
+                                        label: 'B-Form Picture',
+                                        photo: photosByType[PhotoType.bForm],
+                                        pickedFile: _pickedFiles[PhotoType.bForm],
+                                        onPicked: (file) => setState(() => _pickedFiles[PhotoType.bForm] = file),
+                                        resolveSignedUrl: (p) => ref.read(studentPhotoRepositoryProvider).signedUrlFor(p),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: DocumentPhotoTile(
+                                        label: 'Father CNIC Picture',
+                                        photo: photosByType[PhotoType.fatherCnic],
+                                        pickedFile: _pickedFiles[PhotoType.fatherCnic],
+                                        onPicked: (file) => setState(() => _pickedFiles[PhotoType.fatherCnic] = file),
+                                        resolveSignedUrl: (p) => ref.read(studentPhotoRepositoryProvider).signedUrlFor(p),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                SizedBox(
+                                  width: 170,
+                                  child: DocumentPhotoTile(
+                                    label: 'Student Token Pic',
+                                    photo: photosByType[PhotoType.token],
+                                    pickedFile: _pickedFiles[PhotoType.token],
+                                    onPicked: (file) => setState(() => _pickedFiles[PhotoType.token] = file),
+                                    resolveSignedUrl: (p) => ref.read(studentPhotoRepositoryProvider).signedUrlFor(p),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // 10. Bottom Button ("Edit Data" or "Save Student")
+                          GrBookGradientButton(
+                            text: widget.isEditing ? 'Edit Data' : 'Save Student',
+                            isLoading: _isSubmitting,
+                            icon: widget.isEditing ? Icons.edit_rounded : Icons.check_circle_outline_rounded,
+                            trailingIcon: null,
+                            onPressed: _isSubmitting ? null : _submit,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
-  }
-
-  Future<void> _onPhotoPicked(PhotoType type, File file) async {
-    if (!widget.isEditing) return; // photos are added after the student exists
-    final student = widget.existingStudent!;
-    await ref.read(studentPhotoRepositoryProvider).captureAndSave(
-          schoolId: student.schoolId,
-          studentId: student.id,
-          photoType: type,
-          rawFile: file,
-          userId: null,
-        );
+    );
   }
 
   @override
@@ -595,80 +798,64 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
   }
 }
 
-class _DateField extends StatelessWidget {
-  const _DateField({required this.label, required this.value, required this.format, required this.onTap});
+class _ProfileFieldCard extends StatelessWidget {
+  const _ProfileFieldCard({
+    required this.icon,
+    required this.label,
+    required this.child,
+    this.trailing,
+    this.onTap,
+  });
 
+  final IconData icon;
   final String label;
-  final DateTime? value;
-  final DateFormat format;
-  final VoidCallback onTap;
+  final Widget child;
+  final Widget? trailing;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: const Icon(Icons.calendar_today_outlined),
-          suffixIcon: const Icon(Icons.arrow_drop_down),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFD6E8DC), width: 1.2),
         ),
-        child: Text(value != null ? format.format(value!) : 'Select date', overflow: TextOverflow.ellipsis),
-      ),
-    );
-  }
-}
-
-/// "Age Here" — three read-only boxes (Year / Month / Days), matching
-/// the reference exactly. Always computed live from Date of Birth as of
-/// today; never manually editable, since it's a derived value.
-class _AgeHereDisplay extends StatelessWidget {
-  const _AgeHereDisplay({required this.age});
-
-  final AgeResult? age;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Age Here', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        const SizedBox(height: 6),
-        Row(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(child: _AgeBox(value: age?.years, label: 'Yr')),
-            const SizedBox(width: 6),
-            Expanded(child: _AgeBox(value: age?.months, label: 'Mo')),
-            const SizedBox(width: 6),
-            Expanded(child: _AgeBox(value: age?.days, label: 'Days')),
+            Icon(icon, color: GrBookTheme.primary, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: GrBookTheme.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  child,
+                ],
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 4),
+              trailing!,
+            ],
           ],
         ),
-      ],
-    );
-  }
-}
-
-class _AgeBox extends StatelessWidget {
-  const _AgeBox({required this.value, required this.label});
-
-  final int? value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      alignment: Alignment.center,
-      child: Column(
-        children: [
-          Text(value?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
-        ],
       ),
     );
   }

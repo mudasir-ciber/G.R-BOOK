@@ -10,14 +10,16 @@ import 'photo_picker_sheet.dart';
 class ProfilePhotoAvatar extends StatelessWidget {
   const ProfilePhotoAvatar({
     super.key,
-    required this.photo,
+    this.photo,
+    this.pickedFile,
     required this.fallbackInitial,
     required this.onPicked,
     required this.resolveSignedUrl,
-    this.radius = 52,
+    this.radius = 48,
   });
 
   final StudentPhoto? photo;
+  final File? pickedFile;
   final String fallbackInitial;
   final ValueChanged<File> onPicked;
   final Future<String> Function(StudentPhoto photo) resolveSignedUrl;
@@ -27,15 +29,29 @@ class ProfilePhotoAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        CircleAvatar(
-          radius: radius,
-          backgroundColor: GrBookTheme.primary.withOpacity(0.10),
-          child: ClipOval(
-            child: SizedBox(
-              width: radius * 2,
-              height: radius * 2,
-              child: _buildImageContent(),
+        InkWell(
+          borderRadius: BorderRadius.circular(radius),
+          onTap: () async {
+            final file = await showPhotoPickerSheet(context);
+            if (file != null) onPicked(file);
+          },
+          child: Container(
+            width: radius * 2,
+            height: radius * 2,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2E8F0),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x15000000),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
+            clipBehavior: Clip.antiAlias,
+            child: _buildImageContent(),
           ),
         ),
         Positioned(
@@ -48,13 +64,20 @@ class ProfilePhotoAvatar extends StatelessWidget {
               if (file != null) onPicked(file);
             },
             child: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: const BoxDecoration(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
                 color: GrBookTheme.primary,
                 shape: BoxShape.circle,
-                border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 2)),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x20000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+              child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
             ),
           ),
         ),
@@ -63,19 +86,17 @@ class ProfilePhotoAvatar extends StatelessWidget {
   }
 
   Widget _buildImageContent() {
+    if (pickedFile != null) {
+      return Image.file(pickedFile!, fit: BoxFit.cover);
+    }
     if (photo == null || !photo!.hasContent) {
-      return Center(
-        child: Text(
-          fallbackInitial,
-          style: TextStyle(fontSize: radius * 0.6, color: GrBookTheme.primaryDark, fontWeight: FontWeight.bold),
-        ),
+      return const Center(
+        child: Icon(Icons.person_rounded, size: 52, color: Color(0xFF94A3B8)),
       );
     }
     if (photo!.localPath != null) {
       return Image.file(File(photo!.localPath!), fit: BoxFit.cover);
     }
-    // No local copy (e.g. viewing on a different device after sync) —
-    // fetch via a private signed URL only, never a public one.
     return FutureBuilder<String>(
       future: resolveSignedUrl(photo!),
       builder: (context, snapshot) {
