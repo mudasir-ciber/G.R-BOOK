@@ -16,7 +16,9 @@ import '../school/school_profile_screen.dart';
 
 /// Screen 5: Settings Page matching reference UI image 5 exactly.
 class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.showBack = true});
+
+  final bool showBack;
 
   void _notAvailableYet(BuildContext context, String feature, String phase) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -156,7 +158,7 @@ class SettingsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const GrBookTopBar(),
+              GrBookTopBar(showBack: showBack),
               const GrBookPageHeader(
                 title: 'Settings',
                 subtitle: 'Manage your school, account and app settings',

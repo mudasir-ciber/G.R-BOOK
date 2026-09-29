@@ -6,7 +6,7 @@ import 'config/app_config.dart';
 import 'core/theme.dart';
 import 'features/auth/auth_providers.dart';
 import 'features/auth/login_screen.dart';
-import 'features/classes/classes_screen.dart';
+import 'features/home/main_navigation_screen.dart';
 import 'features/school/add_school_screen.dart';
 import 'providers/repository_providers.dart';
 import 'services/sync_coordinator.dart';
@@ -102,7 +102,7 @@ class _SchoolGateState extends ConsumerState<SchoolGate> {
       loading: () => const _SplashScreen(),
       error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
       data: (school) {
-        if (school != null) return const ClassesScreen();
+        if (school != null) return const MainNavigationScreen();
 
         // No local school cached yet. Kick off a one-time bootstrap
         // attempt (scheduled after this build frame — never called

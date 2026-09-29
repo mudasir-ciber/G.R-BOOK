@@ -178,6 +178,56 @@ class PdfExportService {
     return _save(await doc.save(), '${type.name}_${student.grNumber}');
   }
 
+  Future<File> generateCustomCertificate({
+    required String certificateTitle,
+    required School school,
+    required Student student,
+    required String className,
+    String? additionalNote,
+  }) async {
+    final doc = pw.Document();
+    final issueDate = _dateFormat.format(DateTime.now());
+
+    final bodyText = 'This is to certify that ${student.studentName}, son/daughter of '
+        '${student.fatherName ?? '_______'}, GR Number ${student.grNumber}, was admitted on '
+        'the school register on ${DateFormat('dd-MM-yyyy').format(student.dateOfAdmission)} '
+        'and enrolled in $className.\n\n'
+        'This $certificateTitle is issued on request for lawful purposes and records.'
+        '${additionalNote != null ? '\n\nRemarks / Details: $additionalNote' : ''}';
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(48),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(school.schoolName, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            if (school.semisCode != null) pw.Text('SEMIS: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
+            pw.SizedBox(height: 24),
+            pw.Text(certificateTitle, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
+            pw.SizedBox(height: 32),
+            pw.Container(
+              alignment: pw.Alignment.centerLeft,
+              child: pw.Text(bodyText, style: const pw.TextStyle(fontSize: 13, lineSpacing: 4)),
+            ),
+            pw.SizedBox(height: 48),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Date: $issueDate'),
+                pw.Column(children: [pw.SizedBox(width: 140, child: pw.Divider()), pw.Text('Head Teacher / Principal')]),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final safeTitle = certificateTitle.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    return _save(await doc.save(), '${safeTitle}_${student.grNumber}');
+  }
+
   String _certificateBody(CertificateType type, Student student, String className, AgeResult age, String? note) {
     switch (type) {
       case CertificateType.schoolLeaving:

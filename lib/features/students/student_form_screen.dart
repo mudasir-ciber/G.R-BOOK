@@ -15,6 +15,7 @@ import '../../providers/sync_providers.dart';
 import '../../repositories/student_photo_repository.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import '../audit/audit_log_screen.dart';
+import '../complaints/complaint_history_screen.dart';
 import 'certificate_screen.dart';
 import 'widgets/document_photo_tile.dart';
 import 'widgets/profile_photo_avatar.dart';
@@ -23,9 +24,9 @@ import 'widgets/profile_photo_avatar.dart';
 /// Serves both as "Add Student" and "Student Profile" with full photo picker support
 /// for Student Photo, B-Form, Father CNIC, and Token Picture.
 class StudentFormScreen extends ConsumerStatefulWidget {
-  const StudentFormScreen({super.key, required this.schoolClass, this.existingStudent});
+  const StudentFormScreen({super.key, this.schoolClass, this.existingStudent});
 
-  final SchoolClass schoolClass;
+  final SchoolClass? schoolClass;
   final Student? existingStudent;
 
   bool get isEditing => existingStudent != null;
@@ -74,7 +75,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
     _remarksController = TextEditingController(text: s?.remarks ?? '');
     _dateOfBirth = s?.dateOfBirth;
     _dateOfAdmission = s?.dateOfAdmission ?? DateTime.now();
-    _selectedClassId = s?.classId ?? widget.schoolClass.id;
+    _selectedClassId = s?.classId ?? widget.schoolClass?.id ?? '';
   }
 
   Future<void> _pickDate({required bool isDob}) async {
@@ -155,8 +156,18 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
       return;
     }
 
+    final schoolId = widget.schoolClass?.schoolId ?? ref.read(currentSchoolProvider).value?.id;
+    if (schoolId == null) {
+      setState(() => _errorMessage = 'School not found.');
+      return;
+    }
+
     final classRepo = ref.read(classRepositoryProvider);
     final targetClass = await classRepo.getClassById(_selectedClassId) ?? widget.schoolClass;
+    if (targetClass == null) {
+      setState(() => _errorMessage = 'Please select a valid class.');
+      return;
+    }
 
     final ageError = _validateEceAdmissionAge(targetClass);
     if (ageError != null) {
@@ -166,7 +177,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
 
     final grNumber = _grController.text.trim();
     final isDuplicate = await ref.read(studentRepositoryProvider).checkDuplicateGrNumber(
-          schoolId: widget.schoolClass.schoolId,
+          schoolId: schoolId,
           grNumber: grNumber,
           excludingStudentId: widget.existingStudent?.id,
         );
@@ -199,7 +210,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
         targetStudent = updated;
       } else {
         targetStudent = await repo.createStudent(
-          schoolId: widget.schoolClass.schoolId,
+          schoolId: schoolId,
           classId: _selectedClassId,
           grNumber: grNumber,
           studentName: _nameController.text.trim(),
@@ -231,10 +242,90 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
       triggerSync(ref);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.isEditing ? 'Student updated successfully.' : 'Student registered successfully.')),
-      );
-      Navigator.of(context).pop();
+
+      if (widget.isEditing) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Student updated successfully.')),
+        );
+        Navigator.of(context).pop();
+      } else {
+        // Show post-save action dialog with VIEW PROFILE, ADD ANOTHER STUDENT, GO HOME
+        final action = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Color(0xFF0F9D58), size: 28),
+                SizedBox(width: 10),
+                Text('Student Added', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: Text(
+              '${targetStudent.studentName} has been successfully registered.',
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actions: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F9D58),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.person, size: 18),
+                    label: const Text('VIEW PROFILE', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () => Navigator.of(ctx).pop('profile'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0F9D58),
+                      side: const BorderSide(color: Color(0xFF0F9D58)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.person_add, size: 18),
+                    label: const Text('ADD ANOTHER STUDENT', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () => Navigator.of(ctx).pop('another'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop('home'),
+                    child: const Text('GO HOME', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+
+        if (action == 'profile') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => StudentFormScreen(
+                schoolClass: targetClass,
+                existingStudent: targetStudent,
+              ),
+            ),
+          );
+        } else if (action == 'another') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => StudentFormScreen(schoolClass: targetClass),
+            ),
+          );
+        } else {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      }
     } catch (e) {
       setState(() => _errorMessage = 'Could not save student. ${e.toString()}');
     } finally {
@@ -244,10 +335,20 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final classesAsync = ref.watch(classesStreamProvider(widget.schoolClass.schoolId));
+    final schoolId = widget.schoolClass?.schoolId ?? ref.watch(currentSchoolProvider).valueOrNull?.id ?? '';
+    final classesAsync = ref.watch(classesStreamProvider(schoolId));
     final Map<PhotoType, StudentPhoto> photosByType = widget.isEditing
         ? (ref.watch(studentPhotosProvider(widget.existingStudent!.id)).valueOrNull ?? {})
         : const {};
+
+    // Auto-select first class if none selected yet
+    if (_selectedClassId.isEmpty && (classesAsync.valueOrNull?.isNotEmpty ?? false)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selectedClassId.isEmpty) {
+          setState(() => _selectedClassId = classesAsync.value!.first.id);
+        }
+      });
+    }
 
     final asOfForAge = DateTime.now();
     final age = _dateOfBirth != null
@@ -272,12 +373,27 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                             icon: const Icon(Icons.workspace_premium_outlined, color: GrBookTheme.primary, size: 22),
                             tooltip: 'Certificates',
                             onPressed: () {
+                              final currentClass = widget.schoolClass ??
+                                  (classesAsync.valueOrNull?.where((c) => c.id == widget.existingStudent!.classId).firstOrNull);
+                              if (currentClass != null) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => CertificateScreen(
+                                      student: widget.existingStudent!,
+                                      schoolClass: currentClass,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.rate_review_outlined, color: GrBookTheme.primary, size: 22),
+                            tooltip: 'Complaint History',
+                            onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => CertificateScreen(
-                                    student: widget.existingStudent!,
-                                    schoolClass: widget.schoolClass,
-                                  ),
+                                  builder: (_) => ComplaintHistoryScreen(student: widget.existingStudent!),
                                 ),
                               );
                             },
