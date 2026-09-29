@@ -269,12 +269,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               ),
                             ],
                           ),
-                          padding: const EdgeInsets.all(5),
+                          padding: const EdgeInsets.all(2),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(9),
                             child: Image.asset(
                               'assets/images/app_logo.png',
-                              fit: BoxFit.contain,
+                              fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => const Icon(
                                 Icons.auto_stories_rounded,
                                 color: GrBookTheme.primary,

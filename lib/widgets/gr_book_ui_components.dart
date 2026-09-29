@@ -47,14 +47,18 @@ class GrBookTopBar extends StatelessWidget implements PreferredSizeWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/images/book_logo.png',
-                    height: 24,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.menu_book_rounded,
-                      color: GrBookTheme.primary,
-                      size: 24,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.asset(
+                      'assets/images/book_logo.png',
+                      height: 24,
+                      width: 24,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.menu_book_rounded,
+                        color: GrBookTheme.primary,
+                        size: 24,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
