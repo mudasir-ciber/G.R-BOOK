@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
 import '../../../repositories/student_photo_repository.dart';
+import '../../../widgets/full_screen_image_viewer.dart';
 import 'photo_picker_sheet.dart';
 
 class ProfilePhotoAvatar extends StatelessWidget {
@@ -32,8 +33,32 @@ class ProfilePhotoAvatar extends StatelessWidget {
         InkWell(
           borderRadius: BorderRadius.circular(radius),
           onTap: () async {
-            final file = await showPhotoPickerSheet(context, preferredAspectRatio: 1.0);
-            if (file != null) onPicked(file);
+            final hasImage = pickedFile != null || (photo != null && photo!.hasContent);
+            if (hasImage) {
+              File? localFile = pickedFile;
+              if (localFile == null && photo?.localPath != null) {
+                final f = File(photo!.localPath!);
+                if (await f.exists()) localFile = f;
+              }
+              String? netUrl;
+              if (localFile == null && photo != null) {
+                try {
+                  netUrl = await resolveSignedUrl(photo!);
+                } catch (_) {}
+              }
+              if (!context.mounted) return;
+              await FullScreenImageViewer.open(
+                context,
+                file: localFile,
+                networkUrl: netUrl,
+                title: 'Student Profile Picture',
+                onImageChanged: onPicked,
+                aspectRatio: 1.0,
+              );
+            } else {
+              final file = await showPhotoPickerSheet(context, preferredAspectRatio: 1.0);
+              if (file != null) onPicked(file);
+            }
           },
           child: Container(
             width: radius * 2,

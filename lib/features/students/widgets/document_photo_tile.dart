@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
 import '../../../repositories/student_photo_repository.dart';
+import '../../../widgets/full_screen_image_viewer.dart';
 import 'photo_picker_sheet.dart';
 
 class DocumentPhotoTile extends StatelessWidget {
@@ -43,8 +44,30 @@ class DocumentPhotoTile extends StatelessWidget {
         InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () async {
-            final file = await showPhotoPickerSheet(context);
-            if (file != null) onPicked(file);
+            if (hasImage) {
+              File? localFile = pickedFile;
+              if (localFile == null && photo?.localPath != null) {
+                final f = File(photo!.localPath!);
+                if (await f.exists()) localFile = f;
+              }
+              String? netUrl;
+              if (localFile == null && photo != null) {
+                try {
+                  netUrl = await resolveSignedUrl(photo!);
+                } catch (_) {}
+              }
+              if (!context.mounted) return;
+              await FullScreenImageViewer.open(
+                context,
+                file: localFile,
+                networkUrl: netUrl,
+                title: label,
+                onImageChanged: onPicked,
+              );
+            } else {
+              final file = await showPhotoPickerSheet(context);
+              if (file != null) onPicked(file);
+            }
           },
           child: Container(
             height: 72,

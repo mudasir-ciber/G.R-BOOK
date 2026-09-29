@@ -46,6 +46,23 @@ class Student {
   /// Local-only bookkeeping (not sent to Supabase directly).
   final SyncState syncState;
 
+  String get gender {
+    if (remarks != null) {
+      if (remarks!.contains('[GENDER:GIRL]')) return 'GIRL';
+      if (remarks!.contains('[GENDER:BOY]')) return 'BOY';
+    }
+    return 'BOY';
+  }
+
+  bool get isGirl => gender == 'GIRL';
+  bool get isBoy => gender == 'BOY';
+
+  String? get cleanRemarks {
+    if (remarks == null) return null;
+    final cleaned = remarks!.replaceAll(RegExp(r'\[GENDER:(BOY|GIRL)\]'), '').trim();
+    return cleaned.isEmpty ? null : cleaned;
+  }
+
   const Student({
     required this.id,
     required this.clientGeneratedId,

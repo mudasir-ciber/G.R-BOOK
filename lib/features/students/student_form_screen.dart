@@ -14,7 +14,6 @@ import '../../providers/repository_providers.dart';
 import '../../providers/sync_providers.dart';
 import '../../repositories/student_photo_repository.dart';
 import '../../widgets/gr_book_ui_components.dart';
-import '../audit/audit_log_screen.dart';
 import '../complaints/complaint_history_screen.dart';
 import 'certificate_screen.dart';
 import 'widgets/document_photo_tile.dart';
@@ -49,6 +48,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
   late final TextEditingController _cnicController;
   late final TextEditingController _bFormController;
   late final TextEditingController _remarksController;
+  late String _selectedGender;
 
   DateTime? _dateOfBirth;
   DateTime? _dateOfAdmission;
@@ -72,7 +72,8 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
     _addressController = TextEditingController(text: s?.address ?? '');
     _cnicController = TextEditingController(text: s?.fatherCnic ?? '');
     _bFormController = TextEditingController(text: s?.bFormNumber ?? '');
-    _remarksController = TextEditingController(text: s?.remarks ?? '');
+    _remarksController = TextEditingController(text: s?.cleanRemarks ?? s?.remarks ?? '');
+    _selectedGender = s?.gender ?? 'BOY';
     _dateOfBirth = s?.dateOfBirth;
     _dateOfAdmission = s?.dateOfAdmission ?? DateTime.now();
     _selectedClassId = s?.classId ?? widget.schoolClass?.id ?? '';
@@ -190,6 +191,11 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
     try {
       final repo = ref.read(studentRepositoryProvider);
       final Student targetStudent;
+      final userText = _remarksController.text.trim();
+      final combinedRemarks = userText.isEmpty
+          ? '[GENDER:$_selectedGender]'
+          : '$userText [GENDER:$_selectedGender]';
+
       if (widget.isEditing) {
         final updated = widget.existingStudent!.copyWith(
           classId: _selectedClassId,
@@ -204,7 +210,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
           phoneNumber: _emptyToNull(_mobileController.text),
           address: _emptyToNull(_addressController.text),
           previousSchool: _emptyToNull(_lastSchoolController.text),
-          remarks: _emptyToNull(_remarksController.text),
+          remarks: combinedRemarks,
         );
         await repo.updateStudent(updated);
         targetStudent = updated;
@@ -223,7 +229,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
           phoneNumber: _emptyToNull(_mobileController.text),
           address: _emptyToNull(_addressController.text),
           previousSchool: _emptyToNull(_lastSchoolController.text),
-          remarks: _emptyToNull(_remarksController.text),
+          remarks: combinedRemarks,
         );
       }
 
@@ -394,21 +400,6 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => ComplaintHistoryScreen(student: widget.existingStudent!),
-                                ),
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.history, color: GrBookTheme.primary, size: 22),
-                            tooltip: 'History',
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => AuditLogScreen(
-                                    schoolId: widget.existingStudent!.schoolId,
-                                    studentId: widget.existingStudent!.id,
-                                    title: '${widget.existingStudent!.studentName} — History',
-                                  ),
                                 ),
                               );
                             },
@@ -688,84 +679,162 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // 8. Row: Date of Birth | Age Here
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _ProfileFieldCard(
-                                  icon: Icons.calendar_today_outlined,
-                                  label: 'Date of Birth',
-                                  onTap: () => _pickDate(isDob: true),
-                                  trailing: const Icon(Icons.calendar_month_outlined, size: 20, color: Color(0xFF94A3B8)),
-                                  child: Text(
-                                    _dateOfBirth != null ? _dateFormat.format(_dateOfBirth!) : 'Select date',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: _dateOfBirth != null ? GrBookTheme.textPrimary : const Color(0xFF94A3B8),
+                          // 8. Date of Birth (Full width, easy to tap)
+                          _ProfileFieldCard(
+                            icon: Icons.calendar_today_outlined,
+                            label: 'Date of Birth',
+                            onTap: () => _pickDate(isDob: true),
+                            trailing: const Icon(Icons.calendar_month_outlined, size: 20, color: Color(0xFF94A3B8)),
+                            child: Text(
+                              _dateOfBirth != null ? _dateFormat.format(_dateOfBirth!) : 'Select Date of Birth',
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: _dateOfBirth != null ? GrBookTheme.textPrimary : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 9. Age Here (Full width, comfortable spacing, no squeezed text)
+                          _ProfileFieldCard(
+                            icon: Icons.access_time_rounded,
+                            label: 'Age (Calculated from Date of Birth)',
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F8F4),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFB7DFC6)),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      age != null ? '${age.years} Yr' : '-- Yr',
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _ProfileFieldCard(
-                                  icon: Icons.access_time_rounded,
-                                  label: 'Age Here',
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: const Color(0xFFCBD5E1)),
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            age != null ? '${age.years} Yr' : 'Year',
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: const Color(0xFFCBD5E1)),
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            age != null ? '${age.months} Mo' : 'Month',
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: const Color(0xFFCBD5E1)),
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            age != null ? '${age.days} D' : 'Days',
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F8F4),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFB7DFC6)),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      age != null ? '${age.months} Mo' : '-- Mo',
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F8F4),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFB7DFC6)),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      age != null ? '${age.days} Days' : '-- Days',
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 10. Gender Section (BOY / GIRL)
+                          _ProfileFieldCard(
+                            icon: Icons.wc_rounded,
+                            label: 'Gender',
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () => setState(() => _selectedGender = 'BOY'),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 9),
+                                      decoration: BoxDecoration(
+                                        color: _selectedGender == 'BOY' ? const Color(0xFFDCF2E4) : const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: _selectedGender == 'BOY' ? GrBookTheme.primary : const Color(0xFFCBD5E1),
+                                          width: _selectedGender == 'BOY' ? 1.8 : 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.male_rounded,
+                                            size: 20,
+                                            color: _selectedGender == 'BOY' ? GrBookTheme.primaryDark : const Color(0xFF94A3B8),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'BOY (Son of)',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: _selectedGender == 'BOY' ? GrBookTheme.primaryDark : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () => setState(() => _selectedGender = 'GIRL'),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 9),
+                                      decoration: BoxDecoration(
+                                        color: _selectedGender == 'GIRL' ? const Color(0xFFFCE4EC) : const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: _selectedGender == 'GIRL' ? const Color(0xFFD81B60) : const Color(0xFFCBD5E1),
+                                          width: _selectedGender == 'GIRL' ? 1.8 : 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.female_rounded,
+                                            size: 20,
+                                            color: _selectedGender == 'GIRL' ? const Color(0xFFD81B60) : const Color(0xFF94A3B8),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'GIRL (Daughter of)',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: _selectedGender == 'GIRL' ? const Color(0xFFAD1457) : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 10),
 
@@ -919,11 +988,11 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // 10. Bottom Button ("Edit Data" or "Save Student")
+                          // 10. Bottom Button ("Save Changes" or "Save Student")
                           GrBookGradientButton(
-                            text: widget.isEditing ? 'Edit Data' : 'Save Student',
+                            text: widget.isEditing ? 'Save Changes' : 'Save Student',
                             isLoading: _isSubmitting,
-                            icon: widget.isEditing ? Icons.edit_rounded : Icons.check_circle_outline_rounded,
+                            icon: widget.isEditing ? Icons.save_rounded : Icons.check_circle_outline_rounded,
                             trailingIcon: null,
                             onPressed: _isSubmitting ? null : _submit,
                           ),

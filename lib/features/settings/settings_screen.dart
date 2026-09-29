@@ -166,8 +166,8 @@ class SettingsScreen extends ConsumerWidget {
                     _buildSectionHeader('ACCOUNT'),
                     _buildTile(
                       icon: Icons.person_rounded,
-                      title: 'My Account',
-                      subtitle: 'View and update your name, mobile number and password',
+                      title: 'Principal Account',
+                      subtitle: 'Name, profile photo, signature & password',
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const MyAccountScreen()),
                       ),
