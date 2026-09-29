@@ -69,6 +69,9 @@ class SyncEngine {
           case 'school':
             await _replaySchoolItem(item);
             break;
+          case 'class':
+            await _replayClassItem(item);
+            break;
           default:
             // Unknown entity type from a future feature that hasn't
             // wired its replay logic yet — leave queued rather than
@@ -358,6 +361,18 @@ class SyncEngine {
         await _db.markQueueItemFailed(item.queueId, e.toString());
         if (_looksLikeConnectivityFailure(e)) break;
       }
+    }
+  }
+
+  Future<void> _replayClassItem(SyncQueueTableData item) async {
+    final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+    if (item.operation == 'update') {
+      await _client.from('classes').update({
+        'display_name': payload['display_name'],
+        'min_admission_age_months': payload['min_admission_age_months'],
+        'min_promotion_age_months': payload['min_promotion_age_months'],
+        'is_active': payload['is_active'],
+      }).eq('id', item.entityId);
     }
   }
 

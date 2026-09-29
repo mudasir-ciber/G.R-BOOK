@@ -1,9 +1,8 @@
 /// Calendar-accurate age calculation.
 ///
 /// Deliberately NOT `days / 365` — that drifts wrong around leap years
-/// and unevenly-sized months. Instead this walks whole years, then whole
-/// months, then remaining days, borrowing from the previous unit exactly
-/// the way a person counting on a calendar would.
+/// and unevenly-sized months. See [AgeCalculator.calculate] for the
+/// calendar-anniversary method actually used.
 class AgeResult {
   final int years;
   final int months;
@@ -37,6 +36,12 @@ class AgeCalculator {
 
   /// Calculates calendar-accurate age between [dateOfBirth] and [asOf].
   ///
+  /// Method: count whole months from the date of birth, where "DOB plus
+  /// N months" is clamped to the last day of a shorter month (31 Jan
+  /// plus 1 month = 28/29 Feb; 29 Feb plus 1 year = 28 Feb). The days
+  /// are then simply the calendar days since that anniversary, so they
+  /// can never be negative and never exceed the length of a month.
+  ///
   /// Throws [ArgumentError] if [asOf] is before [dateOfBirth] — a student
   /// cannot have a negative age; callers should surface this as a
   /// validation error rather than silently clamping it.
@@ -53,30 +58,29 @@ class AgeCalculator {
       );
     }
 
-    int years = ref.year - dob.year;
-    int months = ref.month - dob.month;
-    int days = ref.day - dob.day;
-
-    if (days < 0) {
-      // Borrow days from the previous month relative to `ref`.
-      final prevMonthLastDay = _lastDayOfPreviousMonth(ref);
-      days += prevMonthLastDay;
-      months -= 1;
+    var totalMonths = (ref.year - dob.year) * 12 + (ref.month - dob.month);
+    if (_addMonthsClamped(dob, totalMonths).isAfter(ref)) {
+      totalMonths -= 1;
     }
+    final anniversary = _addMonthsClamped(dob, totalMonths);
 
-    if (months < 0) {
-      months += 12;
-      years -= 1;
-    }
+    // Both are plain calendar dates (midnight), so difference in whole
+    // days is exact; using UTC avoids daylight-saving hour shifts.
+    final days = DateTime.utc(ref.year, ref.month, ref.day)
+        .difference(DateTime.utc(anniversary.year, anniversary.month, anniversary.day))
+        .inDays;
 
-    return AgeResult(years: years, months: months, days: days);
+    return AgeResult(years: totalMonths ~/ 12, months: totalMonths % 12, days: days);
   }
 
-  static int _lastDayOfPreviousMonth(DateTime ref) {
-    // Day 0 of the current month == last day of the previous month.
-    final firstOfCurrentMonth = DateTime(ref.year, ref.month, 1);
-    final lastOfPrevMonth = firstOfCurrentMonth.subtract(const Duration(days: 1));
-    return lastOfPrevMonth.day;
+  /// [date] plus [months] calendar months, clamped to the target
+  /// month's last day when the day-of-month doesn't exist there.
+  static DateTime _addMonthsClamped(DateTime date, int months) {
+    final zeroBased = date.month - 1 + months;
+    final year = date.year + zeroBased ~/ 12;
+    final month = zeroBased % 12 + 1;
+    final lastDay = DateTime(year, month + 1, 0).day;
+    return DateTime(year, month, date.day > lastDay ? lastDay : date.day);
   }
 
   /// Convenience: is [dateOfBirth] at least [minMonths] old as of [asOf]?

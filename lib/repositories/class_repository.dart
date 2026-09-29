@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../models/school.dart';
+import '../services/connectivity_service.dart';
 
 class ClassWithActiveCount {
   final SchoolClass schoolClass;
@@ -14,9 +18,11 @@ class ClassWithActiveCount {
 /// are bootstrapped/synced by SchoolRepository, so class screens work
 /// fully offline (requirement #25/#27).
 class ClassRepository {
-  ClassRepository(this._db);
+  ClassRepository(this._db, this._client, this._connectivity);
 
   final AppDatabase _db;
+  final SupabaseClient _client;
+  final ConnectivityService _connectivity;
 
   /// Ensures that all 6 default classes (ECE to Class 5) exist for the school
   /// in the local Drift SQLite database. If none exist, seeds them immediately.
@@ -25,7 +31,7 @@ class ClassRepository {
           ..where((t) => t.schoolId.equals(schoolId)))
         .get();
 
-    // 1. Ensure all existing classes have isActive = true
+    // Ensure all existing classes have isActive = true
     final hasInactive = existing.any((c) => !c.isActive);
     if (hasInactive) {
       await (_db.update(_db.classesTable)
@@ -87,6 +93,16 @@ class ClassRepository {
     }
   }
 
+  /// Includes inactive classes too — used by Manage Classes so an
+  /// admin can see and re-enable a class they turned off.
+  Stream<List<SchoolClass>> watchAllClasses(String schoolId) {
+    ensureDefaultClasses(schoolId);
+    final query = _db.select(_db.classesTable)
+      ..where((t) => t.schoolId.equals(schoolId))
+      ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]);
+    return query.watch().map((rows) => rows.map(_fromRow).toList());
+  }
+
   Stream<List<SchoolClass>> watchClasses(String schoolId) {
     ensureDefaultClasses(schoolId);
     final query = _db.select(_db.classesTable)
@@ -123,6 +139,48 @@ class ClassRepository {
     final row = await (_db.select(_db.classesTable)..where((t) => t.id.equals(classId)))
         .getSingleOrNull();
     return row == null ? null : _fromRow(row);
+  }
+
+  /// Requirement #6: classes must be manageable through Settings.
+  Future<void> updateClass(SchoolClass updated) async {
+    final online = await _connectivity.isOnline();
+
+    await (_db.update(_db.classesTable)..where((t) => t.id.equals(updated.id))).write(
+      ClassesTableCompanion(
+        displayName: Value(updated.displayName),
+        minAdmissionAgeMonths: Value(updated.minAdmissionAgeMonths),
+        minPromotionAgeMonths: Value(updated.minPromotionAgeMonths),
+        isActive: Value(updated.isActive),
+      ),
+    );
+
+    if (online) {
+      try {
+        await _client.from('classes').update({
+          'display_name': updated.displayName,
+          'min_admission_age_months': updated.minAdmissionAgeMonths,
+          'min_promotion_age_months': updated.minPromotionAgeMonths,
+          'is_active': updated.isActive,
+        }).eq('id', updated.id);
+        return;
+      } catch (_) {
+        // fall through to queueing
+      }
+    }
+
+    await _db.into(_db.syncQueueTable).insert(
+          SyncQueueTableCompanion.insert(
+            entityType: 'class',
+            entityId: updated.id,
+            operation: 'update',
+            payloadJson: jsonEncode({
+              'display_name': updated.displayName,
+              'min_admission_age_months': updated.minAdmissionAgeMonths,
+              'min_promotion_age_months': updated.minPromotionAgeMonths,
+              'is_active': updated.isActive,
+            }),
+          ),
+        );
   }
 
   SchoolClass _fromRow(ClassesTableData row) => SchoolClass(

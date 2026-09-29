@@ -7,24 +7,20 @@ import '../../widgets/gr_book_ui_components.dart';
 import '../audit/audit_log_screen.dart';
 import '../auth/auth_providers.dart';
 import '../auth/login_screen.dart';
+import '../classes/manage_classes_screen.dart';
 import '../passout/pass_out_years_screen.dart';
+import '../school/school_profile_screen.dart';
+import '../security/app_lock_setup_screen.dart';
 import 'about_screen.dart';
 import 'backup_restore_screen.dart';
 import 'export_print_screen.dart';
 import 'my_account_screen.dart';
-import '../school/school_profile_screen.dart';
 
 /// Screen 5: Settings Page matching reference UI image 5 exactly.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key, this.showBack = true});
 
   final bool showBack;
-
-  void _notAvailableYet(BuildContext context, String feature, String phase) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature is coming in $phase — not available yet.')),
-    );
-  }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
@@ -190,7 +186,13 @@ class SettingsScreen extends ConsumerWidget {
                       icon: Icons.groups_rounded,
                       title: 'Manage Classes',
                       subtitle: 'Add, rename or remove classes',
-                      onTap: () => _notAvailableYet(context, 'Manage Classes', 'Phase 10'),
+                      onTap: schoolId == null
+                          ? null
+                          : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ManageClassesScreen(schoolId: schoolId),
+                                ),
+                              ),
                     ),
                     _buildTile(
                       icon: Icons.school_rounded,
@@ -232,7 +234,9 @@ class SettingsScreen extends ConsumerWidget {
                       icon: Icons.shield_rounded,
                       title: 'App Security',
                       subtitle: 'App lock, PIN, fingerprint and auto-lock',
-                      onTap: () => _notAvailableYet(context, 'App Security', 'Phase 10'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AppLockSetupScreen()),
+                      ),
                     ),
 
                     _buildSectionHeader('OTHER'),

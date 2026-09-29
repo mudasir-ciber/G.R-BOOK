@@ -16,7 +16,11 @@ final schoolRepositoryProvider = Provider<SchoolRepository>((ref) {
 });
 
 final classRepositoryProvider = Provider<ClassRepository>((ref) {
-  return ClassRepository(ref.watch(appDatabaseProvider));
+  return ClassRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(supabaseClientProvider),
+    ref.watch(connectivityServiceProvider),
+  );
 });
 
 final studentRepositoryProvider = Provider<StudentRepository>((ref) {
@@ -42,6 +46,10 @@ final classesWithCountsProvider = StreamProvider.family((ref, String schoolId) {
 /// student form, which just needs id/displayName/rules.
 final classesStreamProvider = StreamProvider.family((ref, String schoolId) {
   return ref.watch(classRepositoryProvider).watchClasses(schoolId);
+});
+
+final allClassesStreamProvider = StreamProvider.family((ref, String schoolId) {
+  return ref.watch(classRepositoryProvider).watchAllClasses(schoolId);
 });
 
 typedef GlobalSearchArgs = ({String schoolId, String query});

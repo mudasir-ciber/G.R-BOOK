@@ -8,6 +8,7 @@ import 'features/auth/auth_providers.dart';
 import 'features/auth/login_screen.dart';
 import 'features/home/main_navigation_screen.dart';
 import 'features/school/add_school_screen.dart';
+import 'features/security/app_lock_gate.dart';
 import 'providers/repository_providers.dart';
 import 'services/sync_coordinator.dart';
 
@@ -40,7 +41,7 @@ class GrBookApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: GrBookTheme.themeData,
       home: isUnlocked
-          ? const SyncCoordinator(child: SchoolGate())
+          ? const AppLockGate(child: SyncCoordinator(child: SchoolGate()))
           : const LoginScreen(),
     );
   }
