@@ -266,8 +266,38 @@ class _CertificateStudentPickerScreenState
   final _searchController = TextEditingController();
   String _searchQuery = '';
   Student? _selectedStudent;
+  final _contextController = TextEditingController();
   final _remarksController = TextEditingController();
   bool _isGenerating = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _contextController.dispose();
+    _remarksController.dispose();
+    super.dispose();
+  }
+
+  void _initContextText(Student s, String className) {
+    if (widget.certificateType.isDefault) {
+      final defaultType = switch (widget.certificateType.title) {
+        'School Leaving Certificate' => CertificateType.schoolLeaving,
+        'Character Certificate' => CertificateType.character,
+        _ => CertificateType.birth,
+      };
+      _contextController.text = PdfExportService.buildDefaultCertificateContext(
+        type: defaultType,
+        student: s,
+        className: className,
+      );
+    } else {
+      _contextController.text = PdfExportService.buildDefaultCustomCertificateContext(
+        title: widget.certificateType.title,
+        student: s,
+        className: className,
+      );
+    }
+  }
 
   Future<void> _generateAndExecute(
     Future<void> Function(File file) action, {
@@ -278,6 +308,8 @@ class _CertificateStudentPickerScreenState
     try {
       final pdfService = ref.read(pdfExportServiceProvider);
       final File file;
+
+      final customText = _contextController.text.trim();
 
       if (widget.certificateType.isDefault) {
         final defaultType = switch (widget.certificateType.title) {
@@ -291,6 +323,7 @@ class _CertificateStudentPickerScreenState
           student: _selectedStudent!,
           className: className,
           additionalNote: _remarksController.text.trim().isEmpty ? null : _remarksController.text.trim(),
+          customBodyText: customText.isNotEmpty ? customText : null,
         );
       } else {
         file = await pdfService.generateCustomCertificate(
@@ -299,6 +332,7 @@ class _CertificateStudentPickerScreenState
           student: _selectedStudent!,
           className: className,
           additionalNote: _remarksController.text.trim().isEmpty ? null : _remarksController.text.trim(),
+          customBodyText: customText.isNotEmpty ? customText : null,
         );
       }
 
@@ -415,7 +449,13 @@ class _CertificateStudentPickerScreenState
                       title: Text(s.studentName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: GrBookTheme.getTextPrimary(context))),
                       subtitle: Text('G.R: ${s.grNumber} • Father: ${s.fatherName ?? '-'}', style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context))),
                       trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: GrBookTheme.primary),
-                      onTap: () => setState(() => _selectedStudent = s),
+                      onTap: () {
+                        final classes = ref.read(classesStreamProvider(widget.school.id)).valueOrNull ?? [];
+                        final matchedClass = classes.where((c) => c.id == s.classId).firstOrNull;
+                        final className = matchedClass?.displayName ?? 'Class';
+                        _initContextText(s, className);
+                        setState(() => _selectedStudent = s);
+                      },
                     ),
                   );
                 },
@@ -432,6 +472,10 @@ class _CertificateStudentPickerScreenState
     final matchedClass = classes.where((c) => c.id == s.classId).firstOrNull;
     final className = matchedClass?.displayName ?? 'Class';
     final dateFormat = DateFormat('dd-MM-yyyy');
+
+    if (_contextController.text.isEmpty) {
+      _initContextText(s, className);
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -469,6 +513,65 @@ class _CertificateStudentPickerScreenState
               _infoRow('Date of Admission', dateFormat.format(s.dateOfAdmission)),
               _infoRow('Father CNIC', s.fatherCnic ?? '-'),
               _infoRow('B-Form Number', s.bFormNumber ?? '-'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Certificate Context / Body (Teacher-Editable)
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: GrBookTheme.getCardBackground(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: GrBookTheme.getBorderColor(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.edit_note_rounded, size: 22, color: GrBookTheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Certificate Context / Body:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: GrBookTheme.getTextPrimary(context)),
+                      ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: EdgeInsets.zero),
+                    onPressed: () {
+                      _initContextText(s, className);
+                      setState(() {});
+                    },
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Reset Text', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Teacher can write or customize this text freely just like a complaint letter:',
+                style: TextStyle(fontSize: 11.5, color: GrBookTheme.getTextSecondary(context)),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _contextController,
+                maxLines: 5,
+                style: TextStyle(fontSize: 13.5, color: GrBookTheme.getTextPrimary(context), height: 1.4),
+                decoration: InputDecoration(
+                  hintText: 'Type certificate context here...',
+                  filled: true,
+                  fillColor: GrBookTheme.isDark(context) ? const Color(0xFF14221A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: GrBookTheme.getBorderColor(context))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: GrBookTheme.getBorderColor(context))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: GrBookTheme.primary, width: 1.5)),
+                ),
+              ),
             ],
           ),
         ),

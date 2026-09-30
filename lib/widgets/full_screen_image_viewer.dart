@@ -198,16 +198,15 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
   }
 
   Widget _buildImageWidget() {
+    Widget content;
     if (_currentFile != null) {
-      return Image.file(_currentFile!, fit: BoxFit.contain);
-    }
-    if (_currentMemoryBytes != null) {
-      return Image.memory(_currentMemoryBytes!, fit: BoxFit.contain);
-    }
-    if (_currentNetworkUrl != null && _currentNetworkUrl!.isNotEmpty) {
-      return CachedNetworkImage(
+      content = Image.file(_currentFile!, fit: widget.aspectRatio == 1.0 ? BoxFit.cover : BoxFit.contain);
+    } else if (_currentMemoryBytes != null) {
+      content = Image.memory(_currentMemoryBytes!, fit: widget.aspectRatio == 1.0 ? BoxFit.cover : BoxFit.contain);
+    } else if (_currentNetworkUrl != null && _currentNetworkUrl!.isNotEmpty) {
+      content = CachedNetworkImage(
         imageUrl: _currentNetworkUrl!,
-        fit: BoxFit.contain,
+        fit: widget.aspectRatio == 1.0 ? BoxFit.cover : BoxFit.contain,
         placeholder: (_, __) => const Center(
           child: CircularProgressIndicator(color: Colors.white),
         ),
@@ -215,9 +214,34 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
           child: Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
         ),
       );
+    } else {
+      return const Center(
+        child: Icon(Icons.image_not_supported_rounded, color: Colors.white54, size: 64),
+      );
     }
-    return const Center(
-      child: Icon(Icons.image_not_supported_rounded, color: Colors.white54, size: 64),
-    );
+
+    if (widget.aspectRatio == 1.0) {
+      return Center(
+        child: Container(
+          width: 300,
+          height: 300,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: GrBookTheme.primary, width: 3.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ClipOval(child: content),
+        ),
+      );
+    }
+
+    return content;
   }
 }

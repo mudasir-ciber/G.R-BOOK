@@ -25,8 +25,30 @@ class CertificateScreen extends ConsumerStatefulWidget {
 
 class _CertificateScreenState extends ConsumerState<CertificateScreen> {
   CertificateType _type = CertificateType.schoolLeaving;
+  final _contextController = TextEditingController();
   final _noteController = TextEditingController();
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initContextText();
+  }
+
+  void _initContextText() {
+    _contextController.text = PdfExportService.buildDefaultCertificateContext(
+      type: _type,
+      student: widget.student,
+      className: widget.schoolClass.displayName,
+    );
+  }
+
+  @override
+  void dispose() {
+    _contextController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
 
   Future<File?> _generate({bool profileOnly = false}) async {
     final school = await ref.read(schoolRepositoryProvider).getLocalSchool();
@@ -43,12 +65,14 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
       );
     }
     final note = _noteController.text.trim();
+    final customText = _contextController.text.trim();
     return service.generateCertificate(
       type: _type,
       school: school,
       student: widget.student,
       className: widget.schoolClass.displayName,
       additionalNote: note.isEmpty ? null : note,
+      customBodyText: customText.isNotEmpty ? customText : null,
     );
   }
 
@@ -96,9 +120,70 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
                     groupValue: _type,
                     activeColor: GrBookTheme.primary,
                     title: Text(t.title, style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
-                    onChanged: (v) => setState(() => _type = v ?? _type),
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() {
+                          _type = v;
+                          _initContextText();
+                        });
+                      }
+                    },
                   ),
                 ).toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.edit_note_rounded, size: 22, color: GrBookTheme.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Certificate Context / Body:',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: textPrimary),
+                          ),
+                        ],
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: EdgeInsets.zero),
+                        onPressed: () => setState(_initContextText),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: const Text('Reset Text', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Teacher can write or customize this text freely just like a complaint letter:',
+                    style: TextStyle(fontSize: 11.5, color: GrBookTheme.getTextSecondary(context)),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _contextController,
+                    maxLines: 5,
+                    style: TextStyle(fontSize: 13.5, color: textPrimary, height: 1.4),
+                    decoration: InputDecoration(
+                      hintText: 'Type certificate context here...',
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF14221A) : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+                      focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: GrBookTheme.primary, width: 1.5)),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -177,11 +262,5 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
   }
 }

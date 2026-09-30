@@ -29,7 +29,9 @@ class ImageCompressionService {
     if (!await photosDir.exists()) {
       await photosDir.create(recursive: true);
     }
-    final targetPath = p.join(photosDir.path, '${_uuid.v4()}.jpg');
+    final isPng = source.path.toLowerCase().endsWith('.png');
+    final ext = isPng ? 'png' : 'jpg';
+    final targetPath = p.join(photosDir.path, '${_uuid.v4()}.$ext');
 
     final result = await FlutterImageCompress.compressAndGetFile(
       source.absolute.path,
@@ -37,7 +39,7 @@ class ImageCompressionService {
       quality: quality,
       minWidth: maxDimension,
       minHeight: maxDimension,
-      format: CompressFormat.jpeg,
+      format: isPng ? CompressFormat.png : CompressFormat.jpeg,
       keepExif: false, // strips location/device metadata from sensitive student photos
     );
 

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -133,6 +134,24 @@ class OfflineStorageService {
         complaints = rows.map((r) => r.data).toList();
       } catch (_) {}
 
+      Map<String, dynamic> studentToExportMap(StudentsTableData s) {
+        final m = Map<String, dynamic>.from(s.toJson());
+        final dobStr = s.dateOfBirth.toIso8601String().split('T').first;
+        final doaStr = s.dateOfAdmission.toIso8601String().split('T').first;
+        m['dateOfBirth'] = dobStr;
+        m['date_of_birth'] = dobStr;
+        m['dob'] = dobStr;
+        m['dateOfAdmission'] = doaStr;
+        m['date_of_admission'] = doaStr;
+        m['admission'] = doaStr;
+        if (s.struckOffDate != null) {
+          final soStr = s.struckOffDate!.toIso8601String().split('T').first;
+          m['struckOffDate'] = soStr;
+          m['struck_off_date'] = soStr;
+        }
+        return m;
+      }
+
       // 1. Write full complete backup JSON (for one-tap restore)
       final fullPayload = {
         'backup_version': 2,
@@ -142,7 +161,7 @@ class OfflineStorageService {
         'school_id': schoolId,
         'school': school.toJson(),
         'classes': classes.map((c) => c.toJson()).toList(),
-        'students': students.map((s) => s.toJson()).toList(),
+        'students': students.map(studentToExportMap).toList(),
         'photos': photos.map((p) => p.toJson()).toList(),
         'promotion_batches': promoBatches.map((b) => b.toJson()).toList(),
         'promotion_records': promoRecords.map((r) => r.toJson()).toList(),
@@ -174,7 +193,7 @@ class OfflineStorageService {
           'class_code': cls.classCode,
           'student_count': classStudents.length,
           'updated_at': DateTime.now().toIso8601String(),
-          'students': classStudents.map((s) => s.toJson()).toList(),
+          'students': classStudents.map(studentToExportMap).toList(),
         };
 
         final classFile = File(p.join(classFolder.path, 'students.json'));
@@ -269,7 +288,33 @@ class OfflineStorageService {
   DateTime? _parseDateTime(dynamic val) {
     if (val == null) return null;
     if (val is DateTime) return val;
-    if (val is String) return DateTime.tryParse(val);
+    if (val is int) {
+      if (val > 1000000000000) return DateTime.fromMillisecondsSinceEpoch(val);
+      if (val > 1000000000) return DateTime.fromMillisecondsSinceEpoch(val * 1000);
+      return DateTime.fromMillisecondsSinceEpoch(val);
+    }
+    if (val is num) {
+      final i = val.toInt();
+      if (i > 1000000000000) return DateTime.fromMillisecondsSinceEpoch(i);
+      if (i > 1000000000) return DateTime.fromMillisecondsSinceEpoch(i * 1000);
+      return DateTime.fromMillisecondsSinceEpoch(i);
+    }
+    if (val is String) {
+      final trimmed = val.trim();
+      if (trimmed.isEmpty) return null;
+      final iso = DateTime.tryParse(trimmed);
+      if (iso != null) return iso;
+      final asInt = int.tryParse(trimmed);
+      if (asInt != null) {
+        if (asInt > 1000000000000) return DateTime.fromMillisecondsSinceEpoch(asInt);
+        if (asInt > 1000000000) return DateTime.fromMillisecondsSinceEpoch(asInt * 1000);
+      }
+      for (final pattern in const ['dd-MM-yyyy', 'dd/MM/yyyy', 'd-M-yyyy', 'd/M/yyyy', 'yyyy-MM-dd', 'yyyy/MM/dd']) {
+        try {
+          return DateFormat(pattern).parseStrict(trimmed);
+        } catch (_) {}
+      }
+    }
     return null;
   }
 
@@ -325,9 +370,19 @@ class OfflineStorageService {
       final studentList = (payload['students'] as List?) ?? [];
       for (final item in studentList) {
         final s = item as Map<String, dynamic>;
+        final studentId = s['id'].toString();
+        final existingStudent = await (_db.select(_db.studentsTable)..where((t) => t.id.equals(studentId))).getSingleOrNull();
+
+        final parsedDob = _parseDateTime(s['dateOfBirth'] ?? s['date_of_birth'] ?? s['dob']);
+        final parsedDoa = _parseDateTime(s['dateOfAdmission'] ?? s['date_of_admission'] ?? s['admission']);
+
+        // Preserve existing DOB from local DB if backup doesn't have a parseable date, NEVER overwrite with today's date!
+        final finalDob = parsedDob ?? existingStudent?.dateOfBirth ?? DateTime(DateTime.now().year - 6, 1, 1);
+        final finalDoa = parsedDoa ?? existingStudent?.dateOfAdmission ?? DateTime.now();
+
         await _db.into(_db.studentsTable).insertOnConflictUpdate(
               StudentsTableCompanion.insert(
-                id: s['id'].toString(),
+                id: studentId,
                 clientGeneratedId: (s['clientGeneratedId'] ?? s['id']).toString(),
                 schoolId: s['schoolId'].toString(),
                 classId: s['classId'].toString(),
@@ -336,8 +391,8 @@ class OfflineStorageService {
                 studentName: s['studentName'].toString(),
                 fatherName: drift.Value(s['fatherName']?.toString()),
                 motherName: drift.Value(s['motherName']?.toString()),
-                dateOfBirth: _parseDateTime(s['dateOfBirth']) ?? DateTime.now(),
-                dateOfAdmission: _parseDateTime(s['dateOfAdmission']) ?? DateTime.now(),
+                dateOfBirth: finalDob,
+                dateOfAdmission: finalDoa,
                 fatherCnic: drift.Value(s['fatherCnic']?.toString()),
                 bFormNumber: drift.Value(s['bFormNumber']?.toString()),
                 phoneNumber: drift.Value(s['phoneNumber']?.toString()),
@@ -346,7 +401,7 @@ class OfflineStorageService {
                 remarks: drift.Value(s['remarks']?.toString()),
                 status: drift.Value(s['status']?.toString() ?? 'ACTIVE'),
                 promotionStatus: drift.Value(s['promotionStatus']?.toString() ?? 'NONE'),
-                struckOffDate: drift.Value(_parseDateTime(s['struckOffDate'])),
+                struckOffDate: drift.Value(_parseDateTime(s['struckOffDate'] ?? s['struck_off_date'])),
                 struckOffReason: drift.Value(s['struckOffReason']?.toString()),
                 passOutYear: drift.Value(_parseInt(s['passOutYear'])),
                 version: drift.Value(_parseInt(s['version']) ?? 1),

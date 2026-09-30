@@ -145,17 +145,25 @@ class PdfExportService {
                   ),
                 ),
                 pw.SizedBox(width: 16),
-                // Student Picture Box
+                // Student Picture Box (Circular)
                 pw.Container(
-                  width: 85,
-                  height: 100,
+                  width: 90,
+                  height: 90,
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey600, width: 1.2),
+                    shape: pw.BoxShape.circle,
+                    border: pw.Border.all(color: PdfColor.fromInt(0xFF0F9D58), width: 2.0),
                     color: PdfColors.grey100,
                   ),
                   alignment: pw.Alignment.center,
                   child: studentPhotoBytes != null && studentPhotoBytes.isNotEmpty
-                      ? pw.Image(pw.MemoryImage(studentPhotoBytes), fit: pw.BoxFit.cover)
+                      ? pw.ClipOval(
+                          child: pw.Image(
+                            pw.MemoryImage(studentPhotoBytes),
+                            width: 86,
+                            height: 86,
+                            fit: pw.BoxFit.cover,
+                          ),
+                        )
                       : pw.Text('Student\nPhoto', textAlign: pw.TextAlign.center, style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 9)),
                 ),
               ],
@@ -273,11 +281,16 @@ class PdfExportService {
     required Student student,
     required String className,
     String? additionalNote,
+    String? customBodyText,
   }) async {
     final doc = pw.Document();
     final issueDate = _dateFormat.format(DateTime.now());
     final age = AgeCalculator.calculate(dateOfBirth: student.dateOfBirth, asOf: DateTime.now());
     final signatureImage = await _loadPrincipalSignature();
+
+    final body = (customBodyText != null && customBodyText.trim().isNotEmpty)
+        ? customBodyText.trim()
+        : _certificateBody(type, student, className, age, additionalNote);
 
     doc.addPage(
       pw.Page(
@@ -293,7 +306,7 @@ class PdfExportService {
             pw.SizedBox(height: 32),
             pw.Container(
               alignment: pw.Alignment.centerLeft,
-              child: pw.Text(_certificateBody(type, student, className, age, additionalNote), style: const pw.TextStyle(fontSize: 13, lineSpacing: 4)),
+              child: pw.Text(body, style: const pw.TextStyle(fontSize: 13, lineSpacing: 4)),
             ),
             pw.SizedBox(height: 40),
             pw.Row(
@@ -331,18 +344,21 @@ class PdfExportService {
     required Student student,
     required String className,
     String? additionalNote,
+    String? customBodyText,
   }) async {
     final doc = pw.Document();
     final issueDate = _dateFormat.format(DateTime.now());
     final signatureImage = await _loadPrincipalSignature();
     final relation = student.isFemale ? 'daughter of' : 'son of';
 
-    final bodyText = 'This is to certify that ${student.studentName}, $relation '
-        '${student.fatherName ?? '_______'}, GR Number ${student.grNumber}, was admitted on '
-        'the school register on ${DateFormat('dd-MM-yyyy').format(student.dateOfAdmission)} '
-        'and enrolled in $className.\n\n'
-        'This $certificateTitle is issued on request for lawful purposes and records.'
-        '${additionalNote != null ? '\n\nRemarks / Details: $additionalNote' : ''}';
+    final bodyText = (customBodyText != null && customBodyText.trim().isNotEmpty)
+        ? customBodyText.trim()
+        : ('This is to certify that ${student.studentName}, $relation '
+            '${student.fatherName ?? '_______'}, GR Number ${student.grNumber}, was admitted on '
+            'the school register on ${DateFormat('dd-MM-yyyy').format(student.dateOfAdmission)} '
+            'and enrolled in $className.\n\n'
+            'This $certificateTitle is issued on request for lawful purposes and records.'
+            '${additionalNote != null ? '\n\nRemarks / Details: $additionalNote' : ''}');
 
     doc.addPage(
       pw.Page(
@@ -506,25 +522,49 @@ class PdfExportService {
   }
 
   String _certificateBody(CertificateType type, Student student, String className, AgeResult age, String? note) {
+    final defaultText = buildDefaultCertificateContext(
+      type: type,
+      student: student,
+      className: className,
+      age: age,
+    );
+    if (note != null && note.trim().isNotEmpty) {
+      return '$defaultText\n\nRemarks: ${note.trim()}';
+    }
+    return defaultText;
+  }
+
+  static String buildDefaultCertificateContext({
+    required CertificateType type,
+    required Student student,
+    required String className,
+    AgeResult? age,
+  }) {
+    final effectiveAge = age ?? AgeCalculator.calculate(dateOfBirth: student.dateOfBirth, asOf: DateTime.now());
     final relation = student.isFemale ? 'daughter of' : 'son of';
+    final father = student.fatherName ?? '_______';
+    final dobStr = DateFormat('dd-MM-yyyy').format(student.dateOfBirth);
+    final doaStr = DateFormat('dd-MM-yyyy').format(student.dateOfAdmission);
+
     switch (type) {
       case CertificateType.schoolLeaving:
-        return 'This is to certify that ${student.studentName}, $relation '
-            '${student.fatherName ?? '_______'}, GR Number ${student.grNumber}, was a '
-            'student of $className in this school and was admitted on the register on '
-            '${DateFormat('dd-MM-yyyy').format(student.dateOfAdmission)}. '
-            'The student is leaving the school.${note != null ? '\n\nRemarks: $note' : ''}';
+        return 'This is to certify that ${student.studentName}, $relation $father, bearing G.R. Number ${student.grNumber}, was a bonafide student of $className in this school. The student was admitted on the general register on $doaStr and is leaving the school on satisfactory terms with good moral conduct.';
       case CertificateType.character:
-        return 'This is to certify that ${student.studentName}, $relation '
-            '${student.fatherName ?? '_______'}, GR Number ${student.grNumber}, a student '
-            'of $className, bears a good moral character to the best of the school\'s '
-            'knowledge during their time here.${note != null ? '\n\nRemarks: $note' : ''}';
+        return 'This is to certify that ${student.studentName}, $relation $father, bearing G.R. Number ${student.grNumber}, enrolled in $className, bears a good moral character and satisfactory conduct during their academic period in this school to the best of our knowledge and records.';
       case CertificateType.birth:
-        return 'As per the school admission register, ${student.studentName}, $relation '
-            'of ${student.fatherName ?? '_______'}, GR Number ${student.grNumber}, was born on '
-            '${DateFormat('dd-MM-yyyy').format(student.dateOfBirth)} '
-            '(present age: ${age.format()}).${note != null ? '\n\nRemarks: $note' : ''}';
+        return 'As per the official school General Register records, ${student.studentName}, $relation $father, bearing G.R. Number ${student.grNumber}, was born on $dobStr (present age: ${effectiveAge.format()}). This certificate is issued upon lawful request for records and official verification.';
     }
+  }
+
+  static String buildDefaultCustomCertificateContext({
+    required String title,
+    required Student student,
+    required String className,
+  }) {
+    final relation = student.isFemale ? 'daughter of' : 'son of';
+    final father = student.fatherName ?? '_______';
+    final doaStr = DateFormat('dd-MM-yyyy').format(student.dateOfAdmission);
+    return 'This is to certify that ${student.studentName}, $relation $father, bearing G.R. Number ${student.grNumber}, was admitted on $doaStr and enrolled in $className.\n\nThis $title is issued on request for lawful purposes and official school records.';
   }
 
   pw.Widget _header(School school, String title) {

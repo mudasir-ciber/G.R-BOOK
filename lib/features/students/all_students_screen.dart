@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import '../../core/age_calculator.dart';
 import '../../core/theme.dart';
 import '../../models/enums.dart';
 import '../../models/school.dart';
@@ -302,28 +304,54 @@ class _StudentRowCard extends ConsumerWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'S.No: ${student.serialNumber ?? '-'}',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: GrBookTheme.getTextSecondary(context)),
+              Row(
+                children: [
+                  Text(
+                    'S.No: ${student.serialNumber ?? '-'}',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: GrBookTheme.getTextSecondary(context)),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'G.R: ${student.grNumber}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.primary),
+                  ),
+                  if (student.fatherName != null && student.fatherName!.isNotEmpty) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '• ${student.fatherName}',
+                        style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(width: 12),
-              Text(
-                'G.R: ${student.grNumber}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.primary),
-              ),
-              if (student.fatherName != null && student.fatherName!.isNotEmpty) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '• ${student.fatherName}',
-                    style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
+              const SizedBox(height: 3),
+              Builder(
+                builder: (_) {
+                  final age = AgeCalculator.calculate(
+                    dateOfBirth: student.dateOfBirth,
+                    asOf: DateTime.now(),
+                  );
+                  final dobStr = DateFormat('dd-MM-yyyy').format(student.dateOfBirth);
+                  return Text(
+                    'Age: ${age.formatShort()} • DOB: $dobStr',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: GrBookTheme.getTextSecondary(context),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
             ],
           ),
         ),

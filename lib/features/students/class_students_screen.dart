@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import '../../core/age_calculator.dart';
 import '../../core/theme.dart';
 import '../../models/enums.dart';
 import '../../models/school.dart';
@@ -303,17 +305,43 @@ class _StudentItemRow extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
 
-                // Student Name
+                // Student Name & Dynamic Age/DOB
                 Expanded(
-                  child: Text(
-                    student.studentName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: GrBookTheme.getTextPrimary(context),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        student.studentName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: GrBookTheme.getTextPrimary(context),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Builder(
+                        builder: (_) {
+                          final age = AgeCalculator.calculate(
+                            dateOfBirth: student.dateOfBirth,
+                            asOf: DateTime.now(),
+                          );
+                          final dobStr = DateFormat('dd-MM-yyyy').format(student.dateOfBirth);
+                          return Text(
+                            'Age: ${age.formatShort()} • DOB: $dobStr',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: GrBookTheme.getTextSecondary(context),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
 

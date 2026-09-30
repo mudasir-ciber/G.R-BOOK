@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -75,13 +76,31 @@ class GoogleDriveBackupService {
         await (_db.select(_db.passOutYearsTable)..where((t) => t.schoolId.equals(schoolId))).get();
     final auditLogs = await (_db.select(_db.auditLogsTable)..where((t) => t.schoolId.equals(schoolId))).get();
 
+    Map<String, dynamic> studentToExportMap(StudentsTableData s) {
+      final m = Map<String, dynamic>.from(s.toJson());
+      final dobStr = s.dateOfBirth.toIso8601String().split('T').first;
+      final doaStr = s.dateOfAdmission.toIso8601String().split('T').first;
+      m['dateOfBirth'] = dobStr;
+      m['date_of_birth'] = dobStr;
+      m['dob'] = dobStr;
+      m['dateOfAdmission'] = doaStr;
+      m['date_of_admission'] = doaStr;
+      m['admission'] = doaStr;
+      if (s.struckOffDate != null) {
+        final soStr = s.struckOffDate!.toIso8601String().split('T').first;
+        m['struckOffDate'] = soStr;
+        m['struck_off_date'] = soStr;
+      }
+      return m;
+    }
+
     return {
       'backup_version': 1,
       'generated_at': DateTime.now().toIso8601String(),
       'school_id': schoolId,
       'school': school?.toJson(),
       'classes': classes.map((c) => c.toJson()).toList(),
-      'students': students.map((s) => s.toJson()).toList(),
+      'students': students.map(studentToExportMap).toList(),
       'promotion_batches': promoBatches.map((b) => b.toJson()).toList(),
       'promotion_records': promoRecords.map((r) => r.toJson()).toList(),
       'struck_off_records': struckOff.map((r) => r.toJson()).toList(),
@@ -260,70 +279,115 @@ class GoogleDriveBackupService {
     } catch (_) {}
   }
 
+  DateTime? _parseDateTime(dynamic val) {
+    if (val == null) return null;
+    if (val is DateTime) return val;
+    if (val is int) {
+      if (val > 1000000000000) return DateTime.fromMillisecondsSinceEpoch(val);
+      if (val > 1000000000) return DateTime.fromMillisecondsSinceEpoch(val * 1000);
+      return DateTime.fromMillisecondsSinceEpoch(val);
+    }
+    if (val is num) {
+      final i = val.toInt();
+      if (i > 1000000000000) return DateTime.fromMillisecondsSinceEpoch(i);
+      if (i > 1000000000) return DateTime.fromMillisecondsSinceEpoch(i * 1000);
+      return DateTime.fromMillisecondsSinceEpoch(i);
+    }
+    if (val is String) {
+      final trimmed = val.trim();
+      if (trimmed.isEmpty) return null;
+      final iso = DateTime.tryParse(trimmed);
+      if (iso != null) return iso;
+      final asInt = int.tryParse(trimmed);
+      if (asInt != null) {
+        if (asInt > 1000000000000) return DateTime.fromMillisecondsSinceEpoch(asInt);
+        if (asInt > 1000000000) return DateTime.fromMillisecondsSinceEpoch(asInt * 1000);
+      }
+      for (final pattern in const ['dd-MM-yyyy', 'dd/MM/yyyy', 'd-M-yyyy', 'd/M/yyyy', 'yyyy-MM-dd', 'yyyy/MM/dd']) {
+        try {
+          return DateFormat(pattern).parseStrict(trimmed);
+        } catch (_) {}
+      }
+    }
+    return null;
+  }
+
   Future<void> _restoreStudents(List<Map<String, dynamic>> rows) async {
     for (final json in rows) {
+      final studentId = json['id'].toString();
+      final existingStudent = await (_db.select(_db.studentsTable)..where((t) => t.id.equals(studentId))).getSingleOrNull();
+
+      final parsedDob = _parseDateTime(json['dateOfBirth'] ?? json['date_of_birth'] ?? json['dob']);
+      final parsedDoa = _parseDateTime(json['dateOfAdmission'] ?? json['date_of_admission'] ?? json['admission']);
+      final finalDob = parsedDob ?? existingStudent?.dateOfBirth ?? DateTime(DateTime.now().year - 6, 1, 1);
+      final finalDoa = parsedDoa ?? existingStudent?.dateOfAdmission ?? DateTime.now();
+
       await _db.into(_db.studentsTable).insertOnConflictUpdate(
             StudentsTableCompanion.insert(
-              id: json['id'] as String,
-              clientGeneratedId: json['clientGeneratedId'] as String,
-              schoolId: json['schoolId'] as String,
-              classId: json['classId'] as String,
-              grNumber: json['grNumber'] as String,
-              serialNumber: drift.Value(json['serialNumber'] as int?),
-              studentName: json['studentName'] as String,
-              fatherName: drift.Value(json['fatherName'] as String?),
-              motherName: drift.Value(json['motherName'] as String?),
-              dateOfBirth: DateTime.parse(json['dateOfBirth'] as String),
-              dateOfAdmission: DateTime.parse(json['dateOfAdmission'] as String),
-              fatherCnic: drift.Value(json['fatherCnic'] as String?),
-              bFormNumber: drift.Value(json['bFormNumber'] as String?),
-              phoneNumber: drift.Value(json['phoneNumber'] as String?),
-              address: drift.Value(json['address'] as String?),
-              previousSchool: drift.Value(json['previousSchool'] as String?),
-              remarks: drift.Value(json['remarks'] as String?),
-              status: drift.Value(json['status'] as String? ?? 'ACTIVE'),
-              promotionStatus: drift.Value(json['promotionStatus'] as String? ?? 'NONE'),
-              struckOffDate: drift.Value(
-                  json['struckOffDate'] != null ? DateTime.parse(json['struckOffDate'] as String) : null),
-              struckOffReason: drift.Value(json['struckOffReason'] as String?),
-              passOutYear: drift.Value(json['passOutYear'] as int?),
-              version: drift.Value(json['version'] as int? ?? 1),
-              updatedAt: DateTime.parse(json['updatedAt'] as String),
-              createdAt: DateTime.parse(json['createdAt'] as String),
-              createdBy: drift.Value(json['createdBy'] as String?),
-              updatedBy: drift.Value(json['updatedBy'] as String?),
-              isDeleted: drift.Value(json['isDeleted'] as bool? ?? false),
+              id: studentId,
+              clientGeneratedId: (json['clientGeneratedId'] ?? studentId).toString(),
+              schoolId: json['schoolId'].toString(),
+              classId: json['classId'].toString(),
+              grNumber: json['grNumber'].toString(),
+              serialNumber: drift.Value(json['serialNumber'] != null ? int.tryParse(json['serialNumber'].toString()) : null),
+              studentName: json['studentName'].toString(),
+              fatherName: drift.Value(json['fatherName']?.toString()),
+              motherName: drift.Value(json['motherName']?.toString()),
+              dateOfBirth: finalDob,
+              dateOfAdmission: finalDoa,
+              fatherCnic: drift.Value(json['fatherCnic']?.toString()),
+              bFormNumber: drift.Value(json['bFormNumber']?.toString()),
+              phoneNumber: drift.Value(json['phoneNumber']?.toString()),
+              address: drift.Value(json['address']?.toString()),
+              previousSchool: drift.Value(json['previousSchool']?.toString()),
+              remarks: drift.Value(json['remarks']?.toString()),
+              status: drift.Value(json['status']?.toString() ?? 'ACTIVE'),
+              promotionStatus: drift.Value(json['promotionStatus']?.toString() ?? 'NONE'),
+              struckOffDate: drift.Value(_parseDateTime(json['struckOffDate'] ?? json['struck_off_date'])),
+              struckOffReason: drift.Value(json['struckOffReason']?.toString()),
+              passOutYear: drift.Value(json['passOutYear'] != null ? int.tryParse(json['passOutYear'].toString()) : null),
+              version: drift.Value(json['version'] != null ? int.tryParse(json['version'].toString()) ?? 1 : 1),
+              updatedAt: _parseDateTime(json['updatedAt']) ?? DateTime.now(),
+              createdAt: _parseDateTime(json['createdAt']) ?? DateTime.now(),
+              createdBy: drift.Value(json['createdBy']?.toString()),
+              updatedBy: drift.Value(json['updatedBy']?.toString()),
+              isDeleted: drift.Value(json['isDeleted'] == true || json['isDeleted'] == 'true'),
               syncState: const drift.Value('synced'),
             ),
           );
     }
     try {
       await _client.from('students').upsert(rows
-          .map((json) => {
-                'id': json['id'],
-                'client_generated_id': json['clientGeneratedId'],
-                'school_id': json['schoolId'],
-                'class_id': json['classId'],
-                'gr_number': json['grNumber'],
-                'serial_number': json['serialNumber'],
-                'student_name': json['studentName'],
-                'father_name': json['fatherName'],
-                'mother_name': json['motherName'],
-                'date_of_birth': (json['dateOfBirth'] as String).split('T').first,
-                'date_of_admission': (json['dateOfAdmission'] as String).split('T').first,
-                'father_cnic': json['fatherCnic'],
-                'b_form_number': json['bFormNumber'],
-                'phone_number': json['phoneNumber'],
-                'address': json['address'],
-                'previous_school': json['previousSchool'],
-                'remarks': json['remarks'],
-                'status': json['status'] ?? 'ACTIVE',
-                'promotion_status': json['promotionStatus'] ?? 'NONE',
-                'struck_off_date': json['struckOffDate'] != null ? (json['struckOffDate'] as String).split('T').first : null,
-                'struck_off_reason': json['struckOffReason'],
-                'pass_out_year': json['passOutYear'],
-                'is_deleted': json['isDeleted'] ?? false,
-              })
+          .map((json) {
+            final parsedDob = _parseDateTime(json['dateOfBirth'] ?? json['date_of_birth'] ?? json['dob']) ?? DateTime(DateTime.now().year - 6, 1, 1);
+            final parsedDoa = _parseDateTime(json['dateOfAdmission'] ?? json['date_of_admission'] ?? json['admission']) ?? DateTime.now();
+            final soDate = _parseDateTime(json['struckOffDate'] ?? json['struck_off_date']);
+            return {
+              'id': json['id'],
+              'client_generated_id': json['clientGeneratedId'] ?? json['id'],
+              'school_id': json['schoolId'],
+              'class_id': json['classId'],
+              'gr_number': json['grNumber'],
+              'serial_number': json['serialNumber'],
+              'student_name': json['studentName'],
+              'father_name': json['fatherName'],
+              'mother_name': json['motherName'],
+              'date_of_birth': parsedDob.toIso8601String().split('T').first,
+              'date_of_admission': parsedDoa.toIso8601String().split('T').first,
+              'father_cnic': json['fatherCnic'],
+              'b_form_number': json['bFormNumber'],
+              'phone_number': json['phoneNumber'],
+              'address': json['address'],
+              'previous_school': json['previousSchool'],
+              'remarks': json['remarks'],
+              'status': json['status'] ?? 'ACTIVE',
+              'promotion_status': json['promotionStatus'] ?? 'NONE',
+              'struck_off_date': soDate != null ? soDate.toIso8601String().split('T').first : null,
+              'struck_off_reason': json['struckOffReason'],
+              'pass_out_year': json['passOutYear'],
+              'is_deleted': json['isDeleted'] ?? false,
+            };
+          })
           .toList());
     } catch (_) {}
   }
