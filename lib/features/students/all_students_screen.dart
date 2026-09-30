@@ -272,12 +272,16 @@ class _StudentRowCard extends ConsumerWidget {
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF14221A) : const Color(0xFFF1F5F9),
+            color: studentPhoto != null && studentPhoto.hasContent
+                ? Colors.transparent
+                : (isDark ? const Color(0xFF14221A) : const Color(0xFFF1F5F9)),
             shape: BoxShape.circle,
             border: Border.all(color: isDark ? const Color(0xFF24382B) : const Color(0xFFCBD5E1), width: 1.2),
           ),
           clipBehavior: Clip.antiAlias,
-          child: _buildAvatar(ref, studentPhoto),
+          child: ClipOval(
+            child: _buildAvatar(ref, studentPhoto),
+          ),
         ),
         title: Row(
           children: [

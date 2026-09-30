@@ -229,18 +229,36 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                             height: 88,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isDark ? const Color(0xFF22382B) : const Color(0xFFE2E8F0),
-                              border: Border.all(color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary, width: 2.5),
+                              color: Colors.transparent,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                            clipBehavior: Clip.antiAlias,
-                            child: _profilePhotoFile != null && _profilePhotoFile!.existsSync()
-                                ? Image.file(_profilePhotoFile!, fit: BoxFit.cover)
-                                : Center(
-                                    child: Text(
-                                      _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : 'P',
-                                      style: TextStyle(fontSize: 32, color: isDark ? Colors.white : GrBookTheme.primaryDark, fontWeight: FontWeight.bold),
+                            child: ClipOval(
+                              child: _profilePhotoFile != null && _profilePhotoFile!.existsSync()
+                                  ? Image.file(
+                                      _profilePhotoFile!,
+                                      width: 88,
+                                      height: 88,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Container(
+                                      color: isDark ? const Color(0xFF22382B) : const Color(0xFFE2E8F0),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : 'P',
+                                        style: TextStyle(
+                                          fontSize: 32,
+                                          color: isDark ? Colors.white : GrBookTheme.primaryDark,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                            ),
                           ),
                         ),
                         Positioned(

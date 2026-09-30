@@ -64,9 +64,8 @@ class ProfilePhotoAvatar extends StatelessWidget {
             width: radius * 2,
             height: radius * 2,
             decoration: BoxDecoration(
-              color: const Color(0xFFE2E8F0),
+              color: Colors.transparent,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x15000000),
@@ -75,8 +74,9 @@ class ProfilePhotoAvatar extends StatelessWidget {
                 ),
               ],
             ),
-            clipBehavior: Clip.antiAlias,
-            child: _buildImageContent(),
+            child: ClipOval(
+              child: _buildImageContent(),
+            ),
           ),
         ),
         Positioned(
@@ -112,21 +112,30 @@ class ProfilePhotoAvatar extends StatelessWidget {
 
   Widget _buildImageContent() {
     if (pickedFile != null) {
-      return Image.file(pickedFile!, fit: BoxFit.cover);
+      return Image.file(pickedFile!, width: radius * 2, height: radius * 2, fit: BoxFit.cover);
     }
     if (photo == null || !photo!.hasContent) {
-      return const Center(
-        child: Icon(Icons.person_rounded, size: 52, color: Color(0xFF94A3B8)),
+      return Container(
+        width: radius * 2,
+        height: radius * 2,
+        color: const Color(0xFFE2E8F0),
+        alignment: Alignment.center,
+        child: const Icon(Icons.person_rounded, size: 52, color: Color(0xFF94A3B8)),
       );
     }
     if (photo!.localPath != null) {
-      return Image.file(File(photo!.localPath!), fit: BoxFit.cover);
+      return Image.file(File(photo!.localPath!), width: radius * 2, height: radius * 2, fit: BoxFit.cover);
     }
     return FutureBuilder<String>(
       future: resolveSignedUrl(photo!),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-        return CachedNetworkImage(imageUrl: snapshot.data!, fit: BoxFit.cover);
+        return CachedNetworkImage(
+          imageUrl: snapshot.data!,
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+        );
       },
     );
   }

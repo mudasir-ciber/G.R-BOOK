@@ -1,213 +1,143 @@
-# G.R. Book (General Register) — Phase 1 + 2 + 3
+# 📘 G.R. BOOK APP — Digital School Record Management System
 
-Digital General Register for Government Primary Schools in Pakistan.
-First deployment target: **Govt Boys Primary School Mehar Ghanghro**.
+> **Schools aur Teachers ke liye mukammal Offline-First Digital Register, Student Profile, Certificate Generator aur Secure Record Management Application.**  
+> **Created with vision & pride by Mudasir Ahmed Ghanghro (Founder & Software Architect)**
 
-This build covers **Phase 1 (setup, database, auth)**,
-**Phase 2 (School Profile, Classes, full Student CRUD)**, and
-**Phase 3 (offline sync engine)**. Real, working code — not a demo.
-See "Roadmap" below for what's next.
+---
 
-## What's new in Phase 3
+## 📥 Final Release APK Download Links
 
-- `SyncEngine` (`lib/services/sync_engine.dart`): drains the local
-  outbox (`SyncQueueTable`) against Supabase in creation order.
-  - Offline-created students get their serial number allocated safely
-    via `next_serial_number()` at replay time, not guessed earlier.
-  - Student updates use `.select()` after the conditional `.eq('id',
-    ...).eq('version', ...)` update so a **zero-row result is correctly
-    detected as a conflict** (Supabase does not throw on that — a bug
-    that would have silently swallowed conflicts is fixed in
-    `StudentRepository.updateStudent` too, not just the sync engine).
-  - On a genuine version conflict, the **server's row wins locally**
-    (no destructive auto-overwrite) and the row is flagged
-    `SyncState.conflict` plus logged as `STUDENT_UPDATE_CONFLICT` in
-    the audit trail — visible to the user as a red warning icon in the
-    class list.
-  - Gives up retrying a single broken item after 8 attempts so it
-    can't block the rest of the queue, while staying visible as
-    pending rather than being silently dropped.
-  - Also pushes any pending local audit-log rows.
-- `SyncCoordinator`: wraps the authenticated app; triggers a drain the
-  moment connectivity comes back online, plus every 3 minutes as a
-  safety net, plus once on launch.
-- `SyncStatusBanner`: the Synced / Syncing / Offline / Pending-changes
-  indicator from requirement #27, now showing on the Classes and Class
-  Students screens (tap it while "Pending changes" to force a sync).
+Aap niche diye gaye links se **G.R. Book App ki Final Release APK** download kar sakte hain:
 
-## What's new in Phase 2
+* 📱 **[GitHub Releases Page (Download APK)](https://github.com/mudasir-ciber/G.R-BOOK/releases)**
+* 🚀 **[Direct Download: G_R_Book_Release.apk](https://github.com/mudasir-ciber/G.R-BOOK/releases/download/v1.0.0/G_R_Book_Release.apk)**
+* 📦 **Version:** `1.0.0 (Release Edition)`
+* 🛡️ **Compatibility:** Android 8.0 (Oreo) aur us se naye tamam Android phones (Samsung, Infinix, Tecno, Xiaomi, Vivo, Oppo, Realme wagera).
+* 💾 **Direct PC Location:** Desktop par `G_R_Book_Release.apk` file mojood hai jo aap direct USB cable ya WhatsApp Web se phone mein transfer karke install kar sakte hain.
 
-- `SchoolRepository`: bootstraps the logged-in user's school + classes
-  from Supabase into the local Drift cache on first login, creates a
-  brand-new school (Add School screen) with its 6 default classes and
-  promotion chain wired automatically, and updates the school profile
-  offline-first.
-- `ClassRepository`: live (`Stream`) class list with **active student
-  counts per class**, all read from the local cache.
-- `StudentRepository`: full offline-first CRUD —
-  - Serial numbers are allocated safely via the server's
-    `next_serial_number()` RPC when online; offline-created students
-    show "Pending" until synced (never guessed/duplicated client-side).
-  - GR-number duplicate check that **warns but never blocks** saving.
-  - Every create/update writes to the local DB first, then either
-    pushes to Supabase immediately or queues it in the sync outbox.
-  - Every mutation writes a local audit-log row.
-- Screens: **Add School**, **School Profile** (edit), **Classes** (with
-  live counts), **Class Students** (search + list + Add Student FAB),
-  **Add/Edit Student** (full field set, ECE admission-age validation
-  read from the class's configurable rule, GR duplicate warning
-  dialog), **Student Profile** (Today / Admission Date / Custom Date
-  age views using the calendar-accurate age calculator).
-- `main.dart` now routes a signed-in user through a real **School
-  Gate**: cached school → Classes; no cache → bootstrap from server;
-  no membership at all → Add School — matching requirement #37's flow.
+---
 
-## What's included in Phase 1
+## 📲 Android Phone Mein App Install Karne Ka Mukammal Tareeqa (Step-by-Step Guide)
 
-- Flutter project scaffold (`lib/core`, `config`, `models`, `database`,
-  `features/...`) matching the required clean architecture.
-- Android configuration: `minSdk 29`, `compileSdk/targetSdk 35`,
-  universal APK, only the permissions actually needed (camera, network,
-  scoped media, biometric, notifications) — see `AndroidManifest.xml`.
-- **Complete Supabase SQL**: schema (`01_schema.sql`), Row Level
-  Security policies with zero "allow-all" rules (`02_rls_policies.sql`),
-  private-bucket storage policies for student photos
-  (`03_storage_policies.sql`), and a seed script for the first school
-  (`04_seed_first_school.sql`).
-- **Offline database** (Drift/SQLite) mirroring the server schema, plus
-  a `SyncQueueTable` outbox for the offline-first sync engine.
-- Calendar-accurate **age calculator** (`lib/core/age_calculator.dart`)
-  — years/months/days, not `days/365` — which everything in ECE
-  admission and ECE→Class 1 promotion rules will depend on.
-- Full **Student** and **School/SchoolClass** models with
-  Supabase (`fromMap`/`toMap`) and local sync-state bookkeeping.
-- Working **Authentication**: Create Account, Login (mobile number +
-  password, Remember Me, Forgot Password), session handling — all via
-  Supabase Auth. No manual password storage anywhere.
+Agar aap pehli martaba APK install kar rahe hain, to niche diye gaye asaan steps ko follow karein:
 
-## Setup
+### Step 1: APK File Download Karein
+1. Uper diye gaye **[Download Final Release APK](https://github.com/mudasir-ciber/G.R-BOOK/raw/main/releases/GR_Book_v1.0.0.apk)** link par click karein.
+2. Browser (Google Chrome) mein warning aa sakti hai: *"File might be harmful"* — ye Android ka standard security message hota hai kyunki app direct browser se download ho rahi hai.
+3. Aap **"Download anyway"** par tap karein.
 
-1. Create a Supabase project.
-2. Run the SQL files in `supabase/sql/` **in order** (01 → 02 → 03) via
-   the Supabase SQL editor or `psql`.
-3. Create your first account in the app (Create Account screen), then
-   run `04_seed_first_school.sql` with `-v owner_profile_id='<that
-   user's auth.users.id>'` to seed the school and its 6 classes with
-   promotion rules pre-wired.
-4. Get your Project URL and anon/public key from
-   Supabase → Settings → API. **Never use the service-role key here.**
-5. Run the app with those values injected at build time:
+### Step 2: "Install Unknown Apps" Ki Permission Allow Karein
+1. Download mukammal hone ke baad notification par tap karein ya phone ke **File Manager > Downloads** folder mein jayein.
+2. `GR_Book_v1.0.0.apk` par tap karein.
+3. Agar phone pop-up show kare *"For your security, your phone is not allowed to install unknown apps from this source"*:
+   * **Settings** button par tap karein.
+   * **"Allow from this source"** (ya *Unknown Sources*) ke switch ko **ON** kardein.
+   * Wapis Back button dabayein.
 
-   ```bash
-   flutter pub get
-   flutter pub run build_runner build --delete-conflicting-outputs
-   flutter run \
-     --dart-define=SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co \
-     --dart-define=SUPABASE_ANON_KEY=YOUR_ANON_KEY
-   ```
+### Step 3: App Install Karein
+1. Ab screen par **"Install"** ka button aayega, uspe click karein.
+2. Agar **Google Play Protect** ka prompt aaye ke *"Blocked by Play Protect / Unrecognized App"*:
+   * **"More details"** par click karein.
+   * Phir **"Install anyway"** par tap karein.
+3. Chand seconds mein **"App installed"** likha hua aa jayega. **"Open"** par tap karein.
 
-6. To build the release APK:
+### Step 4: First Time Permissions Allow Karein
+1. App open hote hi **Storage / Photos** aur **Biometric / Fingerprint** ki permissions allow karein taake app phone mein `GR BOOK` folder bana sake aur fingerprint lock theek se kaam kare.
 
-   ```bash
-   flutter build apk --release \
-     --dart-define=SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co \
-     --dart-define=SUPABASE_ANON_KEY=YOUR_ANON_KEY
-   ```
+---
 
-   For a signed release, create `android/key.properties` (see comments
-   in `android/app/build.gradle.kts`) — without it, release builds fall
-   back to debug signing so the build still succeeds during development.
+## 🌟 G.R. Book App Kya Hai? (App Ka Ta'aruf)
 
-## What's new in Phase 4
+**G.R. Book App** ek digital school record management application hai jo schools aur primary education system ke tamam traditional kaghzi registers (General Register) ko digital, mehfooz aur intehayi asaan banati hai.
 
-- **Photo pipeline** (requirement #9): `ImageCompressionService` resizes
-  + compresses every photo before it's stored (1080px/quality 78 for
-  uploads, 240px/quality 70 for list thumbnails; EXIF metadata
-  stripped). `PhotoStorageService` uploads to the private
-  `student-photos` bucket and only ever issues short-lived signed URLs
-  — never a public link. `StudentPhotoRepository` is fully
-  offline-first: capture → compress → save locally instantly → upload
-  now if online, else queue (`entityType: 'photo'`) for the sync
-  engine, which now drains that queue too (uploads the compressed file
-  once connectivity returns).
-- Replacing a photo creates a **new version** rather than overwriting —
-  history is preserved per requirement #11.
-- **Student Profile / Add Student rebuilt** as a single
-  `StudentFormScreen` matching the provided UI reference exactly:
-  circular photo with camera badge, Student Name field, G.R No/Class
-  row, Father Name/Mobile No. row, Mother Name/Last School row, Date of
-  Birth + a live read-only "Age Here" (Year/Month/Days) display, Date
-  of Admission, Address, then B-Form/Father-CNIC/Student-Token photo
-  tiles, and a single bottom button ("Add Student" / "Edit Data"). CNIC
-  number, B-Form number, and Remarks (required by the data model but
-  not shown in the reference) are tucked behind an "Additional Details"
-  toggle so the primary layout stays visually identical to the
-  reference.
-- Class Students list rows now show the **real compressed student
-  photo** (local file first, falling back to a signed URL) instead of
-  an initials placeholder.
+Yeh app **Mudasir Ahmed Ghanghro** (Founder & Software Architect) ne banayi hai, is azm aur vision ke sath ke practical technology ke zariye Sindh aur poore Pakistan ke schools aur communities ke rozmarra ke masail ko hal kiya jaye aur taleemi nizam ko digital, pur-asar aur jadid banaya jaye.
 
-## What's new in Phase 5
+Yeh application un tamam mehnat-kash **Asatiza-e-Karam (Teachers)** ke naam waqf hai jo rozana bacho ki taleem-o-tarbiyat ke liye koshish karte hain. G.R. Book App ka maqsad unka kaghzi bojh khatam karke unka qeemti waqt bachana hai.
 
-- **Fully offline promotion workflow** (requirements #14-#19). New local
-  tables `PromotionBatchesTable` / `PromotionRecordsTable` mirror the
-  server schema (schema bumped to v2 with a real migration — no data
-  loss for anyone already on a Phase 1-4 build).
-- `PromotionRepository`:
-  - `getCandidates()` — active students in a class, with an
-    `isAgeEligible` flag computed via the calendar-accurate age
-    calculator against the class's configured
-    `minPromotionAgeMonths` (ECE → Class 1's 5y1m rule). Non-gated
-    classes mark everyone eligible but nothing is pre-selected in the
-    UI — the teacher chooses, matching the reference screen.
-  - `promoteStudents()` — writes a batch + one record per student
-    locally first (works with no network), moves each student to the
-    target class (or to `PASSED_OUT` + `passOutYear` when the class is
-    terminal), then pushes to Supabase or queues for the sync engine.
-  - `markStudentFailed()` — keeps the student in the same class, still
-    logged as a `FAILED` record in promotion history.
-  - `undoLastPromotion()` — restores every affected student's previous
-    class/status from the batch's records; the batch itself is marked
-    `isUndone` rather than deleted, so history is never destroyed.
-  - Passing out a student also inserts `pass_out_records` server-side
-    (both on immediate push and on queued replay).
-- `SyncEngine` now drains a **third independent queue**
-  (`entityType: 'promotion_batch'`) — after the student queue (so
-  foreign keys resolve) and before photos.
-- Screens: **Promote Students** (Current/Promote To, promotion date
-  picker, search, Select All + per-student checkboxes, an inline
-  "Mark as Failed" action per row, Undo-last-promotion in the AppBar
-  when applicable) and **Confirm Promotion** (the required preview
-  step before the actual database transaction).
-- `ClassStudentsScreen` now has both "Add Student" and "Promote"
-  buttons, matching the UI reference's stacked-button layout.
+> *"G.R. Book App is just the beginning."*  
+> — **Mudasir Ahmed Ghanghro** (Founder & Software Architect)
 
-A dedicated year-by-year **promotion history viewer** (browsing past
-batches/records for a student or class) is deferred to Phase 8
-alongside the audit log viewer — the data model already fully supports
-it; only the screen is pending.
+---
 
-## Roadmap (subsequent phases, same architecture)
+## 🚀 App Ke Bemisaal Features (Key Features & Highlights)
 
-- ~~**Phase 2**: School Profile screen, Classes management, Student CRUD,
-  offline repository + Drift wiring, serial-number allocation, GR-number
-  duplicate warning.~~ ✅ Done.
-- ~~**Phase 3**: Sync engine (outbox drain, connectivity listener, sync
-  status banner), conflict handling via `version`/`updated_at`.~~ ✅ Done.
-- ~~**Phase 4**: Student photos (camera/gallery, compression, Supabase
-  Storage signed URLs, local caching), Student Profile/Add Student
-  rebuilt to match the UI references exactly.~~ ✅ Done.
-- ~~**Phase 5**: Promotion workflow (select/preview/confirm/undo), ECE→1
-  age-gated promotion, fail-in-place, promotion history.~~ ✅ Done.
-- **Phase 6**: Pass Out (by year) and Struck Off (+ re-admission) flows.
-- **Phase 7**: Dashboard (active counts, per-class counts, age
-  distribution, youngest/oldest).
-- **Phase 8**: Search/filter (offline-capable), Audit log viewer.
-- **Phase 9**: Google Drive backup/restore, Excel import/export, PDF
-  export + certificate generation (School Leaving / Character / Birth).
-- **Phase 10**: App lock (PIN + biometric), final UI polish against the
-  10 reference screens, release build hardening.
+### 1. ⚡ Mukammal 100% Offline-First Architecture
+* App ko chalane ke liye **internet hona bilkul zaroori nahi hai**.
+* Agar school mein network ya data signal na bhi ho, tab bhi app baghair kisi rukawat ke tezi se chalti hai.
+* Data local SQLite database mein mehfooz hota hai.
 
-Each phase will land as complete, working files — never pseudocode or
-placeholder buttons — following the same `FILE PATH` / `CODE` delivery
-style, continuing directly in this conversation.
+### 2. 📁 Phone Mein Permanent `GR BOOK` Folder Auto-Backup
+* App install hote hi phone ke internal storage mein ek permanent folder **`GR BOOK/`** ban jata hai.
+* Is folder ke andar:
+  * Tamam classes ka data alag alag save hota hai.
+  * Tamam bacho ki pictures (`photos/`) folder mein save hoti hain.
+  * Backup JSON file hamesha safe rehti hai.
+* **Sab se bara faida:** Agar phone se app ghalti se delete (uninstall) bhi ho jaye, tab bhi phone ke `GR BOOK/` folder mein data 100% mehfooz rehta hai aur nayi app install karke ek click mein restore ho jata hai!
+
+### 3. 🔒 One-Tap Biometric Fingerprint Lock
+* Principal ya Headmaster login ke waqt ek baar biometric save karein.
+* Agli martaba app open karte hi **Fingerprint Sensor** scan ka option aayega aur direct app login ho jayegi. Password bar bar daalne ki zaroorat nahi!
+
+### 4. 📄 A4 General Register Student Profile (PDF & JPG Export)
+* Har student ki official General Register entry ek click par **A4 Format** mein generate hoti hai.
+* School ka naam, SEMIS code, B-Form, Walid ka naam, Cast, Address, Date of Birth aur live Age sab shamil hota hai.
+* **PDF Format** mein print aur download karein.
+* **Crisp JPG Format** mein direct WhatsApp par share karein ya phone ki Gallery mein save karein.
+
+### 5. 🎖️ Custom Certificates with Teacher Context
+* **Character Certificate**, **School Leaving Certificate**, aur **Bonafide Certificate** dastyab hain.
+* **Teacher Editable Context:** Certificate ka text/context teacher apni marzi se type ya customize kar sakta hai (jaise bache ki karkardagi ya waja).
+* Principal ke authentic digital signature background transparent karke clean and clear add hotay hain.
+
+### 6. 📝 Official Notices & Student Complaints
+* Ghair-haziri (Absence notice), discipline ya fee/records ke hawale se official school notices aur complaint letters generate karein.
+* Direct print aur parents ko WhatsApp par bhejne ki sahoolat.
+
+### 7. 🎂 Live Dynamic Age Auto-Sync
+* Student ki Date of Birth (DOB) app mein permanently save rehti hai.
+* Mobile ki current date ke mutabiq har roz student ki live age automatically update hoti rehti hai (jaise: `8y 4m 12d`).
+
+### 8. 🌙 Dark Theme & Light Theme (One-Click Moon Toggle)
+* App ke homepage par top right par **Moon Icon** diya gaya hai.
+* Ek tap se poori app modern dark emerald green theme mein convert ho jati hai taake raat ke waqt ankho par dabao na pare.
+* Dobara click karne se wapis clean white light theme active ho jati hai.
+
+### 9. 🏫 Comprehensive School & Class Management
+* ECE, Class 1, Class 2, Class 3, Class 4, Class 5 aur custom classes ki support.
+* **Boy / Girl Count Indicators:** Class list aur General Register mein Boys aur Girls ki tadad aur icons clear dikhte hain.
+* **Annual Promotion System:** Saal ke aakhir mein aik class se doosri class mein bacho ko promote karne ka full automated workflow.
+* **Pass Out & Struck Off Students:** Pass out hone wale aur struck off bacho ka alag mukammal record aur unka history log.
+
+### 10. ☁️ Background Cloud Sync & Google Drive Backup
+* Jab bhi internet dastyab ho, Supabase cloud server se automatic sync hota hai.
+* Google Drive par bhi school ka mukammal backup mehfooz karne ki option dastyab hai.
+
+---
+
+## 🛠️ Technical Overview & Architecture
+
+* **Framework:** Flutter 3.x (Dart 3.x)
+* **Local Database:** Drift (Type-safe SQLite engine with WAL mode)
+* **State Management:** Riverpod 2.x
+* **Cloud Backend:** Supabase (PostgreSQL with Row Level Security - RLS)
+* **Document Processing:** PDF Printing, Raster Image Rendering, High-fidelity Signature Processing
+* **Authentication:** Supabase Auth + Local Secure Storage + Local Authentication (Biometric API)
+
+---
+
+## 👨‍💻 Founder & Developer Contact
+
+Agar aapko app ke hawale se koi sawal ho, school mein implement karwana ho, ya naye features ke mutaliq tajweez deni ho, to aap direct Founder se rabta kar sakte hain:
+
+* **Name:** Mudasir Ahmed Ghanghro
+* **Role:** Founder & Software Architect
+* **WhatsApp:** [+92 336 8456907](https://wa.me/923368456907)
+* **Phone:** `+92 336 8456907`
+* **GitHub Repository:** [https://github.com/mudasir-ciber/G.R-BOOK](https://github.com/mudasir-ciber/G.R-BOOK)
+
+---
+
+<p align="center">
+  <b>© 2026 G.R. BOOK APP. All rights reserved.</b><br>
+  <i>Built with dedication for the teachers and schools of Sindh & Pakistan.</i>
+</p>

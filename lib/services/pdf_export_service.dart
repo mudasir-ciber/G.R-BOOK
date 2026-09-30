@@ -151,16 +151,18 @@ class PdfExportService {
                   height: 90,
                   decoration: pw.BoxDecoration(
                     shape: pw.BoxShape.circle,
-                    border: pw.Border.all(color: PdfColor.fromInt(0xFF0F9D58), width: 2.0),
-                    color: PdfColors.grey100,
+                    color: studentPhotoBytes != null && studentPhotoBytes.isNotEmpty ? null : PdfColors.grey100,
+                    border: studentPhotoBytes != null && studentPhotoBytes.isNotEmpty
+                        ? null
+                        : pw.Border.all(color: PdfColors.grey400, width: 1.0),
                   ),
                   alignment: pw.Alignment.center,
                   child: studentPhotoBytes != null && studentPhotoBytes.isNotEmpty
                       ? pw.ClipOval(
                           child: pw.Image(
                             pw.MemoryImage(studentPhotoBytes),
-                            width: 86,
-                            height: 86,
+                            width: 90,
+                            height: 90,
                             fit: pw.BoxFit.cover,
                           ),
                         )

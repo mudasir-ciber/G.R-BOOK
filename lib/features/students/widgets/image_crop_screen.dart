@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:crop_image/crop_image.dart';
@@ -52,45 +50,14 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
         quality: FilterQuality.high,
       );
 
-      Uint8List? finalBytes;
-      final isCircle = _selectedRatio == 1.0;
-
-      if (isCircle) {
-        // Render into a perfect circle with transparent background outside
-        final side = math.min(bitmap.width, bitmap.height).toDouble();
-        final recorder = ui.PictureRecorder();
-        final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, side, side));
-        final clipPath = Path()..addOval(Rect.fromLTWH(0, 0, side, side));
-        canvas.clipPath(clipPath);
-
-        final src = Rect.fromLTWH(
-          (bitmap.width - side) / 2,
-          (bitmap.height - side) / 2,
-          side,
-          side,
-        );
-        final dst = Rect.fromLTWH(0, 0, side, side);
-        canvas.drawImageRect(bitmap, src, dst, Paint()..filterQuality = FilterQuality.high);
-
-        final picture = recorder.endRecording();
-        final circularImg = await picture.toImage(side.toInt(), side.toInt());
-        final byteData = await circularImg.toByteData(format: ui.ImageByteFormat.png);
-        if (byteData != null) {
-          finalBytes = byteData.buffer.asUint8List();
-        }
+      final byteData = await bitmap.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        throw StateError('Could not encode cropped image.');
       }
-
-      if (finalBytes == null) {
-        final byteData = await bitmap.toByteData(format: ui.ImageByteFormat.png);
-        if (byteData == null) {
-          throw StateError('Could not encode cropped image.');
-        }
-        finalBytes = byteData.buffer.asUint8List();
-      }
+      final finalBytes = byteData.buffer.asUint8List();
 
       final tempDir = await getTemporaryDirectory();
-      final ext = isCircle ? 'png' : 'jpg';
-      final targetPath = '${tempDir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final targetPath = '${tempDir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.png';
       final croppedFile = File(targetPath);
       await croppedFile.writeAsBytes(finalBytes);
 
@@ -170,23 +137,6 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                       paddingSize: 16,
                       alwaysMove: true,
                     ),
-                    if (_selectedRatio == 1.0)
-                      IgnorePointer(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final dim = math.min(constraints.maxWidth, constraints.maxHeight) - 32;
-                            if (dim <= 0) return const SizedBox.shrink();
-                            return Container(
-                              width: dim,
-                              height: dim,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: GrBookTheme.primaryLight.withOpacity(0.7), width: 2),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -212,7 +162,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                         ),
                         const SizedBox(width: 8),
                         _RatioChip(
-                          label: 'Circle (1:1)',
+                          label: '1:1 (Square/Profile)',
                           isSelected: _selectedRatio == 1.0,
                           onTap: () => _setAspectRatio(1.0),
                         ),

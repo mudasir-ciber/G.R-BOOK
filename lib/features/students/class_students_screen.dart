@@ -291,10 +291,11 @@ class _StudentItemRow extends ConsumerWidget {
                 ),
                 const SizedBox(width: 10),
 
-                // Avatar
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: isDark ? const Color(0xFF22382B) : GrBookTheme.primaryLight,
+                  backgroundColor: studentPhoto != null && studentPhoto.hasContent
+                      ? Colors.transparent
+                      : (isDark ? const Color(0xFF22382B) : GrBookTheme.primaryLight),
                   child: ClipOval(
                     child: SizedBox(
                       width: 36,
