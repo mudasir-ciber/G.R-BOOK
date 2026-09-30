@@ -26,7 +26,7 @@ class DashboardClassStudentsScreen extends ConsumerWidget {
     final dateFormat = DateFormat('dd-MM-yyyy');
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: GrBookTheme.isDark(context) ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(title: Text('${schoolClass.displayName} — Details')),
       body: studentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -38,7 +38,7 @@ class DashboardClassStudentsScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: students.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => Divider(height: 1, color: GrBookTheme.getBorderColor(context)),
             itemBuilder: (context, index) {
               final s = students[index];
               final asOf = switch (reference) {
@@ -50,9 +50,9 @@ class DashboardClassStudentsScreen extends ConsumerWidget {
 
               return ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(s.studentName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text('GR: ${s.grNumber}  •  DOB: ${dateFormat.format(s.dateOfBirth)}'),
-                trailing: Text(age.formatShort(), style: const TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark)),
+                title: Text(s.studentName, style: TextStyle(fontWeight: FontWeight.w600, color: GrBookTheme.getTextPrimary(context))),
+                subtitle: Text('GR: ${s.grNumber}  •  DOB: ${dateFormat.format(s.dateOfBirth)}', style: TextStyle(color: GrBookTheme.getTextSecondary(context))),
+                trailing: Text(age.formatShort(), style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark)),
               );
             },
           );

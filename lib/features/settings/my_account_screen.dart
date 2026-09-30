@@ -180,11 +180,12 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = GrBookTheme.isDark(context);
     final user = ref.watch(currentUserProvider);
     final mobileNumber = user?.userMetadata?['mobile_number'] as String? ?? '-';
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: isDark ? const Color(0xFF0F1713) : GrBookTheme.background,
       appBar: AppBar(
         title: const Text('Principal Account', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
@@ -228,8 +229,8 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                             height: 88,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: const Color(0xFFE2E8F0),
-                              border: Border.all(color: GrBookTheme.primary, width: 2.5),
+                              color: isDark ? const Color(0xFF22382B) : const Color(0xFFE2E8F0),
+                              border: Border.all(color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary, width: 2.5),
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: _profilePhotoFile != null && _profilePhotoFile!.existsSync()
@@ -237,7 +238,7 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                                 : Center(
                                     child: Text(
                                       _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : 'P',
-                                      style: const TextStyle(fontSize: 32, color: GrBookTheme.primaryDark, fontWeight: FontWeight.bold),
+                                      style: TextStyle(fontSize: 32, color: isDark ? Colors.white : GrBookTheme.primaryDark, fontWeight: FontWeight.bold),
                                     ),
                                   ),
                           ),
@@ -253,7 +254,7 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                               decoration: BoxDecoration(
                                 color: GrBookTheme.primary,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                                border: Border.all(color: isDark ? const Color(0xFF18261E) : Colors.white, width: 2),
                               ),
                               child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
                             ),
@@ -264,9 +265,9 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                     const SizedBox(height: 12),
                     Text(
                       _nameController.text.isNotEmpty ? _nameController.text : 'Principal',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : GrBookTheme.primaryDark),
                     ),
-                    const Text('School Head / Administrator', style: TextStyle(color: GrBookTheme.textSecondary, fontSize: 13)),
+                    Text('School Head / Administrator', style: TextStyle(color: GrBookTheme.getTextSecondary(context), fontSize: 13)),
                     const SizedBox(height: 16),
                     if (_nameError != null) ...[
                       Text(_nameError!, style: TextStyle(color: Colors.red.shade700)),
@@ -285,15 +286,15 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: isDark ? const Color(0xFF14221A) : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: isDark ? const Color(0xFF24382B) : const Color(0xFFE2E8F0)),
                       ),
                       child: Row(
                         children: [
                           const Icon(Icons.phone_outlined, size: 20, color: Color(0xFF64748B)),
                           const SizedBox(width: 10),
-                          Text('Mobile Number: $mobileNumber', style: const TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.w600)),
+                          Text('Mobile Number: $mobileNumber', style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF334155), fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -366,9 +367,9 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                               width: double.infinity,
                               height: 100,
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
+                                color: isDark ? const Color(0xFF14221A) : Colors.grey.shade50,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: GrBookTheme.primary, width: 1.5),
+                                border: Border.all(color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary, width: 1.5),
                               ),
                               alignment: Alignment.center,
                               padding: const EdgeInsets.all(12),
@@ -409,7 +410,7 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: GrBookTheme.primary),
+                                side: BorderSide(color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               onPressed: _pickSignature,
@@ -433,16 +434,16 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
                           width: double.infinity,
                           height: 90,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
+                            color: isDark ? const Color(0xFF14221A) : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFCBD5E1), style: BorderStyle.solid),
+                            border: Border.all(color: isDark ? const Color(0xFF24382B) : const Color(0xFFCBD5E1), style: BorderStyle.solid),
                           ),
-                          child: const Column(
+                          child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_photo_alternate_outlined, color: GrBookTheme.primary, size: 30),
-                              SizedBox(height: 6),
-                              Text('Tap to Upload Signature (PNG/JPG)', style: TextStyle(color: GrBookTheme.primaryDark, fontWeight: FontWeight.bold, fontSize: 13)),
+                              Icon(Icons.add_photo_alternate_outlined, color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary, size: 30),
+                              const SizedBox(height: 6),
+                              Text('Tap to Upload Signature (PNG/JPG)', style: TextStyle(color: isDark ? const Color(0xFF68D391) : GrBookTheme.primaryDark, fontWeight: FontWeight.bold, fontSize: 13)),
                             ],
                           ),
                         ),

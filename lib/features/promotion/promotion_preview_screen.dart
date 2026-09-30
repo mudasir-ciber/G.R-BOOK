@@ -63,7 +63,7 @@ class _PromotionPreviewScreenState extends ConsumerState<PromotionPreviewScreen>
     final targetName = widget.toClass?.displayName ?? 'Passed Out';
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: GrBookTheme.isDark(context) ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(title: const Text('Confirm Promotion')),
       body: SafeArea(
         child: Column(
@@ -89,17 +89,20 @@ class _PromotionPreviewScreenState extends ConsumerState<PromotionPreviewScreen>
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: widget.students.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, __) => Divider(height: 1, color: GrBookTheme.getBorderColor(context)),
                 itemBuilder: (context, index) {
                   final s = widget.students[index];
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
-                      backgroundColor: GrBookTheme.primary.withOpacity(0.12),
-                      child: Text(s.studentName.isNotEmpty ? s.studentName[0].toUpperCase() : '?'),
+                      backgroundColor: GrBookTheme.primary.withValues(alpha: 0.15),
+                      child: Text(
+                        s.studentName.isNotEmpty ? s.studentName[0].toUpperCase() : '?',
+                        style: const TextStyle(color: GrBookTheme.primary, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    title: Text(s.studentName),
-                    subtitle: Text('GR: ${s.grNumber}'),
+                    title: Text(s.studentName, style: TextStyle(color: GrBookTheme.getTextPrimary(context), fontWeight: FontWeight.w600)),
+                    subtitle: Text('GR: ${s.grNumber}', style: TextStyle(color: GrBookTheme.getTextSecondary(context))),
                   );
                 },
               ),
@@ -140,8 +143,8 @@ class _SummaryRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          SizedBox(width: 130, child: Text(label, style: TextStyle(color: Colors.grey[600]))),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600))),
+          SizedBox(width: 130, child: Text(label, style: TextStyle(color: GrBookTheme.getTextSecondary(context)))),
+          Expanded(child: Text(value, style: TextStyle(fontWeight: FontWeight.w600, color: GrBookTheme.getTextPrimary(context)))),
         ],
       ),
     );

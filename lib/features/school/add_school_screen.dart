@@ -64,23 +64,25 @@ class _AddSchoolScreenState extends ConsumerState<AddSchoolScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
-            color: GrBookTheme.textPrimary,
+            color: GrBookTheme.getTextPrimary(context),
           ),
         ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
+          style: TextStyle(color: GrBookTheme.getTextPrimary(context)),
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: TextStyle(color: GrBookTheme.getTextSecondary(context)),
             prefixIcon: Container(
               margin: const EdgeInsets.all(8),
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: GrBookTheme.primaryLight,
+                color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : GrBookTheme.primaryLight,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: GrBookTheme.primary, size: 20),
@@ -98,8 +100,8 @@ class _AddSchoolScreenState extends ConsumerState<AddSchoolScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           bottom: false,
@@ -116,9 +118,9 @@ class _AddSchoolScreenState extends ConsumerState<AddSchoolScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: GrBookTheme.getCardBackground(context),
                         shape: BoxShape.circle,
-                        border: Border.all(color: GrBookTheme.borderColor, width: 1),
+                        border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x0A000000),
@@ -156,13 +158,13 @@ class _AddSchoolScreenState extends ConsumerState<AddSchoolScreen> {
                 ),
                 const SizedBox(height: 10),
 
-                // White Rounded Card
+                // Rounded Card
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-                    boxShadow: [
+                  decoration: BoxDecoration(
+                    color: GrBookTheme.getCardBackground(context),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                    boxShadow: const [
                       BoxShadow(
                         color: Color(0x140F7A42),
                         blurRadius: 16,
@@ -175,22 +177,22 @@ class _AddSchoolScreenState extends ConsumerState<AddSchoolScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
+                        Text(
                           'Add Your School',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: GrBookTheme.textPrimary,
+                            color: GrBookTheme.getTextPrimary(context),
                           ),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Enter your school information to continue',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
-                            color: GrBookTheme.textSecondary,
+                            color: GrBookTheme.getTextSecondary(context),
                           ),
                         ),
                         const SizedBox(height: 20),

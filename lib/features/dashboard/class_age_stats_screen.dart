@@ -22,7 +22,7 @@ class ClassAgeStatsScreen extends ConsumerWidget {
     final dateFormat = DateFormat('dd-MM-yyyy');
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: GrBookTheme.isDark(context) ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(title: Text('${schoolClass.displayName} — Age Stats')),
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -45,7 +45,7 @@ class ClassAgeStatsScreen extends ConsumerWidget {
                     children: [
                       Text('Age Distribution', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text('${stats.totalStudents} active students', style: TextStyle(color: Colors.grey[600])),
+                      Text('${stats.totalStudents} active students', style: TextStyle(color: GrBookTheme.getTextSecondary(context))),
                       const SizedBox(height: 16),
                       for (final bucket in stats.buckets)
                         Padding(
@@ -59,7 +59,7 @@ class ClassAgeStatsScreen extends ConsumerWidget {
                                   child: LinearProgressIndicator(
                                     value: maxCount == 0 ? 0 : bucket.count / maxCount,
                                     minHeight: 18,
-                                    backgroundColor: Colors.grey.shade200,
+                                    backgroundColor: GrBookTheme.isDark(context) ? const Color(0xFF24382B) : Colors.grey.shade200,
                                     valueColor: const AlwaysStoppedAnimation(GrBookTheme.primary),
                                   ),
                                 ),
@@ -104,8 +104,8 @@ class ClassAgeStatsScreen extends ConsumerWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: GrBookTheme.primaryDark,
-                    side: const BorderSide(color: GrBookTheme.primary),
+                    foregroundColor: GrBookTheme.isDark(context) ? Colors.white : GrBookTheme.primaryDark,
+                    side: BorderSide(color: GrBookTheme.getBorderColor(context)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   icon: const Icon(Icons.list_alt),

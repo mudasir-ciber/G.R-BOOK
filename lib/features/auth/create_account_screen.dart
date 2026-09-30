@@ -65,10 +65,16 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = GrBookTheme.isDark(context);
+    final cardBg = GrBookTheme.getCardBackground(context);
+    final borderColor = GrBookTheme.getBorderColor(context);
+    final textPrimary = GrBookTheme.getTextPrimary(context);
+    final textSecondary = GrBookTheme.getTextSecondary(context);
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           bottom: false,
@@ -85,14 +91,14 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cardBg,
                         shape: BoxShape.circle,
-                        border: Border.all(color: GrBookTheme.borderColor, width: 1),
-                        boxShadow: const [
+                        border: Border.all(color: borderColor, width: 1),
+                        boxShadow: [
                           BoxShadow(
-                            color: Color(0x0A000000),
+                            color: isDark ? Colors.black26 : const Color(0x0A000000),
                             blurRadius: 6,
-                            offset: Offset(0, 2),
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
@@ -111,13 +117,17 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                     'assets/images/auth_header.png',
                     width: 280,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Column(
+                    errorBuilder: (_, __, ___) => Column(
                       children: [
-                        Icon(Icons.menu_book_rounded, size: 48, color: GrBookTheme.primary),
-                        SizedBox(height: 6),
+                        const Icon(Icons.menu_book_rounded, size: 48, color: GrBookTheme.primary),
+                        const SizedBox(height: 6),
                         Text(
                           'G.R. Book',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark,
+                          ),
                         ),
                       ],
                     ),
@@ -125,17 +135,18 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                 ),
                 const SizedBox(height: 10),
 
-                // White Rounded Card
+                // Rounded Card
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                    border: isDark ? Border(top: BorderSide(color: borderColor)) : null,
                     boxShadow: [
                       BoxShadow(
-                        color: Color(0x140F7A42),
+                        color: isDark ? Colors.black38 : const Color(0x140F7A42),
                         blurRadius: 16,
-                        offset: Offset(0, -4),
+                        offset: const Offset(0, -4),
                       ),
                     ],
                   ),
@@ -144,22 +155,22 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
+                        Text(
                           'Create New Account',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: GrBookTheme.textPrimary,
+                            color: textPrimary,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Fill in your details to get started',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
-                            color: GrBookTheme.textSecondary,
+                            color: textSecondary,
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -168,13 +179,13 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade50,
+                              color: isDark ? const Color(0xFF3B151A) : Colors.red.shade50,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.red.shade200),
+                              border: Border.all(color: isDark ? Colors.red.shade800 : Colors.red.shade200),
                             ),
                             child: Text(
                               _errorMessage!,
-                              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                              style: TextStyle(color: isDark ? Colors.red.shade200 : Colors.red.shade700, fontSize: 13),
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -183,6 +194,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                         // Full Name
                         TextFormField(
                           controller: _fullNameController,
+                          style: TextStyle(color: textPrimary),
                           decoration: const InputDecoration(
                             hintText: 'Full Name',
                             prefixIcon: Icon(Icons.person_outline, color: GrBookTheme.primary, size: 20),
@@ -195,6 +207,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                         TextFormField(
                           controller: _mobileController,
                           keyboardType: TextInputType.phone,
+                          style: TextStyle(color: textPrimary),
                           decoration: const InputDecoration(
                             hintText: 'Mobile Number',
                             prefixIcon: Icon(Icons.phone_outlined, color: GrBookTheme.primary, size: 20),
@@ -212,13 +225,14 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
+                          style: TextStyle(color: textPrimary),
                           decoration: InputDecoration(
                             hintText: 'Password',
                             prefixIcon: const Icon(Icons.lock_outline, color: GrBookTheme.primary, size: 20),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                color: Colors.grey.shade600,
+                                color: textSecondary,
                                 size: 20,
                               ),
                               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -233,13 +247,14 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                         TextFormField(
                           controller: _confirmPasswordController,
                           obscureText: _obscureConfirmPassword,
+                          style: TextStyle(color: textPrimary),
                           decoration: InputDecoration(
                             hintText: 'Confirm Password',
                             prefixIcon: const Icon(Icons.lock_outline, color: GrBookTheme.primary, size: 20),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                color: Colors.grey.shade600,
+                                color: textSecondary,
                                 size: 20,
                               ),
                               onPressed: () =>
@@ -265,7 +280,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                         // OR Divider
                         Row(
                           children: [
-                            Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                            Expanded(child: Divider(color: borderColor, thickness: 1)),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 12),
                               child: Text(
@@ -273,11 +288,11 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade500,
+                                  color: textSecondary,
                                 ),
                               ),
                             ),
-                            Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                            Expanded(child: Divider(color: borderColor, thickness: 1)),
                           ],
                         ),
                         const SizedBox(height: 18),

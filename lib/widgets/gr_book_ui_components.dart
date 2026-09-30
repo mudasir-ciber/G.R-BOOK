@@ -272,12 +272,17 @@ class GrBookOutlinedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = GrBookTheme.isDark(context);
+    final btnBg = isDark ? const Color(0xFF18261E) : Colors.white;
+    final btnBorder = isDark ? const Color(0xFF68D391) : GrBookTheme.primary;
+    final textColor = isDark ? const Color(0xFF68D391) : GrBookTheme.primary;
+
     return SizedBox(
       height: height,
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: const BorderSide(color: GrBookTheme.primary, width: 1.5),
+          backgroundColor: btnBg,
+          side: BorderSide(color: btnBorder, width: 1.5),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           elevation: 0,
         ),
@@ -286,15 +291,15 @@ class GrBookOutlinedButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
-              Icon(icon, color: GrBookTheme.primary, size: 20),
+              Icon(icon, color: textColor, size: 20),
               const SizedBox(width: 8),
             ],
             Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: GrBookTheme.primary,
+                color: textColor,
               ),
             ),
           ],
@@ -323,18 +328,22 @@ class GrBookIconBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = GrBookTheme.isDark(context);
+    final defaultBg = isDark ? const Color(0xFF22382B) : GrBookTheme.primaryLight;
+    final defaultIcon = isDark ? const Color(0xFF68D391) : GrBookTheme.primary;
+
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: backgroundColor ?? GrBookTheme.primaryLight,
+        color: backgroundColor ?? defaultBg,
         shape: BoxShape.circle,
       ),
       child: Center(
         child: Icon(
           icon,
           size: iconSize,
-          color: iconColor ?? GrBookTheme.primary,
+          color: iconColor ?? defaultIcon,
         ),
       ),
     );

@@ -71,27 +71,48 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = GrBookTheme.isDark(context);
+    final cardBg = GrBookTheme.getCardBackground(context);
+    final borderColor = GrBookTheme.getBorderColor(context);
+    final textPrimary = GrBookTheme.getTextPrimary(context);
+
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: isDark ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(title: Text('Certificates — ${widget.student.studentName}')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            ...CertificateType.values.map(
-              (t) => RadioListTile<CertificateType>(
-                value: t,
-                groupValue: _type,
-                activeColor: GrBookTheme.primary,
-                title: Text(t.title),
-                onChanged: (v) => setState(() => _type = v ?? _type),
+            Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                children: CertificateType.values.map(
+                  (t) => RadioListTile<CertificateType>(
+                    value: t,
+                    groupValue: _type,
+                    activeColor: GrBookTheme.primary,
+                    title: Text(t.title, style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
+                    onChanged: (v) => setState(() => _type = v ?? _type),
+                  ),
+                ).toList(),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             TextField(
               controller: _noteController,
               maxLines: 2,
-              decoration: const InputDecoration(labelText: 'Remarks (optional)'),
+              style: TextStyle(color: textPrimary),
+              decoration: InputDecoration(
+                labelText: 'Remarks (optional)',
+                filled: true,
+                fillColor: cardBg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
+              ),
             ),
             const SizedBox(height: 20),
             Row(
@@ -115,7 +136,7 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: GrBookTheme.primaryDark,
+                      foregroundColor: isDark ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark,
                       side: const BorderSide(color: GrBookTheme.primary),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -127,12 +148,13 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            const Divider(),
+            Divider(color: borderColor),
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark,
                   side: const BorderSide(color: GrBookTheme.primary),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),

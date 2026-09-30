@@ -147,8 +147,8 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -166,9 +166,9 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: GrBookTheme.getCardBackground(context),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                    border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x06000000),
@@ -184,9 +184,9 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Current Class',
-                              style: TextStyle(fontSize: 11, color: GrBookTheme.textSecondary),
+                              style: TextStyle(fontSize: 11, color: GrBookTheme.getTextSecondary(context)),
                             ),
                             const SizedBox(height: 2),
                             Row(
@@ -196,7 +196,7 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                                 Expanded(
                                   child: Text(
                                     widget.schoolClass.displayName,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: GrBookTheme.getTextPrimary(context)),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -217,9 +217,9 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Promote To',
-                              style: TextStyle(fontSize: 11, color: GrBookTheme.textSecondary),
+                              style: TextStyle(fontSize: 11, color: GrBookTheme.getTextSecondary(context)),
                             ),
                             const SizedBox(height: 2),
                             classesAsync.when(
@@ -230,17 +230,18 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                                 return DropdownButton<String>(
                                   isExpanded: true,
                                   underline: const SizedBox.shrink(),
+                                  dropdownColor: GrBookTheme.getCardBackground(context),
                                   icon: const Icon(Icons.keyboard_arrow_down_rounded, color: GrBookTheme.primary),
                                   value: _targetIsPassOut ? '__PASSOUT__' : _targetClassId,
                                   items: [
                                     ...otherClasses.map((c) => DropdownMenuItem(
                                           value: c.id,
-                                          child: Text(c.displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          child: Text(c.displayName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextPrimary(context))),
                                         )),
                                     if (widget.schoolClass.isTerminal)
-                                      const DropdownMenuItem(
+                                      DropdownMenuItem(
                                         value: '__PASSOUT__',
-                                        child: Text('Passed Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        child: Text('Passed Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextPrimary(context))),
                                       ),
                                   ],
                                   onChanged: (v) {
@@ -265,9 +266,11 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: TextField(
                   controller: _searchController,
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: GrBookTheme.getTextPrimary(context)),
+                  decoration: InputDecoration(
                     hintText: 'Search student name or GR No...',
-                    prefixIcon: Icon(Icons.search, color: GrBookTheme.primary, size: 20),
+                    hintStyle: TextStyle(color: GrBookTheme.getTextSecondary(context)),
+                    prefixIcon: const Icon(Icons.search, color: GrBookTheme.primary, size: 20),
                   ),
                   onChanged: (v) => setState(() => _searchText = v),
                 ),
@@ -303,12 +306,12 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                       const SizedBox(width: 8),
                       Text(
                         'Select All (${visibleCandidates.length} Students)',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: GrBookTheme.textPrimary),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: GrBookTheme.getTextPrimary(context)),
                       ),
                       const Spacer(),
                       Text(
                         'Selected: ${_selectedIds.length}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.primary, fontSize: 13),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primary, fontSize: 13),
                       ),
                     ],
                   ),
@@ -319,7 +322,7 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                 child: _isLoadingCandidates
                     ? const Center(child: CircularProgressIndicator())
                     : visibleCandidates.isEmpty
-                        ? const Center(child: Text('No active students in this class.'))
+                        ? Center(child: Text('No active students in this class.', style: TextStyle(color: GrBookTheme.getTextSecondary(context))))
                         : ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             itemCount: visibleCandidates.length,
@@ -330,10 +333,10 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
 
                               return Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: GrBookTheme.getCardBackground(context),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: selected ? GrBookTheme.primary : GrBookTheme.borderColor,
+                                    color: selected ? GrBookTheme.primary : GrBookTheme.getBorderColor(context),
                                     width: selected ? 1.4 : 1,
                                   ),
                                 ),
@@ -373,22 +376,22 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                                         const SizedBox(width: 8),
                                         CircleAvatar(
                                           radius: 18,
-                                          backgroundColor: GrBookTheme.primaryLight,
+                                          backgroundColor: GrBookTheme.isDark(context) ? const Color(0xFF1B2A20) : GrBookTheme.primaryLight,
                                           child: Text(
                                             candidate.student.studentName.isNotEmpty ? candidate.student.studentName[0].toUpperCase() : '?',
-                                            style: const TextStyle(color: GrBookTheme.primaryDark, fontWeight: FontWeight.bold, fontSize: 13),
+                                            style: TextStyle(color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark, fontWeight: FontWeight.bold, fontSize: 13),
                                           ),
                                         ),
                                         const SizedBox(width: 10),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFF1F8F4),
+                                            color: GrBookTheme.isDark(context) ? const Color(0xFF1B2A20) : const Color(0xFFF1F8F4),
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
                                             candidate.student.grNumber,
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: GrBookTheme.primaryDark),
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark),
                                           ),
                                         ),
                                         const SizedBox(width: 10),
@@ -398,12 +401,12 @@ class _PromoteStudentsScreenState extends ConsumerState<PromoteStudentsScreen> {
                                             children: [
                                               Text(
                                                 candidate.student.studentName,
-                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: GrBookTheme.getTextPrimary(context)),
                                               ),
                                               if (!candidate.isAgeEligible)
                                                 Text(
                                                   'Underage for promotion',
-                                                  style: TextStyle(color: Colors.orange.shade800, fontSize: 11),
+                                                  style: TextStyle(color: Colors.orange.shade400, fontSize: 11),
                                                 ),
                                             ],
                                           ),

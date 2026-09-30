@@ -362,10 +362,12 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
         ? AgeCalculator.calculate(dateOfBirth: _dateOfBirth!, asOf: asOfForAge)
         : null;
 
+    final isDark = GrBookTheme.isDark(context);
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -535,14 +537,14 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: GrBookTheme.getCardBackground(context),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
-                      boxShadow: const [
+                      border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x08000000),
+                          color: Colors.black.withOpacity(isDark ? 0.35 : 0.04),
                           blurRadius: 10,
-                          offset: Offset(0, 4),
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -574,18 +576,17 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // 2. Student Name Pill Field (Centered in rounded box)
                           // 2. Student Name Pill Field (Centered in rounded box, larger and spacious)
                           Container(
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: isDark ? const Color(0xFF14221A) : Colors.white,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFD6E8DC), width: 1.3),
+                              border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.3),
                             ),
                             child: TextFormField(
                               controller: _nameController,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: GrBookTheme.textPrimary),
+                              style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: GrBookTheme.getTextPrimary(context)),
                               decoration: const InputDecoration(
                                 isDense: true,
                                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1141,20 +1142,22 @@ class _ProfileFieldCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = GrBookTheme.isDark(context);
+
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF14221A) : Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFD6E8DC), width: 1.3),
+          border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.3),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, color: GrBookTheme.primary, size: 22),
+            Icon(icon, color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary, size: 22),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1163,10 +1166,10 @@ class _ProfileFieldCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
-                      color: GrBookTheme.textSecondary,
+                      color: GrBookTheme.getTextSecondary(context),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

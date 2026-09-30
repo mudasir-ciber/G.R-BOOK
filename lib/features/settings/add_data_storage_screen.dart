@@ -243,8 +243,8 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -265,13 +265,13 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                             Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.green.shade50,
+                                color: GrBookTheme.isDark(context) ? const Color(0xFF132A1C) : Colors.green.shade50,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.green.shade300),
+                                border: Border.all(color: GrBookTheme.isDark(context) ? const Color(0xFF1E482C) : Colors.green.shade300),
                               ),
                               child: Text(
                                 _statusMessage!,
-                                style: TextStyle(color: Colors.green.shade900, fontWeight: FontWeight.bold, fontSize: 13),
+                                style: TextStyle(color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : Colors.green.shade900, fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -281,13 +281,13 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                             Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.red.shade50,
+                                color: GrBookTheme.isDark(context) ? const Color(0xFF321414) : Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.red.shade300),
+                                border: Border.all(color: GrBookTheme.isDark(context) ? const Color(0xFF5A2020) : Colors.red.shade300),
                               ),
                               child: Text(
                                 _errorMessage!,
-                                style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+                                style: TextStyle(color: GrBookTheme.isDark(context) ? const Color(0xFFF87171) : Colors.red.shade900, fontSize: 13),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -297,9 +297,9 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                           Container(
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: GrBookTheme.getCardBackground(context),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: GrBookTheme.borderColor),
+                              border: Border.all(color: GrBookTheme.getBorderColor(context)),
                               boxShadow: const [
                                 BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
                               ],
@@ -312,23 +312,23 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: GrBookTheme.primaryLight,
+                                        color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : GrBookTheme.primaryLight,
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: const Icon(Icons.folder_special_rounded, color: GrBookTheme.primary, size: 24),
                                     ),
                                     const SizedBox(width: 12),
-                                    const Expanded(
+                                    Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Phone File Manager Folder',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.textPrimary),
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
                                           ),
                                           Text(
                                             'GR BOOK Directory',
-                                            style: TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                                            style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
                                           ),
                                         ],
                                       ),
@@ -337,12 +337,12 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.green.shade100,
+                                          color: GrBookTheme.isDark(context) ? const Color(0xFF13381F) : Colors.green.shade100,
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Text(
                                           'Found Backup',
-                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : Colors.green.shade800),
                                         ),
                                       ),
                                   ],
@@ -350,14 +350,14 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                 const Divider(height: 24),
                                 Text(
                                   'Folder Path:\n${_detectedFolderPath ?? "Not resolved"}',
-                                  style: const TextStyle(fontSize: 12, color: Colors.black87, fontFamily: 'monospace'),
+                                  style: TextStyle(fontSize: 12, color: GrBookTheme.getTextPrimary(context), fontFamily: 'monospace'),
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
                                   _backupExists
                                       ? 'A complete backup file (gr_book_complete_backup.json) was detected in this folder. Tap below to sync and import all records.'
                                       : 'No backup found in this folder yet. If you have backup files or reinstalling, you can select the file below, or create a backup now.',
-                                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.4),
+                                  style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), height: 1.4),
                                 ),
                                 const SizedBox(height: 16),
                                 if (_backupExists)
@@ -389,9 +389,9 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                           Container(
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: GrBookTheme.getCardBackground(context),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: GrBookTheme.borderColor),
+                              border: Border.all(color: GrBookTheme.getBorderColor(context)),
                               boxShadow: const [
                                 BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
                               ],
@@ -404,23 +404,23 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFE8F5E9),
+                                        color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : const Color(0xFFE8F5E9),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: const Icon(Icons.file_open_rounded, color: Color(0xFF2E7D32), size: 24),
                                     ),
                                     const SizedBox(width: 12),
-                                    const Expanded(
+                                    Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Select Custom Backup File',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.textPrimary),
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
                                           ),
                                           Text(
                                             'Browse storage, SD card, or downloads',
-                                            style: TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                                            style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
                                           ),
                                         ],
                                       ),
@@ -428,23 +428,23 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                const Text(
+                                Text(
                                   'If your backup file is stored elsewhere or you received it via WhatsApp or Bluetooth, choose it from your phone storage.',
-                                  style: TextStyle(fontSize: 13, color: GrBookTheme.textSecondary, height: 1.4),
+                                  style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), height: 1.4),
                                 ),
                                 const SizedBox(height: 14),
                                 SizedBox(
                                   width: double.infinity,
                                   child: OutlinedButton.icon(
                                     style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(color: GrBookTheme.primary, width: 1.4),
+                                      side: BorderSide(color: GrBookTheme.getBorderColor(context), width: 1.4),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                       padding: const EdgeInsets.symmetric(vertical: 13),
                                     ),
                                     icon: const Icon(Icons.drive_folder_upload_rounded, color: GrBookTheme.primary),
-                                    label: const Text(
+                                    label: Text(
                                       'Browse File Manager (.json)',
-                                      style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.primary),
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primary),
                                     ),
                                     onPressed: _isProcessing ? null : _pickAndRestoreFile,
                                   ),
@@ -459,9 +459,9 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                           Container(
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: GrBookTheme.getCardBackground(context),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: GrBookTheme.borderColor),
+                              border: Border.all(color: GrBookTheme.getBorderColor(context)),
                               boxShadow: const [
                                 BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
                               ],
@@ -474,23 +474,23 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFFF3E0),
+                                        color: GrBookTheme.isDark(context) ? const Color(0xFF2E2214) : const Color(0xFFFFF3E0),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: const Icon(Icons.save_as_rounded, color: Color(0xFFE65100), size: 24),
                                     ),
                                     const SizedBox(width: 12),
-                                    const Expanded(
+                                    Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Save Backup to Phone Now',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.textPrimary),
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
                                           ),
                                           Text(
                                             'Export all classes and photos to GR BOOK',
-                                            style: TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                                            style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
                                           ),
                                         ],
                                       ),
@@ -498,9 +498,9 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                const Text(
+                                Text(
                                   'Creates an instant offline copy in your phone\'s GR BOOK folder. Even if you uninstall the app, this folder will stay safe on your phone.',
-                                  style: TextStyle(fontSize: 13, color: GrBookTheme.textSecondary, height: 1.4),
+                                  style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), height: 1.4),
                                 ),
                                 const SizedBox(height: 14),
                                 SizedBox(

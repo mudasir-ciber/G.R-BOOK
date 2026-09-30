@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../classes/classes_screen.dart';
 import '../settings/settings_screen.dart';
 import 'home_screen.dart';
@@ -60,14 +61,19 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   }
 
   Widget _buildBottomNav() {
+    final isDark = GrBookTheme.isDark(context);
+    final navBg = isDark ? const Color(0xFF142019) : Colors.white;
+    final borderTop = isDark ? const BorderSide(color: Color(0xFF24382B), width: 1) : BorderSide.none;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: navBg,
+        border: Border(top: borderTop),
         boxShadow: [
           BoxShadow(
-            color: Color(0x0F000000),
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.06),
             blurRadius: 16,
-            offset: Offset(0, -3),
+            offset: const Offset(0, -3),
           ),
         ],
       ),
@@ -105,9 +111,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     required IconData icon,
     required String label,
   }) {
+    final isDark = GrBookTheme.isDark(context);
     final isSelected = _currentIndex == index;
-    const activeColor = Color(0xFF0F9D58);
-    const inactiveColor = Color(0xFF64748B);
+    final activeColor = isDark ? const Color(0xFF4ADE80) : const Color(0xFF0F9D58);
+    final inactiveColor = isDark ? Colors.white60 : const Color(0xFF64748B);
+    final selectedBg = isDark ? const Color(0xFF22382B) : const Color(0xFFE8F5E9);
 
     return Expanded(
       child: Material(
@@ -119,7 +127,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFE8F5E9) : Colors.transparent,
+              color: isSelected ? selectedBg : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(

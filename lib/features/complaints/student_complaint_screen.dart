@@ -84,8 +84,8 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -148,8 +148,8 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
                     )
                   : null,
               filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              fillColor: GrBookTheme.getCardBackground(context),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: GrBookTheme.getBorderColor(context))),
             ),
           ),
         ),
@@ -170,7 +170,7 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
                     _searchQuery.isEmpty
                         ? 'Type a student name or G.R number to select.'
                         : 'No students found matching "$_searchQuery".',
-                    style: const TextStyle(color: GrBookTheme.textSecondary),
+                    style: TextStyle(color: GrBookTheme.getTextSecondary(context)),
                   ),
                 );
               }
@@ -189,9 +189,9 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: GrBookTheme.getCardBackground(context),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: GrBookTheme.borderColor),
+                      border: Border.all(color: GrBookTheme.getBorderColor(context)),
                     ),
                     child: ListTile(
                       leading: CircleAvatar(
@@ -201,8 +201,8 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
                           style: const TextStyle(color: GrBookTheme.primary, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      title: Text(s.studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: Text('G.R: ${s.grNumber} • Class: $className\nParent: ${s.fatherName ?? '-'} • Phone: ${s.phoneNumber ?? '-'}', style: const TextStyle(fontSize: 12)),
+                      title: Text(s.studentName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: GrBookTheme.getTextPrimary(context))),
+                      subtitle: Text('G.R: ${s.grNumber} • Class: $className\nParent: ${s.fatherName ?? '-'} • Phone: ${s.phoneNumber ?? '-'}', style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context))),
                       trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: GrBookTheme.primary),
                       onTap: () => setState(() => _student = s),
                     ),
@@ -228,7 +228,7 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Selected Student Details:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.textSecondary)),
+            Text('Selected Student Details:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextSecondary(context))),
             if (widget.preselectedStudent == null)
               TextButton.icon(
                 onPressed: () => setState(() => _student = null),
@@ -243,9 +243,9 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: GrBookTheme.getCardBackground(context),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: GrBookTheme.borderColor),
+            border: Border.all(color: GrBookTheme.getBorderColor(context)),
             boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 6, offset: Offset(0, 2))],
           ),
           child: Row(
@@ -254,9 +254,9 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: GrBookTheme.isDark(context) ? const Color(0xFF24382B) : const Color(0xFFF1F5F9),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+                  border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: _buildAvatar(studentPhoto),
@@ -266,11 +266,11 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(s.studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: GrBookTheme.textPrimary)),
+                    Text(s.studentName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: GrBookTheme.getTextPrimary(context))),
                     const SizedBox(height: 2),
                     Text('G.R No: ${s.grNumber}  •  Class: $className', style: const TextStyle(fontSize: 12.5, color: GrBookTheme.primary, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    Text('Parent: ${s.fatherName ?? '-'}  •  Phone: ${s.phoneNumber ?? 'Not provided'}', style: const TextStyle(fontSize: 12, color: GrBookTheme.textSecondary)),
+                    Text('Parent: ${s.fatherName ?? '-'}  •  Phone: ${s.phoneNumber ?? 'Not provided'}', style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context))),
                   ],
                 ),
               ),
@@ -283,22 +283,23 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: GrBookTheme.getCardBackground(context),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: GrBookTheme.borderColor),
+            border: Border.all(color: GrBookTheme.getBorderColor(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Complaint / Notice Details *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.textPrimary)),
+              Text('Complaint / Notice Details *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextPrimary(context))),
               const SizedBox(height: 8),
               TextField(
                 controller: _complaintController,
                 maxLines: 5,
-                style: const TextStyle(fontSize: 14, color: GrBookTheme.textPrimary),
-                decoration: const InputDecoration(
+                style: TextStyle(fontSize: 14, color: GrBookTheme.getTextPrimary(context)),
+                decoration: InputDecoration(
                   hintText: 'Write your complaint or note here...\n(e.g. attendance issue, homework concern, discipline notice, parent meeting request)',
                   border: InputBorder.none,
+                  hintStyle: TextStyle(color: GrBookTheme.getTextSecondary(context)),
                 ),
               ),
             ],
@@ -310,9 +311,9 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: GrBookTheme.getCardBackground(context),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: GrBookTheme.borderColor),
+            border: Border.all(color: GrBookTheme.getBorderColor(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,7 +321,7 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Attach Picture (Optional JPG):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.textPrimary)),
+                  Text('Attach Picture (Optional JPG):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextPrimary(context))),
                   if (_attachedPhoto != null)
                     TextButton(
                       onPressed: () => setState(() => _attachedPhoto = null),
@@ -598,10 +599,10 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
                   const Divider(height: 24),
                   Text('Complaint Letter Details:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextSecondary(context))),
                   const SizedBox(height: 6),
-                  Text(widget.complaintText, style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, height: 1.4)),
+                  Text(widget.complaintText, style: TextStyle(fontSize: 14.5, color: GrBookTheme.getTextPrimary(context), height: 1.4)),
                   if (widget.attachedPhoto != null) ...[
                     const SizedBox(height: 14),
-                    const Text('Attached JPG:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.textSecondary)),
+                    Text('Attached JPG:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextSecondary(context))),
                     const SizedBox(height: 6),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
@@ -654,11 +655,11 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: GrBookTheme.primaryDark,
-                  side: const BorderSide(color: GrBookTheme.primary, width: 1.5),
+                  foregroundColor: GrBookTheme.isDark(context) ? Colors.white : GrBookTheme.primaryDark,
+                  side: BorderSide(color: GrBookTheme.getBorderColor(context), width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  backgroundColor: Colors.white,
+                  backgroundColor: GrBookTheme.getCardBackground(context),
                 ),
                 onPressed: () => _shareVia('Share'),
                 icon: const Icon(Icons.share_rounded),
@@ -677,8 +678,8 @@ Date: ${DateTime.now().toLocal().toString().split(' ').first}
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 130, child: Text(label, style: const TextStyle(color: GrBookTheme.textSecondary, fontSize: 13))),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: GrBookTheme.textPrimary))),
+          SizedBox(width: 130, child: Text(label, style: TextStyle(color: GrBookTheme.getTextSecondary(context), fontSize: 13))),
+          Expanded(child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: GrBookTheme.getTextPrimary(context)))),
         ],
       ),
     );

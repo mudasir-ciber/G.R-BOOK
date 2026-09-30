@@ -189,7 +189,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     final dateFormat = DateFormat('dd-MM-yyyy hh:mm a');
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: GrBookTheme.isDark(context) ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(title: const Text('Backup & Restore')),
       body: SafeArea(
         child: ListView(
@@ -198,8 +198,12 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
             if (_error != null) ...[
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.red.shade200)),
-                child: Text(_error!, style: TextStyle(color: Colors.red.shade800, fontSize: 13)),
+                decoration: BoxDecoration(
+                  color: GrBookTheme.isDark(context) ? const Color(0xFF321414) : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: GrBookTheme.isDark(context) ? const Color(0xFF5A2020) : Colors.red.shade200),
+                ),
+                child: Text(_error!, style: TextStyle(color: GrBookTheme.isDark(context) ? const Color(0xFFF87171) : Colors.red.shade800, fontSize: 13)),
               ),
               const SizedBox(height: 16),
             ],
@@ -207,8 +211,12 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
             if (_localBackupMessage != null) ...[
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.green.shade200)),
-                child: Text(_localBackupMessage!, style: TextStyle(color: Colors.green.shade800, fontSize: 13, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(
+                  color: GrBookTheme.isDark(context) ? const Color(0xFF132A1C) : Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: GrBookTheme.isDark(context) ? const Color(0xFF1E482C) : Colors.green.shade200),
+                ),
+                child: Text(_localBackupMessage!, style: TextStyle(color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : Colors.green.shade800, fontSize: 13, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 16),
             ],
@@ -227,23 +235,23 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: GrBookTheme.primaryLight,
+                            color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : GrBookTheme.primaryLight,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.folder_special_rounded, color: GrBookTheme.primary, size: 24),
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Phone Storage Backup (Offline)',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.textPrimary),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
                               ),
                               Text(
                                 'Recommended • 100% Offline & Reliable',
-                                style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                                style: TextStyle(fontSize: 12, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : Colors.green, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
@@ -251,9 +259,9 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Saves all classes, student records, and student photos into your phone\'s public GR BOOK folder. This folder survives app uninstallation and does not require Google verification.',
-                      style: TextStyle(fontSize: 13, color: GrBookTheme.textSecondary, height: 1.4),
+                      style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), height: 1.4),
                     ),
                     const SizedBox(height: 16),
                     Column(
@@ -283,11 +291,11 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: GrBookTheme.primary,
-                              side: const BorderSide(color: GrBookTheme.primary, width: 1.5),
+                              foregroundColor: GrBookTheme.isDark(context) ? Colors.white : GrBookTheme.primary,
+                              side: BorderSide(color: GrBookTheme.getBorderColor(context), width: 1.5),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              backgroundColor: GrBookTheme.primaryLight.withValues(alpha: 0.35),
+                              backgroundColor: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : GrBookTheme.primaryLight.withValues(alpha: 0.35),
                             ),
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute(builder: (_) => const AddDataStorageScreen()),
@@ -321,23 +329,23 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE8F0FE),
+                            color: GrBookTheme.isDark(context) ? const Color(0xFF15263F) : const Color(0xFFE8F0FE),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.cloud_outlined, color: Color(0xFF1967D2), size: 24),
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Google Drive Cloud Backup',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.textPrimary),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
                               ),
                               Text(
                                 'Cloud sync & one-tap Drive sharing',
-                                style: TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                                style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
                               ),
                             ],
                           ),

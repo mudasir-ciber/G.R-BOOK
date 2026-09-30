@@ -20,8 +20,8 @@ class ComplaintHistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -44,9 +44,9 @@ class ComplaintHistoryScreen extends ConsumerWidget {
                           children: [
                             Icon(Icons.notes_rounded, size: 56, color: Colors.grey.shade400),
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'No complaint or notice history for this student.',
-                              style: TextStyle(color: GrBookTheme.textSecondary, fontSize: 14),
+                              style: TextStyle(color: GrBookTheme.getTextSecondary(context), fontSize: 14),
                             ),
                           ],
                         ),
@@ -64,9 +64,9 @@ class ComplaintHistoryScreen extends ConsumerWidget {
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: GrBookTheme.getCardBackground(context),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: GrBookTheme.borderColor),
+                            border: Border.all(color: GrBookTheme.getBorderColor(context)),
                             boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 2))],
                           ),
                           child: Column(
@@ -77,11 +77,11 @@ class ComplaintHistoryScreen extends ConsumerWidget {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.access_time_rounded, size: 14, color: GrBookTheme.textSecondary),
+                                      Icon(Icons.access_time_rounded, size: 14, color: GrBookTheme.getTextSecondary(context)),
                                       const SizedBox(width: 4),
                                       Text(
                                         dateFormat.format(c.createdAt),
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.textSecondary),
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.getTextSecondary(context)),
                                       ),
                                     ],
                                   ),
@@ -89,8 +89,8 @@ class ComplaintHistoryScreen extends ConsumerWidget {
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: c.communicationMethod.contains('WhatsApp')
-                                          ? const Color(0xFFE8F5E9)
-                                          : const Color(0xFFE0F2FE),
+                                          ? (GrBookTheme.isDark(context) ? const Color(0xFF143820) : const Color(0xFFE8F5E9))
+                                          : (GrBookTheme.isDark(context) ? const Color(0xFF132838) : const Color(0xFFE0F2FE)),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
@@ -99,8 +99,8 @@ class ComplaintHistoryScreen extends ConsumerWidget {
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                         color: c.communicationMethod.contains('WhatsApp')
-                                            ? Colors.green.shade800
-                                            : Colors.blue.shade800,
+                                            ? (GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : Colors.green.shade800)
+                                            : (GrBookTheme.isDark(context) ? const Color(0xFF60A5FA) : Colors.blue.shade800),
                                       ),
                                     ),
                                   ),
@@ -109,7 +109,7 @@ class ComplaintHistoryScreen extends ConsumerWidget {
                               const SizedBox(height: 8),
                               Text(
                                 c.complaintText,
-                                style: const TextStyle(fontSize: 14, color: GrBookTheme.textPrimary, height: 1.3),
+                                style: TextStyle(fontSize: 14, color: GrBookTheme.getTextPrimary(context), height: 1.3),
                               ),
                               if (c.localPhotoPath != null && c.localPhotoPath!.isNotEmpty) ...[
                                 const SizedBox(height: 10),

@@ -43,8 +43,8 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -62,9 +62,9 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: GrBookTheme.getCardBackground(context),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                    border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x06000000),
@@ -77,12 +77,12 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                     children: [
                       const GrBookIconBadge(icon: Icons.school_rounded, size: 36, iconSize: 20),
                       const SizedBox(width: 12),
-                      const Text(
+                      Text(
                         'Year:',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: GrBookTheme.textSecondary,
+                          color: GrBookTheme.getTextSecondary(context),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -92,13 +92,14 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                           isExpanded: true,
                           underline: const SizedBox.shrink(),
                           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: GrBookTheme.primary),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: GrBookTheme.textPrimary,
+                            color: GrBookTheme.getTextPrimary(context),
                           ),
+                          dropdownColor: GrBookTheme.getCardBackground(context),
                           items: widget.availableYears
-                              .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
+                              .map((y) => DropdownMenuItem(value: y, child: Text('$y', style: TextStyle(color: GrBookTheme.getTextPrimary(context)))))
                               .toList(),
                           onChanged: (y) {
                             if (y != null) setState(() => _selectedYear = y);
@@ -115,9 +116,11 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: TextField(
                   controller: _searchController,
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: GrBookTheme.getTextPrimary(context)),
+                  decoration: InputDecoration(
                     hintText: 'Search student name or GR No...',
-                    prefixIcon: Icon(Icons.search, color: GrBookTheme.primary, size: 20),
+                    hintStyle: TextStyle(color: GrBookTheme.getTextSecondary(context)),
+                    prefixIcon: const Icon(Icons.search, color: GrBookTheme.primary, size: 20),
                   ),
                   onChanged: (v) => setState(() => _searchText = v),
                 ),
@@ -129,16 +132,16 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDCF2E4),
+                    color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : const Color(0xFFDCF2E4),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
                       SizedBox(
                         width: 44,
                         child: Text(
                           'Sr. No.',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -146,15 +149,15 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                         width: 60,
                         child: Text(
                           'G.R No.',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark),
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      SizedBox(width: 48),
+                      const SizedBox(width: 48),
                       Expanded(
                         child: Text(
                           'Student Name',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark),
                         ),
                       ),
                     ],
@@ -177,7 +180,7 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
 
                     if (filtered.isEmpty) {
                       return Center(
-                        child: Text('No students passed out in $_selectedYear.'),
+                        child: Text('No students passed out in $_selectedYear.', style: TextStyle(color: GrBookTheme.getTextSecondary(context))),
                       );
                     }
 
@@ -189,9 +192,9 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                         final s = filtered[index];
                         return Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: GrBookTheme.getCardBackground(context),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: GrBookTheme.borderColor, width: 1),
+                            border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1),
                             boxShadow: const [
                               BoxShadow(
                                 color: Color(0x06000000),
@@ -209,36 +212,36 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                                   child: Text(
                                     '${index + 1}',
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextPrimary(context)),
                                   ),
                                 ),
                                 Container(
                                   width: 60,
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F8F4),
+                                    color: GrBookTheme.isDark(context) ? const Color(0xFF1B2A20) : const Color(0xFFF1F8F4),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     s.grNumber,
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: GrBookTheme.primaryDark),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 CircleAvatar(
                                   radius: 18,
-                                  backgroundColor: GrBookTheme.primaryLight,
+                                  backgroundColor: GrBookTheme.isDark(context) ? const Color(0xFF1B2A20) : GrBookTheme.primaryLight,
                                   child: Text(
                                     s.studentName.isNotEmpty ? s.studentName[0].toUpperCase() : '?',
-                                    style: const TextStyle(color: GrBookTheme.primaryDark, fontWeight: FontWeight.bold, fontSize: 13),
+                                    style: TextStyle(color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark, fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     s.studentName,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: GrBookTheme.getTextPrimary(context)),
                                   ),
                                 ),
                                 const Icon(Icons.chevron_right_rounded, color: GrBookTheme.primary, size: 20),
@@ -258,9 +261,9 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: GrBookTheme.getCardBackground(context),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                    border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x06000000),
@@ -276,17 +279,17 @@ class _PassOutStudentsScreenState extends ConsumerState<PassOutStudentsScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Total Pass Out Students',
-                            style: TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                            style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '$totalCount Students',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: GrBookTheme.textPrimary,
+                              color: GrBookTheme.getTextPrimary(context),
                             ),
                           ),
                         ],

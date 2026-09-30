@@ -68,7 +68,7 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: GrBookTheme.isDark(context) ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(
         title: const Text('About G.R BOOK'),
         centerTitle: true,
@@ -88,7 +88,7 @@ class AboutScreen extends StatelessWidget {
                       width: 86,
                       height: 86,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: GrBookTheme.getCardBackground(context),
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
@@ -108,38 +108,38 @@ class AboutScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'G.R BOOK',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: GrBookTheme.primaryDark,
+                        color: GrBookTheme.getTextPrimary(context),
                         letterSpacing: 0.5,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
+                    Text(
                       'Digital School Record System',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: GrBookTheme.textSecondary,
+                        color: GrBookTheme.getTextSecondary(context),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: GrBookTheme.primaryLight,
+                        color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : GrBookTheme.primaryLight,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: GrBookTheme.primary.withValues(alpha: 0.3)),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Version 1.0.0 • Offline-First Edition',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: GrBookTheme.primaryDark,
+                          color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark,
                         ),
                       ),
                     ),
@@ -341,9 +341,9 @@ class AboutScreen extends StatelessWidget {
               // Application Features Card
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: GrBookTheme.getCardBackground(context),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: GrBookTheme.borderColor),
+                  border: Border.all(color: GrBookTheme.getBorderColor(context)),
                   boxShadow: const [
                     BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 3)),
                   ],
@@ -353,22 +353,22 @@ class AboutScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.stars_rounded, color: GrBookTheme.primary, size: 22),
-                          SizedBox(width: 8),
+                          const Icon(Icons.stars_rounded, color: GrBookTheme.primary, size: 22),
+                          const SizedBox(width: 8),
                           Text(
                             'Core Highlights',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: GrBookTheme.primaryDark),
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark),
                           ),
                         ],
                       ),
                       const Divider(height: 20),
-                      _buildFeatureRow(Icons.offline_pin_rounded, 'Fully Independent Offline-First Architecture'),
-                      _buildFeatureRow(Icons.folder_special_rounded, 'Persistent Phone Storage in GR BOOK Folder'),
-                      _buildFeatureRow(Icons.fingerprint_rounded, 'Biometric Fingerprint Lock & Instant Login'),
-                      _buildFeatureRow(Icons.picture_as_pdf_rounded, 'A4 Student Profile & Certificates (PDF & JPG)'),
-                      _buildFeatureRow(Icons.cloud_sync_rounded, 'Seamless Background Cloud Synchronization'),
+                      _buildFeatureRow(context, Icons.offline_pin_rounded, 'Fully Independent Offline-First Architecture'),
+                      _buildFeatureRow(context, Icons.folder_special_rounded, 'Persistent Phone Storage in GR BOOK Folder'),
+                      _buildFeatureRow(context, Icons.fingerprint_rounded, 'Biometric Fingerprint Lock & Instant Login'),
+                      _buildFeatureRow(context, Icons.picture_as_pdf_rounded, 'A4 Student Profile & Certificates (PDF & JPG)'),
+                      _buildFeatureRow(context, Icons.cloud_sync_rounded, 'Seamless Background Cloud Synchronization'),
                     ],
                   ),
                 ),
@@ -379,7 +379,7 @@ class AboutScreen extends StatelessWidget {
                 child: Text(
                   '© ${DateTime.now().year} G.R BOOK. All rights reserved.\nCrafted with pride by Mudasir Ahmed Ghanghro.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.4),
+                  style: TextStyle(fontSize: 11, color: GrBookTheme.getTextSecondary(context), height: 1.4),
                 ),
               ),
               const SizedBox(height: 16),
@@ -390,7 +390,7 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureRow(IconData icon, String text) {
+  Widget _buildFeatureRow(BuildContext context, IconData icon, String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -398,7 +398,7 @@ class AboutScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: GrBookTheme.primaryLight,
+              color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : GrBookTheme.primaryLight,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: GrBookTheme.primary, size: 16),
@@ -407,7 +407,7 @@ class AboutScreen extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 13, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 13, color: GrBookTheme.getTextPrimary(context), fontWeight: FontWeight.w500),
             ),
           ),
         ],

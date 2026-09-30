@@ -21,10 +21,12 @@ class ClassesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final schoolAsync = ref.watch(currentSchoolProvider);
 
+    final isDark = GrBookTheme.isDark(context);
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -43,7 +45,7 @@ class ClassesScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.search, color: GrBookTheme.primary, size: 22),
+                      icon: Icon(Icons.search, color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary, size: 22),
                       tooltip: 'Search',
                       onPressed: schoolAsync.valueOrNull == null
                           ? null
@@ -56,7 +58,7 @@ class ClassesScreen extends ConsumerWidget {
                             },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.dashboard_outlined, color: GrBookTheme.primary, size: 22),
+                      icon: Icon(Icons.dashboard_outlined, color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary, size: 22),
                       tooltip: 'Dashboard',
                       onPressed: () {
                         Navigator.of(context).push(
@@ -100,14 +102,14 @@ class ClassesScreen extends ConsumerWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: GrBookTheme.getCardBackground(context),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
-                                boxShadow: const [
+                                border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
+                                boxShadow: [
                                   BoxShadow(
-                                    color: Color(0x0A000000),
+                                    color: Colors.black.withOpacity(isDark ? 0.35 : 0.04),
                                     blurRadius: 8,
-                                    offset: Offset(0, 3),
+                                    offset: const Offset(0, 3),
                                   ),
                                 ],
                               ),
@@ -117,12 +119,12 @@ class ClassesScreen extends ConsumerWidget {
                                     width: 44,
                                     height: 44,
                                     decoration: BoxDecoration(
-                                      color: GrBookTheme.primaryLight,
+                                      color: isDark ? const Color(0xFF22382B) : GrBookTheme.primaryLight,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.apartment_rounded,
-                                      color: GrBookTheme.primary,
+                                      color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary,
                                       size: 24,
                                     ),
                                   ),
@@ -133,26 +135,26 @@ class ClassesScreen extends ConsumerWidget {
                                       children: [
                                         Text(
                                           school.schoolName,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
-                                            color: GrBookTheme.textPrimary,
+                                            color: GrBookTheme.getTextPrimary(context),
                                           ),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
                                           'SEMIS: ${school.semisCode ?? 'N/A'}',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 13,
-                                            color: GrBookTheme.textSecondary,
+                                            color: GrBookTheme.getTextSecondary(context),
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const Icon(
+                                  Icon(
                                     Icons.chevron_right_rounded,
-                                    color: GrBookTheme.primary,
+                                    color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary,
                                     size: 24,
                                   ),
                                 ],
@@ -162,21 +164,21 @@ class ClassesScreen extends ConsumerWidget {
                           const SizedBox(height: 20),
 
                           // 2. Classes Header
-                          const Text(
+                          Text(
                             'Classes',
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: GrBookTheme.textPrimary,
+                              color: GrBookTheme.getTextPrimary(context),
                               letterSpacing: -0.2,
                             ),
                           ),
                           const SizedBox(height: 3),
-                          const Text(
+                          Text(
                             'Select a class to manage student records',
                             style: TextStyle(
                               fontSize: 13,
-                              color: GrBookTheme.textSecondary,
+                              color: GrBookTheme.getTextSecondary(context),
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -195,6 +197,7 @@ class ClassesScreen extends ConsumerWidget {
                                 children: [
                                   ...classes.map((entry) {
                                     return _buildClassCard(
+                                      context,
                                       title: entry.schoolClass.displayName,
                                       subtitle: 'Manage students',
                                       icon: Icons.groups_rounded,
@@ -212,6 +215,7 @@ class ClassesScreen extends ConsumerWidget {
 
                                   // PASS OUT Card
                                   _buildClassCard(
+                                    context,
                                     title: 'PASS OUT',
                                     subtitle: 'Manage pass out students',
                                     icon: Icons.school_rounded,
@@ -226,11 +230,12 @@ class ClassesScreen extends ConsumerWidget {
 
                                   // STRUCK OFF Card
                                   _buildClassCard(
+                                    context,
                                     title: 'STRUCK OFF',
                                     subtitle: 'Manage struck off students',
                                     icon: Icons.person_off_rounded,
-                                    badgeColor: Colors.red.shade50,
-                                    iconColor: Colors.red.shade700,
+                                    badgeColor: isDark ? const Color(0xFF3B1818) : Colors.red.shade50,
+                                    iconColor: isDark ? const Color(0xFFF87171) : Colors.red.shade700,
                                     onTap: () {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
@@ -257,7 +262,8 @@ class ClassesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildClassCard({
+  Widget _buildClassCard(
+    BuildContext context, {
     required String title,
     required String subtitle,
     required IconData icon,
@@ -265,17 +271,19 @@ class ClassesScreen extends ConsumerWidget {
     Color? badgeColor,
     Color? iconColor,
   }) {
+    final isDark = GrBookTheme.isDark(context);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GrBookTheme.getCardBackground(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
-        boxShadow: const [
+        border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x08000000),
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.04),
             blurRadius: 6,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -290,8 +298,8 @@ class ClassesScreen extends ConsumerWidget {
               children: [
                 GrBookIconBadge(
                   icon: icon,
-                  backgroundColor: badgeColor,
-                  iconColor: iconColor,
+                  backgroundColor: badgeColor ?? (isDark ? const Color(0xFF22382B) : GrBookTheme.primaryLight),
+                  iconColor: iconColor ?? (isDark ? const Color(0xFF68D391) : GrBookTheme.primary),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -300,26 +308,26 @@ class ClassesScreen extends ConsumerWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: GrBookTheme.textPrimary,
+                          color: GrBookTheme.getTextPrimary(context),
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: GrBookTheme.textSecondary,
+                          color: GrBookTheme.getTextSecondary(context),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: GrBookTheme.primary,
+                  color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary,
                   size: 24,
                 ),
               ],

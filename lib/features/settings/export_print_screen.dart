@@ -149,7 +149,7 @@ class _ExportPrintScreenState extends ConsumerState<ExportPrintScreen> {
     final years = ref.watch(passOutYearsProvider(widget.schoolId)).valueOrNull ?? [];
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: GrBookTheme.isDark(context) ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(title: const Text('Export & Print')),
       body: SafeArea(
         child: ListView(
@@ -157,9 +157,9 @@ class _ExportPrintScreenState extends ConsumerState<ExportPrintScreen> {
           children: [
             Card(
               child: ListTile(
-                leading: const Icon(Icons.upload_file, color: GrBookTheme.primaryDark),
-                title: const Text('Import from Excel', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Bring in an old register'),
+                leading: const Icon(Icons.upload_file, color: GrBookTheme.primary),
+                title: Text('Import from Excel', style: TextStyle(fontWeight: FontWeight.w600, color: GrBookTheme.getTextPrimary(context))),
+                subtitle: Text('Bring in an old register', style: TextStyle(color: GrBookTheme.getTextSecondary(context))),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => ExcelImportScreen(schoolId: widget.schoolId)),
@@ -167,15 +167,43 @@ class _ExportPrintScreenState extends ConsumerState<ExportPrintScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Text('What to export', style: Theme.of(context).textTheme.titleSmall),
+            Text('What to export', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: GrBookTheme.getTextPrimary(context))),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               children: [
-                ChoiceChip(label: const Text('Complete Register'), selected: _scope == _Scope.completeRegister, onSelected: (_) => setState(() => _scope = _Scope.completeRegister)),
-                ChoiceChip(label: const Text('One Class'), selected: _scope == _Scope.class_, onSelected: (_) => setState(() => _scope = _Scope.class_)),
-                ChoiceChip(label: const Text('Pass Out Year'), selected: _scope == _Scope.passOutYear, onSelected: (_) => setState(() => _scope = _Scope.passOutYear)),
-                ChoiceChip(label: const Text('Struck Off'), selected: _scope == _Scope.struckOff, onSelected: (_) => setState(() => _scope = _Scope.struckOff)),
+                ChoiceChip(
+                  label: const Text('Complete Register'),
+                  selected: _scope == _Scope.completeRegister,
+                  selectedColor: GrBookTheme.isDark(context) ? const Color(0xFF1E3A2B) : const Color(0xFFDCF2E4),
+                  backgroundColor: GrBookTheme.getCardBackground(context),
+                  labelStyle: TextStyle(color: _scope == _Scope.completeRegister ? (GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark) : GrBookTheme.getTextPrimary(context)),
+                  onSelected: (_) => setState(() => _scope = _Scope.completeRegister),
+                ),
+                ChoiceChip(
+                  label: const Text('One Class'),
+                  selected: _scope == _Scope.class_,
+                  selectedColor: GrBookTheme.isDark(context) ? const Color(0xFF1E3A2B) : const Color(0xFFDCF2E4),
+                  backgroundColor: GrBookTheme.getCardBackground(context),
+                  labelStyle: TextStyle(color: _scope == _Scope.class_ ? (GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark) : GrBookTheme.getTextPrimary(context)),
+                  onSelected: (_) => setState(() => _scope = _Scope.class_),
+                ),
+                ChoiceChip(
+                  label: const Text('Pass Out Year'),
+                  selected: _scope == _Scope.passOutYear,
+                  selectedColor: GrBookTheme.isDark(context) ? const Color(0xFF1E3A2B) : const Color(0xFFDCF2E4),
+                  backgroundColor: GrBookTheme.getCardBackground(context),
+                  labelStyle: TextStyle(color: _scope == _Scope.passOutYear ? (GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark) : GrBookTheme.getTextPrimary(context)),
+                  onSelected: (_) => setState(() => _scope = _Scope.passOutYear),
+                ),
+                ChoiceChip(
+                  label: const Text('Struck Off'),
+                  selected: _scope == _Scope.struckOff,
+                  selectedColor: GrBookTheme.isDark(context) ? const Color(0xFF1E3A2B) : const Color(0xFFDCF2E4),
+                  backgroundColor: GrBookTheme.getCardBackground(context),
+                  labelStyle: TextStyle(color: _scope == _Scope.struckOff ? (GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark) : GrBookTheme.getTextPrimary(context)),
+                  onSelected: (_) => setState(() => _scope = _Scope.struckOff),
+                ),
               ],
             ),
             const SizedBox(height: 12),

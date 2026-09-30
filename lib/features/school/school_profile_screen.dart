@@ -75,23 +75,25 @@ class _SchoolProfileScreenState extends ConsumerState<SchoolProfileScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
-            color: GrBookTheme.textPrimary,
+            color: GrBookTheme.getTextPrimary(context),
           ),
         ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
+          style: TextStyle(color: GrBookTheme.getTextPrimary(context)),
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: TextStyle(color: GrBookTheme.getTextSecondary(context)),
             prefixIcon: Container(
               margin: const EdgeInsets.all(8),
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: GrBookTheme.primaryLight,
+                color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : GrBookTheme.primaryLight,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: GrBookTheme.primary, size: 20),
@@ -111,8 +113,8 @@ class _SchoolProfileScreenState extends ConsumerState<SchoolProfileScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -129,7 +131,7 @@ class _SchoolProfileScreenState extends ConsumerState<SchoolProfileScreen> {
                   error: (e, _) => Center(child: Text('Could not load school: $e')),
                   data: (school) {
                     if (school == null) {
-                      return const Center(child: Text('No school found on this device yet.'));
+                      return Center(child: Text('No school found on this device yet.', style: TextStyle(color: GrBookTheme.getTextSecondary(context))));
                     }
                     _populateIfNeeded(school);
                     return SingleChildScrollView(
@@ -137,9 +139,9 @@ class _SchoolProfileScreenState extends ConsumerState<SchoolProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: GrBookTheme.getCardBackground(context),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                          border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
                           boxShadow: const [
                             BoxShadow(
                               color: Color(0x06000000),

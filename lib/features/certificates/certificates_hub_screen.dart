@@ -129,8 +129,8 @@ class _CertificatesHubScreenState extends ConsumerState<CertificatesHubScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -165,11 +165,11 @@ class _CertificatesHubScreenState extends ConsumerState<CertificatesHubScreen> {
                           const SizedBox(height: 16),
                           OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: GrBookTheme.primaryDark,
-                              side: const BorderSide(color: GrBookTheme.primary, width: 1.5),
+                              foregroundColor: GrBookTheme.isDark(context) ? Colors.white : GrBookTheme.primaryDark,
+                              side: BorderSide(color: GrBookTheme.getBorderColor(context), width: 1.5),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              backgroundColor: Colors.white,
+                              backgroundColor: GrBookTheme.getCardBackground(context),
                             ),
                             onPressed: () => _openAddCertificateDialog(school.id),
                             icon: const Icon(Icons.add_circle_outline, size: 20),
@@ -200,12 +200,13 @@ class _CertificateTypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = GrBookTheme.isDark(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GrBookTheme.getCardBackground(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: GrBookTheme.borderColor, width: 1),
+        border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1),
         boxShadow: const [
           BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2)),
         ],
@@ -216,26 +217,26 @@ class _CertificateTypeCard extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF8E1),
+            color: isDark ? const Color(0xFF2E2214) : const Color(0xFFFFF8E1),
             borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFF59E0B), size: 26),
         ),
         title: Text(
           item.title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: GrBookTheme.textPrimary),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: GrBookTheme.getTextPrimary(context)),
         ),
         subtitle: Text(
           item.description.isNotEmpty ? item.description : 'Official School Certificate',
-          style: const TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+          style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         trailing: Container(
           width: 34,
           height: 34,
-          decoration: const BoxDecoration(
-            color: Color(0xFFF1F5F9),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF24382B) : const Color(0xFFF1F5F9),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.chevron_right_rounded, color: GrBookTheme.primary, size: 22),
@@ -317,8 +318,8 @@ class _CertificateStudentPickerScreenState
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -364,8 +365,8 @@ class _CertificateStudentPickerScreenState
                     )
                   : null,
               filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              fillColor: GrBookTheme.getCardBackground(context),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: GrBookTheme.getBorderColor(context))),
             ),
           ),
         ),
@@ -386,7 +387,7 @@ class _CertificateStudentPickerScreenState
                     _searchQuery.isEmpty
                         ? 'Type a student name or G.R number above to search.'
                         : 'No students found matching "$_searchQuery".',
-                    style: const TextStyle(color: GrBookTheme.textSecondary),
+                    style: TextStyle(color: GrBookTheme.getTextSecondary(context)),
                   ),
                 );
               }
@@ -399,9 +400,9 @@ class _CertificateStudentPickerScreenState
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: GrBookTheme.getCardBackground(context),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: GrBookTheme.borderColor),
+                      border: Border.all(color: GrBookTheme.getBorderColor(context)),
                     ),
                     child: ListTile(
                       leading: CircleAvatar(
@@ -411,8 +412,8 @@ class _CertificateStudentPickerScreenState
                           style: const TextStyle(color: GrBookTheme.primary, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      title: Text(s.studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: Text('G.R: ${s.grNumber} • Father: ${s.fatherName ?? '-'}', style: const TextStyle(fontSize: 12)),
+                      title: Text(s.studentName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: GrBookTheme.getTextPrimary(context))),
+                      subtitle: Text('G.R: ${s.grNumber} • Father: ${s.fatherName ?? '-'}', style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context))),
                       trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: GrBookTheme.primary),
                       onTap: () => setState(() => _selectedStudent = s),
                     ),
@@ -439,7 +440,7 @@ class _CertificateStudentPickerScreenState
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Student Information (Auto-Filled):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.textSecondary)),
+            Text('Student Information (Auto-Filled):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextSecondary(context))),
             TextButton.icon(
               onPressed: () => setState(() => _selectedStudent = null),
               icon: const Icon(Icons.swap_horiz, size: 16),
@@ -453,9 +454,9 @@ class _CertificateStudentPickerScreenState
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: GrBookTheme.getCardBackground(context),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: GrBookTheme.borderColor),
+            border: Border.all(color: GrBookTheme.getBorderColor(context)),
             boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],
           ),
           child: Column(
@@ -477,21 +478,23 @@ class _CertificateStudentPickerScreenState
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: GrBookTheme.getCardBackground(context),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: GrBookTheme.borderColor),
+            border: Border.all(color: GrBookTheme.getBorderColor(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Additional Remarks / Note (Optional):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.textPrimary)),
+              Text('Additional Remarks / Note (Optional):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GrBookTheme.getTextPrimary(context))),
               const SizedBox(height: 6),
               TextField(
                 controller: _remarksController,
                 maxLines: 2,
-                decoration: const InputDecoration(
+                style: TextStyle(color: GrBookTheme.getTextPrimary(context)),
+                decoration: InputDecoration(
                   hintText: 'Enter any special conduct note or leaving reason...',
                   border: InputBorder.none,
+                  hintStyle: TextStyle(color: GrBookTheme.getTextSecondary(context)),
                 ),
               ),
             ],
@@ -582,10 +585,10 @@ class _CertificateStudentPickerScreenState
         children: [
           SizedBox(
             width: 130,
-            child: Text(label, style: const TextStyle(color: GrBookTheme.textSecondary, fontSize: 13)),
+            child: Text(label, style: TextStyle(color: GrBookTheme.getTextSecondary(context), fontSize: 13)),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: GrBookTheme.textPrimary)),
+            child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: GrBookTheme.getTextPrimary(context))),
           ),
         ],
       ),

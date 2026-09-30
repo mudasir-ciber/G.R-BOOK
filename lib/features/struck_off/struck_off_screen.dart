@@ -49,7 +49,7 @@ class StruckOffScreen extends ConsumerWidget {
     final dateFormat = DateFormat('dd-MM-yyyy');
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: GrBookTheme.isDark(context) ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(title: const Text('Struck Off Students')),
       body: SafeArea(
         child: studentsAsync.when(
@@ -57,7 +57,7 @@ class StruckOffScreen extends ConsumerWidget {
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (students) {
             if (students.isEmpty) {
-              return const Center(child: Text('No struck-off students.'));
+              return Center(child: Text('No struck-off students.', style: TextStyle(color: GrBookTheme.getTextSecondary(context))));
             }
             return ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -65,33 +65,47 @@ class StruckOffScreen extends ConsumerWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final s = students[index];
-                return Card(
+                return Container(
+                  decoration: BoxDecoration(
+                    color: GrBookTheme.getCardBackground(context),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 2)),
+                    ],
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(14),
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: GrBookTheme.primary.withOpacity(0.12),
-                          child: Text(s.studentName.isNotEmpty ? s.studentName[0].toUpperCase() : '?'),
+                          backgroundColor: GrBookTheme.primary.withValues(alpha: 0.15),
+                          child: Text(
+                            s.studentName.isNotEmpty ? s.studentName[0].toUpperCase() : '?',
+                            style: const TextStyle(color: GrBookTheme.primary, fontWeight: FontWeight.bold),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(s.studentName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              Text('GR: ${s.grNumber}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                              Text(s.studentName, style: TextStyle(fontWeight: FontWeight.w600, color: GrBookTheme.getTextPrimary(context))),
+                              Text('GR: ${s.grNumber}', style: TextStyle(color: GrBookTheme.getTextSecondary(context), fontSize: 12)),
                               const SizedBox(height: 4),
                               if (s.struckOffDate != null)
                                 Text('Struck off: ${dateFormat.format(s.struckOffDate!)}',
-                                    style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
+                                    style: TextStyle(color: Colors.red.shade400, fontSize: 12)),
                               if (s.struckOffReason != null)
-                                Text('Reason: ${s.struckOffReason}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                                Text('Reason: ${s.struckOffReason}', style: TextStyle(color: GrBookTheme.getTextSecondary(context), fontSize: 12)),
                             ],
                           ),
                         ),
                         OutlinedButton(
-                          style: OutlinedButton.styleFrom(foregroundColor: GrBookTheme.primaryDark),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: GrBookTheme.isDark(context) ? Colors.white : GrBookTheme.primaryDark,
+                            side: BorderSide(color: GrBookTheme.getBorderColor(context)),
+                          ),
                           onPressed: () => _confirmReAdmit(context, ref, s),
                           child: const Text('Re-admit'),
                         ),

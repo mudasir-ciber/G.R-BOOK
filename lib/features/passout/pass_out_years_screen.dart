@@ -65,8 +65,8 @@ class PassOutYearsScreen extends ConsumerWidget {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -83,7 +83,7 @@ class PassOutYearsScreen extends ConsumerWidget {
                   error: (e, _) => Center(child: Text('Error: $e')),
                   data: (years) {
                     if (years.isEmpty) {
-                      return const Center(child: Text('No pass-out years yet. Tap below to add one.'));
+                      return Center(child: Text('No pass-out years yet. Tap below to add one.', style: TextStyle(color: GrBookTheme.getTextSecondary(context))));
                     }
                     return ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -93,9 +93,9 @@ class PassOutYearsScreen extends ConsumerWidget {
                         final year = years[index];
                         return Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: GrBookTheme.getCardBackground(context),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                            border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
                             boxShadow: const [
                               BoxShadow(
                                 color: Color(0x08000000),
@@ -127,10 +127,10 @@ class PassOutYearsScreen extends ConsumerWidget {
                                     const SizedBox(width: 16),
                                     Text(
                                       '$year',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 17,
-                                        color: GrBookTheme.textPrimary,
+                                        color: GrBookTheme.getTextPrimary(context),
                                       ),
                                     ),
                                     const Spacer(),

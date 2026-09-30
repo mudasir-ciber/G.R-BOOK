@@ -35,8 +35,8 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -114,12 +114,12 @@ class DashboardScreen extends ConsumerWidget {
                         const SizedBox(height: 20),
 
                         // Age Reference Selector
-                        const Text(
+                        Text(
                           'Age Calculated As Of',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: GrBookTheme.textPrimary,
+                            color: GrBookTheme.getTextPrimary(context),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -129,11 +129,12 @@ class DashboardScreen extends ConsumerWidget {
                             ChoiceChip(
                               label: const Text('Today'),
                               selected: ageReference == AgeReference.today,
-                              selectedColor: const Color(0xFFDCF2E4),
+                              selectedColor: GrBookTheme.isDark(context) ? const Color(0xFF1E3A2B) : const Color(0xFFDCF2E4),
+                              backgroundColor: GrBookTheme.getCardBackground(context),
                               labelStyle: TextStyle(
                                 color: ageReference == AgeReference.today
-                                    ? GrBookTheme.primaryDark
-                                    : GrBookTheme.textPrimary,
+                                    ? (GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark)
+                                    : GrBookTheme.getTextPrimary(context),
                                 fontWeight: FontWeight.w600,
                               ),
                               onSelected: (_) =>
@@ -142,11 +143,12 @@ class DashboardScreen extends ConsumerWidget {
                             ChoiceChip(
                               label: const Text('Admission Date'),
                               selected: ageReference == AgeReference.admissionDate,
-                              selectedColor: const Color(0xFFDCF2E4),
+                              selectedColor: GrBookTheme.isDark(context) ? const Color(0xFF1E3A2B) : const Color(0xFFDCF2E4),
+                              backgroundColor: GrBookTheme.getCardBackground(context),
                               labelStyle: TextStyle(
                                 color: ageReference == AgeReference.admissionDate
-                                    ? GrBookTheme.primaryDark
-                                    : GrBookTheme.textPrimary,
+                                    ? (GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark)
+                                    : GrBookTheme.getTextPrimary(context),
                                 fontWeight: FontWeight.w600,
                               ),
                               onSelected: (_) =>
@@ -157,11 +159,12 @@ class DashboardScreen extends ConsumerWidget {
                                   ? dateFormat.format(customDate)
                                   : 'Custom Date'),
                               selected: ageReference == AgeReference.custom,
-                              selectedColor: const Color(0xFFDCF2E4),
+                              selectedColor: GrBookTheme.isDark(context) ? const Color(0xFF1E3A2B) : const Color(0xFFDCF2E4),
+                              backgroundColor: GrBookTheme.getCardBackground(context),
                               labelStyle: TextStyle(
                                 color: ageReference == AgeReference.custom
-                                    ? GrBookTheme.primaryDark
-                                    : GrBookTheme.textPrimary,
+                                    ? (GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark)
+                                    : GrBookTheme.getTextPrimary(context),
                                 fontWeight: FontWeight.w600,
                               ),
                               onSelected: (_) => _pickCustomDate(context, ref),
@@ -170,12 +173,12 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 20),
 
-                        const Text(
+                        Text(
                           'Classes & Age Distribution',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: GrBookTheme.textPrimary,
+                            color: GrBookTheme.getTextPrimary(context),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -188,9 +191,9 @@ class DashboardScreen extends ConsumerWidget {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 10),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: GrBookTheme.getCardBackground(context),
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
+                                  border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Color(0x06000000),
@@ -204,11 +207,11 @@ class DashboardScreen extends ConsumerWidget {
                                   leading: const GrBookIconBadge(icon: Icons.groups_rounded),
                                   title: Text(
                                     entry.schoolClass.displayName,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: GrBookTheme.getTextPrimary(context)),
                                   ),
                                   subtitle: Text(
                                     '${entry.activeStudentCount} active students',
-                                    style: const TextStyle(fontSize: 12, color: GrBookTheme.textSecondary),
+                                    style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
                                   ),
                                   trailing: const Icon(Icons.chevron_right_rounded, color: GrBookTheme.primary),
                                   onTap: () {

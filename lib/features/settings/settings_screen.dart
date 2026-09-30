@@ -50,22 +50,24 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    final isDark = GrBookTheme.isDark(context);
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 18, bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF6B7E73),
+          color: isDark ? const Color(0xFF9FB5A6) : const Color(0xFF6B7E73),
           letterSpacing: 1.2,
         ),
       ),
     );
   }
 
-  Widget _buildTile({
+  Widget _buildTile(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
@@ -73,17 +75,19 @@ class SettingsScreen extends ConsumerWidget {
     Color? iconColor,
     Color? badgeColor,
   }) {
+    final isDark = GrBookTheme.isDark(context);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GrBookTheme.getCardBackground(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: GrBookTheme.borderColor, width: 1.2),
-        boxShadow: const [
+        border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x06000000),
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.04),
             blurRadius: 4,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -110,26 +114,26 @@ class SettingsScreen extends ConsumerWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: GrBookTheme.textPrimary,
+                          color: GrBookTheme.getTextPrimary(context),
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: GrBookTheme.textSecondary,
+                          color: GrBookTheme.getTextSecondary(context),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: GrBookTheme.primary,
+                  color: isDark ? const Color(0xFF68D391) : GrBookTheme.primary,
                   size: 22,
                 ),
               ],
@@ -147,8 +151,8 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: GrBookTheme.mintBackgroundGradient,
+        decoration: BoxDecoration(
+          gradient: GrBookTheme.getBackgroundGradient(context),
         ),
         child: SafeArea(
           child: Column(
@@ -163,8 +167,9 @@ class SettingsScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   children: [
-                    _buildSectionHeader('ACCOUNT'),
+                    _buildSectionHeader(context, 'ACCOUNT'),
                     _buildTile(
+                      context,
                       icon: Icons.person_rounded,
                       title: 'Principal Account',
                       subtitle: 'Name, profile photo, signature & password',
@@ -173,8 +178,9 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
 
-                    _buildSectionHeader('SCHOOL'),
+                    _buildSectionHeader(context, 'SCHOOL'),
                     _buildTile(
+                      context,
                       icon: Icons.apartment_rounded,
                       title: 'School Profile',
                       subtitle: 'View and edit your school information',
@@ -183,6 +189,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                     _buildTile(
+                      context,
                       icon: Icons.groups_rounded,
                       title: 'Manage Classes',
                       subtitle: 'Add, rename or remove classes',
@@ -195,6 +202,7 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                     ),
                     _buildTile(
+                      context,
                       icon: Icons.school_rounded,
                       title: 'Pass Out Years',
                       subtitle: 'Add or manage pass out years',
@@ -207,8 +215,9 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                     ),
 
-                    _buildSectionHeader('DATA'),
+                    _buildSectionHeader(context, 'DATA'),
                     _buildTile(
+                      context,
                       icon: Icons.cloud_sync_rounded,
                       title: 'Backup & Restore',
                       subtitle: 'Backup your data and restore when needed',
@@ -217,6 +226,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                     _buildTile(
+                      context,
                       icon: Icons.description_rounded,
                       title: 'Export & Print',
                       subtitle: 'Export student records or generate PDF',
@@ -229,8 +239,9 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                     ),
 
-                    _buildSectionHeader('SECURITY'),
+                    _buildSectionHeader(context, 'SECURITY'),
                     _buildTile(
+                      context,
                       icon: Icons.shield_rounded,
                       title: 'App Security',
                       subtitle: 'App lock, PIN, fingerprint and auto-lock',
@@ -239,13 +250,12 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
 
-                    _buildSectionHeader('STORAGE & RESTORE'),
+                    _buildSectionHeader(context, 'STORAGE & RESTORE'),
                     _buildTile(
+                      context,
                       icon: Icons.drive_folder_upload_rounded,
                       title: 'Add Data (Restore from Storage)',
                       subtitle: 'Sync records from phone GR BOOK folder',
-                      badgeColor: GrBookTheme.primaryLight,
-                      iconColor: GrBookTheme.primaryDark,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const AddDataStorageScreen(),
@@ -253,6 +263,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                     _buildTile(
+                      context,
                       icon: Icons.info_outline_rounded,
                       title: 'About G.R BOOK',
                       subtitle: 'App version, help and support',
@@ -261,11 +272,12 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                     _buildTile(
+                      context,
                       icon: Icons.logout_rounded,
                       title: 'Logout',
                       subtitle: 'Sign out from your account',
-                      iconColor: Colors.red.shade600,
-                      badgeColor: Colors.red.shade50,
+                      iconColor: Colors.red.shade400,
+                      badgeColor: Colors.red.shade900.withOpacity(0.3),
                       onTap: () => _confirmLogout(context, ref),
                     ),
                     const SizedBox(height: 24),

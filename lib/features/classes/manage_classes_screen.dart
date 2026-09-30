@@ -98,14 +98,19 @@ class ManageClassesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final classesAsync = ref.watch(allClassesStreamProvider(schoolId));
+    final isDark = GrBookTheme.isDark(context);
+    final cardBg = GrBookTheme.getCardBackground(context);
+    final borderColor = GrBookTheme.getBorderColor(context);
+    final textPrimary = GrBookTheme.getTextPrimary(context);
+    final textSecondary = GrBookTheme.getTextSecondary(context);
 
     return Scaffold(
-      backgroundColor: GrBookTheme.background,
+      backgroundColor: isDark ? GrBookTheme.darkBackground : GrBookTheme.background,
       appBar: AppBar(title: const Text('Manage Classes')),
       body: SafeArea(
         child: classesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: textPrimary))),
           data: (classes) {
             return ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -113,26 +118,40 @@ class ManageClassesScreen extends ConsumerWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final c = classes[index];
-                return Card(
+                return Container(
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: borderColor),
+                  ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     leading: CircleAvatar(
                       backgroundColor: (c.isActive ? GrBookTheme.primary : Colors.grey).withOpacity(0.12),
-                      child: Text(c.classCode, style: TextStyle(color: c.isActive ? GrBookTheme.primaryDark : Colors.grey)),
+                      child: Text(
+                        c.classCode,
+                        style: TextStyle(
+                          color: c.isActive ? (isDark ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark) : Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    title: Text(c.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    title: Text(c.displayName, style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
                     subtitle: Text(
                       [
                         if (c.minAdmissionAgeMonths != null) 'Min admission: ${c.minAdmissionAgeMonths}mo',
                         if (c.minPromotionAgeMonths != null) 'Min promotion: ${c.minPromotionAgeMonths}mo',
                         if (!c.isActive) 'Inactive',
                       ].join('  •  '),
-                      style: TextStyle(fontSize: 12, color: c.isActive ? Colors.grey[600] : Colors.red),
+                      style: TextStyle(fontSize: 12, color: c.isActive ? textSecondary : Colors.redAccent),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => _editClass(context, ref, c)),
+                        IconButton(
+                          icon: Icon(Icons.edit_outlined, color: textSecondary),
+                          onPressed: () => _editClass(context, ref, c),
+                        ),
                         Switch(
                           value: c.isActive,
                           activeColor: GrBookTheme.primary,
