@@ -7,6 +7,7 @@ import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
+import 'verify_email_otp_screen.dart';
 
 /// Screen 2: Create Account Page matching reference UI image 2 exactly.
 class CreateAccountScreen extends ConsumerStatefulWidget {
@@ -19,7 +20,7 @@ class CreateAccountScreen extends ConsumerStatefulWidget {
 class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
-  final _mobileController = TextEditingController();
+  final _contactController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isSubmitting = false;
@@ -34,26 +35,40 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       _errorMessage = null;
     });
     try {
-      await ref.read(authServiceProvider).createAccount(
-            fullName: _fullNameController.text.trim(),
-            mobileNumber: _mobileController.text.trim(),
-            password: _passwordController.text,
-          );
+      final auth = ref.read(authServiceProvider);
+      final fullName = _fullNameController.text.trim();
+      final contact = _contactController.text.trim();
+      final password = _passwordController.text;
+
+      final result = await auth.createAccount(
+        fullName: fullName,
+        phoneOrEmail: contact,
+        password: password,
+      );
+
       if (!mounted) return;
-      if (ref.read(authServiceProvider).currentUser != null) {
-        ref.read(appUnlockedProvider.notifier).state = true;
-        Navigator.of(context).pushAndRemoveUntil(
+
+      if (result.status == AuthAccountStatus.requiresEmailOtp) {
+        // Go to Gmail OTP Verification Screen
+        Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => const SyncCoordinator(child: SchoolGate()),
+            builder: (_) => VerifyEmailOtpScreen(
+              email: result.email ?? contact,
+              fullName: fullName,
+            ),
           ),
-          (route) => false,
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created. Please log in.')),
-        );
-        Navigator.of(context).pop();
+        return;
       }
+
+      // If active or pending approval, unlock app and go to main gate
+      ref.read(appUnlockedProvider.notifier).state = true;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const SyncCoordinator(child: SchoolGate()),
+        ),
+        (route) => false,
+      );
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
@@ -203,19 +218,24 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Mobile Number
+                        // Phone Number or Email
                         TextFormField(
-                          controller: _mobileController,
-                          keyboardType: TextInputType.phone,
+                          controller: _contactController,
+                          keyboardType: TextInputType.emailAddress,
                           style: TextStyle(color: textPrimary),
                           decoration: const InputDecoration(
-                            hintText: 'Mobile Number',
-                            prefixIcon: Icon(Icons.phone_outlined, color: GrBookTheme.primary, size: 20),
+                            hintText: 'Add Your Phone Number or Email',
+                            prefixIcon: Icon(Icons.person_pin_circle_outlined, color: GrBookTheme.primary, size: 20),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Mobile number is required';
-                            final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
-                            if (digits.length < 10) return 'Enter a valid mobile number';
+                            if (v == null || v.trim().isEmpty) return 'Phone number or email is required';
+                            final val = v.trim();
+                            if (val.contains('@')) {
+                              if (!val.contains('.') || val.length < 5) return 'Enter a valid email address';
+                            } else {
+                              final digits = val.replaceAll(RegExp(r'[^0-9]'), '');
+                              if (digits.length < 10) return 'Enter a valid phone number (at least 10 digits)';
+                            }
                             return null;
                           },
                         ),
@@ -319,7 +339,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _mobileController.dispose();
+    _contactController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();

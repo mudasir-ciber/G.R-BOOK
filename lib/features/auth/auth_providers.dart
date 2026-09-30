@@ -37,3 +37,9 @@ final currentUserProvider = Provider<User?>((ref) {
 /// their credentials every time the app is reopened to protect student records.
 final appUnlockedProvider = StateProvider<bool>((ref) => false);
 
+/// Checks whether the currently logged-in user is Master Admin (Mudasir Ahmed)
+final isSuperAdminProvider = FutureProvider<bool>((ref) async {
+  return ref.watch(authServiceProvider).isCurrentUserSuperAdmin();
+});
+
+

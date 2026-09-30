@@ -93,7 +93,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       await auth.login(
-        mobileNumber: mobile,
+        phoneOrEmail: mobile,
         password: password,
         rememberMe: true,
       );
@@ -122,7 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     try {
       await ref.read(authServiceProvider).login(
-            mobileNumber: _mobileController.text.trim(),
+            phoneOrEmail: _mobileController.text.trim(),
             password: _passwordController.text,
             rememberMe: _rememberMe,
           );
@@ -144,13 +144,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _forgotPassword() async {
-    final mobile = _mobileController.text.trim();
-    if (mobile.isEmpty) {
-      setState(() => _errorMessage = 'Enter your mobile number first, then tap Forgot Password.');
+    final contact = _mobileController.text.trim();
+    if (contact.isEmpty) {
+      setState(() => _errorMessage = 'Enter your phone number or email first, then tap Forgot Password.');
       return;
     }
     try {
-      await ref.read(authServiceProvider).requestPasswordReset(mobileNumber: mobile);
+      await ref.read(authServiceProvider).requestPasswordReset(phoneOrEmail: contact);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('If this account exists, a reset link has been sent.')),
@@ -242,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Enter your mobile number and password',
+                          'Enter your phone number or email and password',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
@@ -267,19 +267,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(height: 16),
                         ],
 
-                        // Mobile Number Field
+                        // Phone Number or Email Field
                         TextFormField(
                           controller: _mobileController,
-                          keyboardType: TextInputType.phone,
+                          keyboardType: TextInputType.emailAddress,
                           style: TextStyle(color: textPrimary),
                           decoration: const InputDecoration(
-                            hintText: 'Mobile Number',
-                            prefixIcon: Icon(Icons.phone_outlined, color: GrBookTheme.primary, size: 20),
+                            hintText: 'Phone Number or Email',
+                            prefixIcon: Icon(Icons.person_outline_rounded, color: GrBookTheme.primary, size: 20),
                           ),
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) return 'Mobile number is required';
-                            final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-                            if (digits.length < 10) return 'Enter a valid mobile number';
+                            if (value == null || value.trim().isEmpty) return 'Phone number or email is required';
+                            final val = value.trim();
+                            if (val.contains('@')) {
+                              if (!val.contains('.') || val.length < 5) return 'Enter a valid email address';
+                            } else {
+                              final digits = val.replaceAll(RegExp(r'[^0-9]'), '');
+                              if (digits.length < 10) return 'Enter a valid phone number (at least 10 digits)';
+                            }
                             return null;
                           },
                         ),

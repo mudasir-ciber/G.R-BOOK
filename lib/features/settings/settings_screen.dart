@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../providers/repository_providers.dart';
 import '../../widgets/gr_book_ui_components.dart';
+import '../admin/master_admin_portal_screen.dart';
 import '../auth/auth_providers.dart';
 import '../auth/login_screen.dart';
 import '../classes/manage_classes_screen.dart';
@@ -85,7 +86,7 @@ class SettingsScreen extends ConsumerWidget {
         border: Border.all(color: GrBookTheme.getBorderColor(context), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.35 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.04),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -148,6 +149,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final schoolAsync = ref.watch(currentSchoolProvider);
     final schoolId = schoolAsync.valueOrNull?.id;
+    final isSuperAdmin = ref.watch(isSuperAdminProvider).valueOrNull ?? false;
 
     return Scaffold(
       body: Container(
@@ -167,6 +169,21 @@ class SettingsScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   children: [
+                    if (isSuperAdmin) ...[
+                      _buildSectionHeader(context, 'MASTER ADMIN CONTROL'),
+                      _buildTile(
+                        context,
+                        icon: Icons.admin_panel_settings_rounded,
+                        title: 'Master Admin Portal',
+                        subtitle: 'Approve new signups, manage & block accounts',
+                        iconColor: Colors.amber.shade400,
+                        badgeColor: Colors.amber.shade900.withValues(alpha: 0.25),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const MasterAdminPortalScreen()),
+                        ),
+                      ),
+                    ],
+
                     _buildSectionHeader(context, 'ACCOUNT'),
                     _buildTile(
                       context,
@@ -277,7 +294,7 @@ class SettingsScreen extends ConsumerWidget {
                       title: 'Logout',
                       subtitle: 'Sign out from your account',
                       iconColor: Colors.red.shade400,
-                      badgeColor: Colors.red.shade900.withOpacity(0.3),
+                      badgeColor: Colors.red.shade900.withValues(alpha: 0.3),
                       onTap: () => _confirmLogout(context, ref),
                     ),
                     const SizedBox(height: 24),
