@@ -121,7 +121,7 @@ class AuthService {
       if (user != null) {
         effectiveId = user.id;
         // If real email and email confirmation is required
-        if (isRealEmail && (response.session == null || user.confirmedAt == null)) {
+        if (isRealEmail && (response.session == null || user.emailConfirmedAt == null)) {
           requiresOtp = true;
         }
 
@@ -360,12 +360,37 @@ class AuthService {
 
   Future<void> sendPasswordResetOtp(String email) async {
     final targetEmail = email.trim().toLowerCase();
+
+    // 1. Master Admin credentials check
+    final isFounder = MasterAdminConfig.isFounderIdentifier(targetEmail);
+
+    // 2. Check if user is registered in Supabase
+    if (!isFounder) {
+      try {
+        final exists = await _client.rpc(
+          'check_user_email_exists',
+          params: {'lookup_email': targetEmail},
+        );
+
+        if (exists != true) {
+          throw const AuthServiceException(
+            'This email is not registered with any school account. Please check the email or create a new account.',
+          );
+        }
+      } on AuthServiceException {
+        rethrow;
+      } catch (e) {
+        if (e is AuthServiceException) rethrow;
+        throw AuthServiceException('Could not verify email registration. Please check your internet connection.');
+      }
+    }
+
     try {
       await _client.auth.resetPasswordForEmail(targetEmail);
     } on AuthException catch (e) {
-      throw AuthServiceException('Reset code send nahi ho saka: ${e.message}');
+      throw AuthServiceException('Failed to send reset code: ${e.message}');
     } catch (e) {
-      throw AuthServiceException('Email par code bhejne mein masla aaya: $e');
+      throw AuthServiceException('Error sending code to email: $e');
     }
   }
 
@@ -380,9 +405,9 @@ class AuthService {
         type: OtpType.recovery,
       );
     } on AuthException catch (e) {
-      throw AuthServiceException('Code ghalat hai ya expire ho chuka hai: ${e.message}');
+      throw AuthServiceException('Invalid or expired verification code: ${e.message}');
     } catch (e) {
-      throw AuthServiceException('Code verify nahi ho saka: $e');
+      throw AuthServiceException('Could not verify code: $e');
     }
   }
 
@@ -391,7 +416,7 @@ class AuthService {
       await _client.auth.updateUser(UserAttributes(password: newPassword));
       await _secureStorage.write(key: _lastPasswordKey, value: newPassword);
     } on AuthException catch (e) {
-      throw AuthServiceException('Password tabdeel nahi ho saka: ${e.message}');
+      throw AuthServiceException('Failed to update password: ${e.message}');
     } catch (e) {
       throw AuthServiceException('Password update error: $e');
     }

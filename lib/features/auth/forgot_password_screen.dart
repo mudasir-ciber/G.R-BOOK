@@ -92,7 +92,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
-      setState(() => _errorMessage = 'Code send nahi ho saka: $e');
+      setState(() => _errorMessage = 'Failed to send code: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -102,7 +102,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Future<void> _handleVerifyCode() async {
     final token = _otpControllers.map((c) => c.text.trim()).join();
     if (token.length < 6) {
-      setState(() => _errorMessage = 'Baraye mehrbani 6-digits ka mukammal code likhein.');
+      setState(() => _errorMessage = 'Please enter the complete 6-digit code.');
       return;
     }
 
@@ -157,7 +157,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ],
           ),
           content: const Text(
-            'Aapka password kamyabi se badal diya gaya hai. Ab aap apne naye password ke sath login kar sakte hain.',
+            'Your password has been changed successfully. You can now log in with your new password.',
           ),
           actions: [
             FilledButton(
@@ -174,7 +174,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
-      setState(() => _errorMessage = 'Password update nahi ho saka: $e');
+      setState(() => _errorMessage = 'Could not update password: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -190,7 +190,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFF0F9D58),
-          content: Text('Naya verification code aapke Gmail par bhej diya gaya hai.'),
+          content: Text('A new verification code has been sent to your email.'),
         ),
       );
     } catch (e) {
@@ -278,12 +278,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'Account Mobile Number par bana tha?',
+                      'Account created with a mobile number?',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textPrimary),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Agar aapke paas email nahi hai, to Master Admin Mudasir Ahmed se direct password reset karwayein.',
+                      'If you do not have an email address, contact Master Admin Mudasir Ahmed for a direct password reset.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: textSecondary),
                     ),
@@ -298,7 +298,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       label: const Text('Contact Founder on WhatsApp'),
                       onPressed: () async {
                         final msg = Uri.encodeComponent(
-                          'Assalam-o-Alaikum Mudasir Bhai, mein apna G.R. Book ka password bhool gaya hoon. Baraye mehrbani mera password reset kar dein.',
+                          'Assalam-o-Alaikum Mudasir Bhai, I forgot my G.R. BOOK password. Please help me reset my account password.',
                         );
                         final uri = Uri.parse('https://wa.me/${MasterAdminConfig.founderPhone}?text=$msg');
                         if (await canLaunchUrl(uri)) {
@@ -362,7 +362,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Apna registered Gmail address likhein. Hum aapko 6-digit password reset code bhejenge.',
+                'Enter your registered Gmail address. We will send you a 6-digit verification code.',
                 style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
               ),
               const SizedBox(height: 20),
@@ -375,8 +375,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   prefixIcon: Icon(Icons.alternate_email_rounded, color: GrBookTheme.primary, size: 20),
                 ),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Email zaroori hai';
-                  if (!v.contains('@') || !v.contains('.')) return 'Sahi email address likhein';
+                  if (v == null || v.trim().isEmpty) return 'Email is required';
+                  if (!v.contains('@') || !v.contains('.')) return 'Please enter a valid email address';
                   return null;
                 },
               ),
@@ -401,7 +401,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Humne ${_emailController.text.trim()} par verification code bhej diya hai.',
+              'We sent a 6-digit verification code to ${_emailController.text.trim()}.',
               style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
             ),
             const SizedBox(height: 20),
@@ -493,7 +493,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Apne account ke liye ek naya aur mazboot password muntakhib karein.',
+                'Choose a strong new password for your account.',
                 style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
               ),
               const SizedBox(height: 20),
@@ -515,7 +515,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
-                validator: (v) => (v == null || v.length < 6) ? 'Kam az kam 6 characters zaroori hain' : null,
+                validator: (v) => (v == null || v.length < 6) ? 'Password must be at least 6 characters' : null,
               ),
               const SizedBox(height: 14),
 
@@ -537,7 +537,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   ),
                 ),
                 validator: (v) {
-                  if (v != _passwordController.text) return 'Passwords match nahi kar rahe';
+                  if (v != _passwordController.text) return 'Passwords do not match';
                   return null;
                 },
               ),
