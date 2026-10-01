@@ -36,11 +36,15 @@ final studentRepositoryProvider = Provider<StudentRepository>((ref) {
   );
 });
 
-/// The single school this device is currently working with (Phase 1/2
-/// scope: one school per install). Screens watch this instead of each
-/// re-querying the database directly.
+/// The school this device is currently working with. Screens watch this instead
+/// of each re-querying the database directly. Respects user privacy.
 final currentSchoolProvider = StreamProvider((ref) {
-  return ref.watch(schoolRepositoryProvider).watchLocalSchool();
+  final user = ref.watch(currentUserProvider);
+  final isMaster = ref.watch(isSuperAdminProvider).valueOrNull ?? false;
+  return ref.watch(schoolRepositoryProvider).watchLocalSchool(
+        userId: user?.id,
+        isMasterAdmin: isMaster,
+      );
 });
 
 final classesWithCountsProvider = StreamProvider.family((ref, String schoolId) {

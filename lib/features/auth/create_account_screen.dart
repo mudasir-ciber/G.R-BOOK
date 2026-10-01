@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../main.dart';
+import '../../services/connectivity_service.dart';
 import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
+import '../security/access_control_gate.dart';
+import '../security/app_lock_gate.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 import 'verify_email_otp_screen.dart';
@@ -30,6 +33,16 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // RULE: Online connection is strictly required for creating an account!
+    final isOnline = await ref.read(connectivityServiceProvider).isOnline();
+    if (!isOnline) {
+      setState(() {
+        _errorMessage = 'Account create karne ke liye internet connection lazmi hai. Baraye mehrbani apna Mobile Data ya Wi-Fi on karein.';
+      });
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
@@ -61,11 +74,17 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
         return;
       }
 
-      // If active or pending approval, unlock app and go to main gate
+      // Route through AccessControlGate to enforce Master Admin Approval!
       ref.read(appUnlockedProvider.notifier).state = true;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => const SyncCoordinator(child: SchoolGate()),
+          builder: (_) => const AppLockGate(
+            child: SyncCoordinator(
+              child: AccessControlGate(
+                child: SchoolGate(),
+              ),
+            ),
+          ),
         ),
         (route) => false,
       );
@@ -73,6 +92,44 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
       setState(() => _errorMessage = e.message);
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _signUpWithGoogle() async {
+    final isOnline = await ref.read(connectivityServiceProvider).isOnline();
+    if (!isOnline) {
+      setState(() {
+        _errorMessage = 'Google se account banane ke liye internet connection lazmi hai.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+    try {
+      await ref.read(authServiceProvider).signInWithGoogle();
+      ref.read(appUnlockedProvider.notifier).state = true;
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const AppLockGate(
+            child: SyncCoordinator(
+              child: AccessControlGate(
+                child: SchoolGate(),
+              ),
+            ),
+          ),
+        ),
+        (route) => false,
+      );
+    } on AuthServiceException catch (e) {
+      setState(() => _errorMessage = e.message);
+    } catch (e) {
+      setState(() => _errorMessage = 'Google sign-up error: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -316,6 +373,27 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                           ],
                         ),
                         const SizedBox(height: 18),
+
+                        // Continue with Google Button
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 48),
+                            side: BorderSide(color: borderColor),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            backgroundColor: cardBg,
+                          ),
+                          icon: const Icon(Icons.g_mobiledata_rounded, size: 28, color: Colors.blue),
+                          label: Text(
+                            'Continue with Google',
+                            style: TextStyle(
+                              color: textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          onPressed: _isSubmitting ? null : _signUpWithGoogle,
+                        ),
+                        const SizedBox(height: 12),
 
                         // Back to Login Button
                         GrBookOutlinedButton(

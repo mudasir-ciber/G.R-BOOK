@@ -6,9 +6,12 @@ import '../../main.dart';
 import '../../providers/app_lock_providers.dart';
 import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
+import '../security/access_control_gate.dart';
+import '../security/app_lock_gate.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 import 'create_account_screen.dart';
+import 'forgot_password_screen.dart';
 
 /// Screen 1: Login Page with Fingerprint & Remembered Credential support.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -49,7 +52,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _rememberMe = remembered || (mobile != null);
       if (mobile != null) _mobileController.text = mobile;
-      if (password != null) _passwordController.text = password;
+      // CRITICAL: NEVER pre-fill password into text field for security!
+      _passwordController.clear();
       _hasSavedCredentials = hasCreds;
       _supportsBiometrics = supportsBio;
     });
@@ -101,7 +105,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => const SyncCoordinator(child: SchoolGate()),
+          builder: (_) => const AppLockGate(
+            child: SyncCoordinator(
+              child: AccessControlGate(
+                child: SchoolGate(),
+              ),
+            ),
+          ),
         ),
         (route) => false,
       );
@@ -130,7 +140,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => const SyncCoordinator(child: SchoolGate()),
+          builder: (_) => const AppLockGate(
+            child: SyncCoordinator(
+              child: AccessControlGate(
+                child: SchoolGate(),
+              ),
+            ),
+          ),
         ),
         (route) => false,
       );
@@ -143,23 +159,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _forgotPassword() async {
-    final contact = _mobileController.text.trim();
-    if (contact.isEmpty) {
-      setState(() => _errorMessage = 'Enter your phone number or email first, then tap Forgot Password.');
-      return;
-    }
+  void _forgotPassword() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+    );
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
     try {
-      await ref.read(authServiceProvider).requestPasswordReset(phoneOrEmail: contact);
+      await ref.read(authServiceProvider).signInWithGoogle();
+      ref.read(appUnlockedProvider.notifier).state = true;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('If this account exists, a reset link has been sent.')),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const AppLockGate(
+            child: SyncCoordinator(
+              child: AccessControlGate(
+                child: SchoolGate(),
+              ),
+            ),
+          ),
+        ),
+        (route) => false,
       );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not process the request. Check your connection.')),
-      );
+    } on AuthServiceException catch (e) {
+      setState(() => _errorMessage = e.message);
+    } catch (e) {
+      setState(() => _errorMessage = 'Google sign-in error: $e');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -432,6 +464,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
+
+                        // Continue with Google Button
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 48),
+                            side: BorderSide(color: borderColor),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            backgroundColor: cardBg,
+                          ),
+                          icon: const Icon(Icons.g_mobiledata_rounded, size: 28, color: Colors.blue),
+                          label: Text(
+                            'Continue with Google',
+                            style: TextStyle(
+                              color: textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          onPressed: _isSubmitting ? null : _loginWithGoogle,
+                        ),
+                        const SizedBox(height: 12),
 
                         // Create Account Outlined Button
                         GrBookOutlinedButton(

@@ -19,15 +19,41 @@ class SchoolRepository {
   final AppDatabase _db;
   final ConnectivityService _connectivity;
 
-  /// Returns the local cached school, or null if nothing has been
-  /// bootstrapped yet (fresh install, first login).
-  Future<School?> getLocalSchool() async {
-    final row = await (_db.select(_db.schoolsTable)..limit(1)).getSingleOrNull();
-    if (row == null) return null;
-    return _fromRow(row);
+  /// Returns the local cached school for [userId], or null if nothing has been
+  /// created yet by this user. Protects data privacy across multiple accounts.
+  Future<School?> getLocalSchool({String? userId, bool isMasterAdmin = false}) async {
+    final uid = userId ?? _client.auth.currentUser?.id;
+    final schools = await _db.select(_db.schoolsTable).get();
+    if (schools.isEmpty) return null;
+
+    if (uid != null && uid.isNotEmpty) {
+      final userSchool = schools.where((s) => s.createdBy == uid).firstOrNull;
+      if (userSchool != null) return _fromRow(userSchool);
+
+      if (isMasterAdmin || uid == 'master_super_admin' || uid == 'local_admin') {
+        return _fromRow(schools.first);
+      }
+      return null;
+    }
+
+    return _fromRow(schools.first);
   }
 
-  Stream<School?> watchLocalSchool() {
+  Stream<School?> watchLocalSchool({String? userId, bool isMasterAdmin = false}) {
+    final uid = userId ?? _client.auth.currentUser?.id;
+    if (uid != null && uid.isNotEmpty) {
+      return _db.select(_db.schoolsTable).watch().map((schools) {
+        if (schools.isEmpty) return null;
+        final userSchool = schools.where((s) => s.createdBy == uid).firstOrNull;
+        if (userSchool != null) return _fromRow(userSchool);
+
+        if (isMasterAdmin || uid == 'master_super_admin' || uid == 'local_admin') {
+          return _fromRow(schools.first);
+        }
+        return null;
+      });
+    }
+
     return (_db.select(_db.schoolsTable)..limit(1)).watchSingleOrNull().map(
           (row) => row == null ? null : _fromRow(row),
         );

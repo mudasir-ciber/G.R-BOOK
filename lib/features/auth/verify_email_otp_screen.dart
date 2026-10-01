@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
 import '../../services/sync_coordinator.dart';
+import '../security/access_control_gate.dart';
+import '../security/app_lock_gate.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 
@@ -96,7 +98,13 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => const SyncCoordinator(child: SchoolGate()),
+          builder: (_) => const AppLockGate(
+            child: SyncCoordinator(
+              child: AccessControlGate(
+                child: SchoolGate(),
+              ),
+            ),
+          ),
         ),
         (route) => false,
       );

@@ -1,4 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -356,9 +357,120 @@ class AuthService {
     } catch (_) {}
   }
 
+  Future<void> sendPasswordResetOtp(String email) async {
+    final targetEmail = email.trim().toLowerCase();
+    try {
+      await _client.auth.resetPasswordForEmail(targetEmail);
+    } on AuthException catch (e) {
+      throw AuthServiceException('Reset code send nahi ho saka: ${e.message}');
+    } catch (e) {
+      throw AuthServiceException('Email par code bhejne mein masla aaya: $e');
+    }
+  }
+
+  Future<void> verifyPasswordResetOtp({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      await _client.auth.verifyOTP(
+        email: email.trim().toLowerCase(),
+        token: token.trim(),
+        type: OtpType.recovery,
+      );
+    } on AuthException catch (e) {
+      throw AuthServiceException('Code ghalat hai ya expire ho chuka hai: ${e.message}');
+    } catch (e) {
+      throw AuthServiceException('Code verify nahi ho saka: $e');
+    }
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+      await _secureStorage.write(key: _lastPasswordKey, value: newPassword);
+    } on AuthException catch (e) {
+      throw AuthServiceException('Password tabdeel nahi ho saka: ${e.message}');
+    } catch (e) {
+      throw AuthServiceException('Password update error: $e');
+    }
+  }
+
+  Future<String> getUserStorageFolderName() async {
+    final name = (await getLocalFullName()) ?? 'User';
+    final contact = (await getRememberedContact()) ?? 'Account';
+    final sName = name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final sContact = contact.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    return '${sName}_$sContact';
+  }
+
+  Future<AuthCreateResult> signInWithGoogle() async {
+    try {
+      final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        throw const AuthServiceException('Google sign-in cancel kar diya gaya.');
+      }
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      final accessToken = googleAuth.accessToken;
+
+      if (idToken == null) {
+        throw const AuthServiceException('Google se token verify nahi ho saka.');
+      }
+
+      final res = await _client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      final user = res.user;
+      final email = googleUser.email.toLowerCase();
+      final fullName = googleUser.displayName ?? 'Google User';
+
+      final isFounder = MasterAdminConfig.isFounderIdentifier(email);
+
+      if (user != null) {
+        try {
+          await _client.from('profiles').upsert({
+            'id': user.id,
+            'full_name': fullName,
+            'email': email,
+            'role': isFounder ? 'super_admin' : 'principal',
+            'status': isFounder ? 'active' : 'pending',
+          });
+        } catch (_) {}
+      }
+
+      final status = isFounder ? 'active' : 'pending';
+      await _secureStorage.write(key: _localUserIdKey, value: user?.id ?? googleUser.id);
+      await _secureStorage.write(key: _localFullNameKey, value: fullName);
+      await _secureStorage.write(key: _lastContactKey, value: email);
+      await _secureStorage.write(key: _userRoleKey, value: isFounder ? 'super_admin' : 'principal');
+      await _secureStorage.write(key: _userStatusKey, value: status);
+      await _secureStorage.write(key: _rememberMeKey, value: 'true');
+      await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
+
+      return AuthCreateResult(
+        status: isFounder ? AuthAccountStatus.active : AuthAccountStatus.pendingApproval,
+        email: email,
+        message: isFounder ? 'Welcome Master Admin!' : 'Account approval ke liye pending hai.',
+      );
+    } on AuthServiceException {
+      rethrow;
+    } catch (e) {
+      throw AuthServiceException('Google sign-in error: $e');
+    }
+  }
+
   Future<bool> getRememberedPreference() async {
     final value = await _secureStorage.read(key: _rememberMeKey);
     return value == 'true';
+  }
+
+  Future<String?> getLocalFullName() async {
+    return _secureStorage.read(key: _localFullNameKey);
   }
 
   Future<String?> getRememberedContact() async {
@@ -420,8 +532,9 @@ class AuthService {
       return 'active';
     }
 
-    final user = _client.auth.currentUser;
-    if (user == null) {
+    final localUid = await _secureStorage.read(key: _localUserIdKey);
+    final targetId = _client.auth.currentUser?.id ?? localUid;
+    if (targetId == null || targetId == 'local_admin') {
       return await getUserStatus();
     }
 
@@ -429,7 +542,7 @@ class AuthService {
       final profile = await _client
           .from('profiles')
           .select('role, status')
-          .eq('id', user.id)
+          .eq('id', targetId)
           .maybeSingle();
 
       if (profile != null) {
@@ -439,6 +552,9 @@ class AuthService {
         await _secureStorage.write(key: _userRoleKey, value: role);
         await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
         return status;
+      } else {
+        // Connected to Supabase, reset timer
+        await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
       }
     } catch (_) {}
 

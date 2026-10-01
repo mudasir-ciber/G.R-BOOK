@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -47,8 +48,8 @@ class OfflineStorageService {
 
   static const String rootFolderName = 'GR_BOOK';
 
-  /// Resolves the persistent public folder where records survive app uninstallation.
-  Future<Directory> getOrCreateGrBookDir() async {
+  /// Resolves the base persistent public folder where records survive app uninstallation.
+  Future<Directory> _resolveBaseGrBookDir() async {
     Directory? targetDir;
 
     if (Platform.isAndroid) {
@@ -63,7 +64,6 @@ class OfflineStorageService {
           if (!await candidate.exists()) {
             await candidate.create(recursive: true);
           }
-          // Test write permissions
           final testFile = File(p.join(candidate.path, '.test_gr_probe'));
           await testFile.writeAsString('gr_probe');
           await testFile.delete();
@@ -96,6 +96,37 @@ class OfflineStorageService {
       }
     }
 
+    return targetDir;
+  }
+
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+
+  /// Resolves the persistent folder for a specific user (e.g. `GR_BOOK/Mudasir_Ahmed_923368456907/`)
+  /// so that multiple users on the same device have clearly isolated storage without deleting anything.
+  Future<Directory> getOrCreateGrBookDir({String? userFolder}) async {
+    final baseDir = await _resolveBaseGrBookDir();
+
+    String? targetFolderName = userFolder;
+    if (targetFolderName == null || targetFolderName.trim().isEmpty) {
+      try {
+        final name = await _storage.read(key: 'grbook_local_full_name') ?? await _storage.read(key: 'gr_auth_local_full_name');
+        final contact = await _storage.read(key: 'grbook_last_mobile') ?? await _storage.read(key: 'gr_auth_last_contact');
+        if (name != null || contact != null) {
+          final sName = (name ?? 'User').replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+          final sContact = (contact ?? 'Account').replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+          targetFolderName = '${sName}_$sContact';
+        }
+      } catch (_) {}
+    }
+
+    final targetDir = (targetFolderName != null && targetFolderName.trim().isNotEmpty)
+        ? Directory(p.join(baseDir.path, targetFolderName.trim()))
+        : baseDir;
+
+    if (!await targetDir.exists()) {
+      await targetDir.create(recursive: true);
+    }
+
     // Ensure subdirectories exist
     final classesDir = Directory(p.join(targetDir.path, 'classes'));
     if (!await classesDir.exists()) await classesDir.create(recursive: true);
@@ -106,17 +137,27 @@ class OfflineStorageService {
     final exportsDir = Directory(p.join(targetDir.path, 'exports'));
     if (!await exportsDir.exists()) await exportsDir.create(recursive: true);
 
+    final backupsDir = Directory(p.join(targetDir.path, 'backups'));
+    if (!await backupsDir.exists()) await backupsDir.create(recursive: true);
+
     return targetDir;
   }
 
   /// Exports current database state section-wise into the phone's `GR_BOOK` directory.
-  Future<String> exportCurrentStateToStorage() async {
+  Future<String> exportCurrentStateToStorage({String? userFolder}) async {
     try {
-      final grDir = await getOrCreateGrBookDir();
+      final grDir = await getOrCreateGrBookDir(userFolder: userFolder);
       final schools = await _db.select(_db.schoolsTable).get();
       if (schools.isEmpty) return grDir.path;
 
-      final school = schools.first;
+      String? currentUserId;
+      try {
+        currentUserId = await _storage.read(key: 'grbook_local_user_id') ?? await _storage.read(key: 'gr_auth_local_user_id');
+      } catch (_) {}
+
+      final school = (currentUserId != null && currentUserId.isNotEmpty)
+          ? (schools.where((s) => s.createdBy == currentUserId).firstOrNull ?? schools.first)
+          : schools.first;
       final schoolId = school.id;
 
       final classes = await (_db.select(_db.classesTable)..where((t) => t.schoolId.equals(schoolId))).get();

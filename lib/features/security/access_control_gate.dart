@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/master_admin_config.dart';
 import '../../core/theme.dart';
+import '../../services/connectivity_service.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import '../auth/auth_providers.dart';
 import '../auth/login_screen.dart';
@@ -27,16 +29,23 @@ class _AccessControlGateState extends ConsumerState<AccessControlGate> with Widg
   bool _isSuperAdmin = false;
   bool _isOfflineExpired = false;
   String _userStatus = 'pending';
+  StreamSubscription<bool>? _connectivitySub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _evaluateAccess();
+    _connectivitySub = ref.read(connectivityServiceProvider).onStatusChange.listen((online) {
+      if (online && mounted) {
+        _evaluateAccess();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
