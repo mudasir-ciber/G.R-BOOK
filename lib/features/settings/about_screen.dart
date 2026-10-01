@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme.dart';
+import '../../services/update_service.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -139,13 +140,23 @@ class AboutScreen extends StatelessWidget {
                         border: Border.all(color: GrBookTheme.primary.withValues(alpha: 0.3)),
                       ),
                       child: Text(
-                        'Version 1.0.0 • Offline-First System',
+                        'Version ${UpdateService.currentVersionName} • Offline-First System',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: isDark ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark,
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: GrBookTheme.primary,
+                      ),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: const Text('Check for Updates', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      onPressed: () => UpdateService.checkForUpdate(context, showToastIfUpToDate: true),
                     ),
                   ],
                 ),

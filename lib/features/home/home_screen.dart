@@ -11,6 +11,7 @@ import '../settings/backup_restore_screen.dart';
 import '../settings/my_account_screen.dart';
 import '../students/all_students_screen.dart';
 import '../students/student_form_screen.dart';
+import '../../services/update_service.dart';
 
 /// Screen: Final Homepage matching reference UI image exactly.
 /// Features:
@@ -42,6 +43,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        UpdateService.checkForUpdate(context);
+      }
+    });
   }
 
   @override
