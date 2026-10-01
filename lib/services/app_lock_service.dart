@@ -19,21 +19,18 @@ class AppLockService {
   static const _biometricEnabledKey = 'grbook_app_lock_biometric_enabled';
   static const _autoLockMinutesKey = 'grbook_app_lock_auto_minutes';
 
-  Future<bool> hasPinSet() async => (await _storage.read(key: _pinKey)) != null;
+  Future<bool> hasPinSet() async => false;
 
   Future<void> setPin(String pin) => _storage.write(key: _pinKey, value: pin);
 
-  Future<bool> verifyPin(String pin) async {
-    final stored = await _storage.read(key: _pinKey);
-    return stored != null && stored == pin;
-  }
+  Future<bool> verifyPin(String pin) async => false;
 
   Future<void> clearPin() => _storage.delete(key: _pinKey);
 
-  Future<bool> isAppLockEnabled() async => (await _storage.read(key: _lockEnabledKey)) == 'true';
+  Future<bool> isAppLockEnabled() async => false;
 
   Future<void> setAppLockEnabled(bool enabled) =>
-      _storage.write(key: _lockEnabledKey, value: enabled.toString());
+      _storage.write(key: _lockEnabledKey, value: 'false');
 
   Future<bool> isBiometricEnabled() async => (await _storage.read(key: _biometricEnabledKey)) == 'true';
 

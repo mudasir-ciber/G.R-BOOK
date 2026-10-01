@@ -10,7 +10,6 @@ import '../auth/login_screen.dart';
 import '../classes/manage_classes_screen.dart';
 import '../passout/pass_out_years_screen.dart';
 import '../school/school_profile_screen.dart';
-import '../security/app_lock_setup_screen.dart';
 import 'about_screen.dart';
 import 'add_data_storage_screen.dart';
 import 'backup_restore_screen.dart';
@@ -254,17 +253,6 @@ class SettingsScreen extends ConsumerWidget {
                                   builder: (_) => ExportPrintScreen(schoolId: schoolId),
                                 ),
                               ),
-                    ),
-
-                    _buildSectionHeader(context, 'SECURITY'),
-                    _buildTile(
-                      context,
-                      icon: Icons.shield_rounded,
-                      title: 'App Security',
-                      subtitle: 'App lock, PIN, fingerprint and auto-lock',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AppLockSetupScreen()),
-                      ),
                     ),
 
                     _buildSectionHeader(context, 'STORAGE & RESTORE'),
