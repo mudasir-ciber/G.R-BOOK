@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../config/app_config.dart';
 import '../../config/master_admin_config.dart';
 
 enum AuthAccountStatus {
@@ -406,7 +407,10 @@ class AuthService {
 
   Future<AuthCreateResult> signInWithGoogle() async {
     try {
-      final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+      final googleSignIn = GoogleSignIn(
+        serverClientId: AppConfig.googleOAuthClientId,
+        scopes: ['email', 'profile'],
+      );
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         throw const AuthServiceException('Google sign-in cancel kar diya gaya.');
@@ -416,7 +420,15 @@ class AuthService {
       final accessToken = googleAuth.accessToken;
 
       if (idToken == null) {
-        throw const AuthServiceException('Google se token verify nahi ho saka.');
+        // Fallback to Web OAuth if idToken is not returned by device
+        await _client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: 'pk.gov.school.grbook://login-callback',
+        );
+        return const AuthCreateResult(
+          status: AuthAccountStatus.pendingApproval,
+          message: 'Google login mukammal karne ke liye browser follow karein.',
+        );
       }
 
       final res = await _client.auth.signInWithIdToken(
