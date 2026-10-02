@@ -15,7 +15,6 @@ import 'add_data_storage_screen.dart';
 import 'backup_restore_screen.dart';
 import 'export_print_screen.dart';
 import 'my_account_screen.dart';
-import '../../services/update_service.dart';
 
 /// Screen 5: Settings Page matching reference UI image 5 exactly.
 class SettingsScreen extends ConsumerWidget {
@@ -267,13 +266,6 @@ class SettingsScreen extends ConsumerWidget {
                           builder: (_) => const AddDataStorageScreen(),
                         ),
                       ),
-                    ),
-                    _buildTile(
-                      context,
-                      icon: Icons.system_update_rounded,
-                      title: 'Check for Updates',
-                      subtitle: 'Version ${UpdateService.currentVersionName} • Tap to check',
-                      onTap: () => UpdateService.checkForUpdate(context, showToastIfUpToDate: true),
                     ),
                     _buildTile(
                       context,
