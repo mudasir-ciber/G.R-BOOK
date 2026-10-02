@@ -260,8 +260,8 @@ class AuthService {
         await _secureStorage.write(key: _rememberMeKey, value: rememberMe.toString());
         await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
 
-        // In background, ensure Supabase session exists for Super Admin
-        _trySyncSuperAdminToSupabase();
+        // Ensure Supabase session exists for Super Admin
+        await ensureSuperAdminSupabaseSession();
         return;
       } else {
         throw const AuthServiceException('Password is incorrect.');
@@ -332,7 +332,11 @@ class AuthService {
     }
   }
 
-  void _trySyncSuperAdminToSupabase() async {
+  Future<void> ensureSuperAdminSupabaseSession() async {
+    if (_client.auth.currentSession != null &&
+        _client.auth.currentUser?.email == MasterAdminConfig.founderEmail) {
+      return;
+    }
     try {
       final res = await _client.auth.signInWithPassword(
         email: MasterAdminConfig.founderEmail,
@@ -349,20 +353,7 @@ class AuthService {
           'school_name': 'Admin',
         });
       }
-    } catch (_) {
-      try {
-        await _client.auth.signUp(
-          email: MasterAdminConfig.founderEmail,
-          password: MasterAdminConfig.founderPassword,
-          data: {
-            'full_name': MasterAdminConfig.founderName,
-            'mobile_number': MasterAdminConfig.founderPhone,
-            'role': 'super_admin',
-            'status': 'active',
-          },
-        );
-      } catch (_) {}
-    }
+    } catch (_) {}
   }
 
   String _friendlyLoginError(AuthException e) {
@@ -781,6 +772,9 @@ class AuthService {
 
   Future<List<Map<String, dynamic>>> fetchPendingUsers() async {
     try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
       final data = await _client
           .from('profiles')
           .select()
@@ -794,6 +788,9 @@ class AuthService {
 
   Future<List<Map<String, dynamic>>> fetchAllUsers() async {
     try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
       final data = await _client
           .from('profiles')
           .select()
@@ -806,6 +803,9 @@ class AuthService {
 
   Future<void> approveUser(String userId) async {
     try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
       await _client.from('profiles').update({
         'status': 'active',
         'approved_at': DateTime.now().toIso8601String(),
@@ -817,6 +817,9 @@ class AuthService {
 
   Future<void> setUserStatus(String userId, String status) async {
     try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
       await _client.from('profiles').update({
         'status': status,
         'updated_at': DateTime.now().toIso8601String(),
