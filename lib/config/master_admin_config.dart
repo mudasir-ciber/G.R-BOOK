@@ -9,7 +9,7 @@ class MasterAdminConfig {
   static const String founderPhoneLocal = '03368456907';
   static const String founderFormattedPhone = '+92 336 8456907';
   static const String founderEmail = 'mudasirghanghro25@gmail.com';
-  static const String founderPassword = '4426gh##';
+  static const String founderPassword = '7091';
 
   /// Maximum allowed offline time without an online heartbeat before app temporarily locks for verification
   static const Duration offlineGracePeriod = Duration(days: 3); // 72 hours
