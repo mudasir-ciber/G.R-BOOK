@@ -432,13 +432,27 @@ class AuthService {
 
   Future<AuthCreateResult> signInWithGoogle() async {
     try {
-      final googleSignIn = GoogleSignIn(
-        serverClientId: AppConfig.googleOAuthClientId,
-        scopes: ['email', 'profile'],
-      );
-      final googleUser = await googleSignIn.signIn();
+      GoogleSignInAccount? googleUser;
+      try {
+        final googleSignIn = GoogleSignIn(
+          serverClientId: AppConfig.googleOAuthClientId,
+          scopes: ['email', 'profile'],
+        );
+        googleUser = await googleSignIn.signIn();
+      } catch (_) {
+        // Fallback to Web OAuth if native Play Services fails
+        await _client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: 'pk.gov.school.grbook://login-callback',
+        );
+        return const AuthCreateResult(
+          status: AuthAccountStatus.pendingApproval,
+          message: 'Please complete Google sign-in in your browser.',
+        );
+      }
+
       if (googleUser == null) {
-        throw const AuthServiceException('Google sign-in cancel kar diya gaya.');
+        throw const AuthServiceException('Google sign-in was canceled.');
       }
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
@@ -452,7 +466,7 @@ class AuthService {
         );
         return const AuthCreateResult(
           status: AuthAccountStatus.pendingApproval,
-          message: 'Google login mukammal karne ke liye browser follow karein.',
+          message: 'Please complete Google sign-in in your browser.',
         );
       }
 

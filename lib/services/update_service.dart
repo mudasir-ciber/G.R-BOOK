@@ -8,8 +8,8 @@ import '../core/theme.dart';
 class UpdateService {
   UpdateService._();
 
-  static const int currentVersionCode = 2;
-  static const String currentVersionName = '1.0.0+2';
+  static const int currentVersionCode = 3;
+  static const String currentVersionName = '1.0.0+3';
 
   static const String updateConfigUrl =
       'https://paisrmhvdeevekksewsb.supabase.co/storage/v1/object/public/public-assets/version.json';
