@@ -26,6 +26,31 @@ class AuthCreateResult {
   });
 }
 
+enum GoogleSignInOutcome {
+  signedInActive,
+  signedInPending,
+  signedInSuspended,
+  needsProfileCompletion,
+}
+
+class GoogleSignInResult {
+  final GoogleSignInOutcome outcome;
+  final String email;
+  final String displayName;
+  final String? idToken;
+  final String? accessToken;
+  final String? message;
+
+  const GoogleSignInResult({
+    required this.outcome,
+    required this.email,
+    required this.displayName,
+    this.idToken,
+    this.accessToken,
+    this.message,
+  });
+}
+
 /// Wraps Supabase Auth and provides seamless offline-first authentication,
 /// dual Phone/Gmail support, Master Admin management, and 3-day offline security.
 class AuthService {
@@ -430,14 +455,20 @@ class AuthService {
     return '${sName}_$sContact';
   }
 
-  Future<AuthCreateResult> signInWithGoogle() async {
+  Future<GoogleSignInResult?> handleGoogleSignIn() async {
     try {
       GoogleSignInAccount? googleUser;
+      final googleSignIn = GoogleSignIn(
+        serverClientId: AppConfig.googleOAuthClientId,
+        scopes: ['email', 'profile'],
+      );
+
+      // Force account chooser by clearing cached account session first
       try {
-        final googleSignIn = GoogleSignIn(
-          serverClientId: AppConfig.googleOAuthClientId,
-          scopes: ['email', 'profile'],
-        );
+        await googleSignIn.signOut();
+      } catch (_) {}
+
+      try {
         googleUser = await googleSignIn.signIn();
       } catch (_) {
         // Fallback to Web OAuth if native Play Services fails
@@ -445,74 +476,206 @@ class AuthService {
           OAuthProvider.google,
           redirectTo: 'pk.gov.school.grbook://login-callback',
         );
-        return const AuthCreateResult(
-          status: AuthAccountStatus.pendingApproval,
+        return const GoogleSignInResult(
+          outcome: GoogleSignInOutcome.signedInPending,
+          email: '',
+          displayName: '',
           message: 'Please complete Google sign-in in your browser.',
         );
       }
 
       if (googleUser == null) {
-        throw const AuthServiceException('Google sign-in was canceled.');
+        // User cancelled account picker
+        return null;
       }
+
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
+      final email = googleUser.email.trim().toLowerCase();
+      final displayName = googleUser.displayName ?? '';
 
-      if (idToken == null) {
-        // Fallback to Web OAuth if idToken is not returned by device
-        await _client.auth.signInWithOAuth(
-          OAuthProvider.google,
-          redirectTo: 'pk.gov.school.grbook://login-callback',
-        );
-        return const AuthCreateResult(
-          status: AuthAccountStatus.pendingApproval,
-          message: 'Please complete Google sign-in in your browser.',
+      // 1. Check if Founder Mudasir Ahmed
+      if (MasterAdminConfig.isFounderIdentifier(email)) {
+        if (idToken != null) {
+          try {
+            final res = await _client.auth.signInWithIdToken(
+              provider: OAuthProvider.google,
+              idToken: idToken,
+              accessToken: accessToken,
+            );
+            if (res.user != null) {
+              await _secureStorage.write(key: _localUserIdKey, value: res.user!.id);
+            }
+          } catch (_) {}
+        }
+        await _secureStorage.write(key: _localUserIdKey, value: 'master_super_admin');
+        await _secureStorage.write(key: _localFullNameKey, value: MasterAdminConfig.founderName);
+        await _secureStorage.write(key: _lastContactKey, value: email);
+        await _secureStorage.write(key: _lastPasswordKey, value: MasterAdminConfig.founderPassword);
+        await _secureStorage.write(key: _userRoleKey, value: 'super_admin');
+        await _secureStorage.write(key: _userStatusKey, value: 'active');
+        await _secureStorage.write(key: _rememberMeKey, value: 'true');
+        await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
+
+        return GoogleSignInResult(
+          outcome: GoogleSignInOutcome.signedInActive,
+          email: email,
+          displayName: MasterAdminConfig.founderName,
+          message: 'Welcome Master Admin!',
         );
       }
 
-      final res = await _client.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
+      // 2. Check if user already exists in profiles
+      Map<String, dynamic>? existingProfile;
+      try {
+        existingProfile = await _client
+            .from('profiles')
+            .select('id, full_name, mobile_number, email, role, status')
+            .eq('email', email)
+            .maybeSingle();
+      } catch (_) {}
+
+      final mobile = existingProfile?['mobile_number']?.toString() ?? '';
+      if (existingProfile != null && mobile.isNotEmpty) {
+        final status = existingProfile['status']?.toString() ?? 'pending';
+        final role = existingProfile['role']?.toString() ?? 'principal';
+        final fullName = existingProfile['full_name']?.toString() ?? displayName;
+
+        if (idToken != null) {
+          try {
+            final res = await _client.auth.signInWithIdToken(
+              provider: OAuthProvider.google,
+              idToken: idToken,
+              accessToken: accessToken,
+            );
+            if (res.user != null) {
+              await _secureStorage.write(key: _localUserIdKey, value: res.user!.id);
+            }
+          } catch (_) {}
+        }
+
+        await _secureStorage.write(key: _localFullNameKey, value: fullName);
+        await _secureStorage.write(key: _lastContactKey, value: email);
+        await _secureStorage.write(key: _userRoleKey, value: role);
+        await _secureStorage.write(key: _userStatusKey, value: status);
+        await _secureStorage.write(key: _rememberMeKey, value: 'true');
+        await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
+
+        if (status == 'active') {
+          return GoogleSignInResult(
+            outcome: GoogleSignInOutcome.signedInActive,
+            email: email,
+            displayName: fullName,
+          );
+        } else if (status == 'suspended') {
+          return GoogleSignInResult(
+            outcome: GoogleSignInOutcome.signedInSuspended,
+            email: email,
+            displayName: fullName,
+          );
+        } else {
+          return GoogleSignInResult(
+            outcome: GoogleSignInOutcome.signedInPending,
+            email: email,
+            displayName: fullName,
+          );
+        }
+      }
+
+      // 3. User is NEW or has NOT filled mobile/password:
+      return GoogleSignInResult(
+        outcome: GoogleSignInOutcome.needsProfileCompletion,
+        email: email,
+        displayName: displayName,
         idToken: idToken,
         accessToken: accessToken,
-      );
-
-      final user = res.user;
-      final email = googleUser.email.toLowerCase();
-      final fullName = googleUser.displayName ?? 'Google User';
-
-      final isFounder = MasterAdminConfig.isFounderIdentifier(email);
-
-      if (user != null) {
-        try {
-          await _client.from('profiles').upsert({
-            'id': user.id,
-            'full_name': fullName,
-            'email': email,
-            'role': isFounder ? 'super_admin' : 'principal',
-            'status': isFounder ? 'active' : 'pending',
-          });
-        } catch (_) {}
-      }
-
-      final status = isFounder ? 'active' : 'pending';
-      await _secureStorage.write(key: _localUserIdKey, value: user?.id ?? googleUser.id);
-      await _secureStorage.write(key: _localFullNameKey, value: fullName);
-      await _secureStorage.write(key: _lastContactKey, value: email);
-      await _secureStorage.write(key: _userRoleKey, value: isFounder ? 'super_admin' : 'principal');
-      await _secureStorage.write(key: _userStatusKey, value: status);
-      await _secureStorage.write(key: _rememberMeKey, value: 'true');
-      await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
-
-      return AuthCreateResult(
-        status: isFounder ? AuthAccountStatus.active : AuthAccountStatus.pendingApproval,
-        email: email,
-        message: isFounder ? 'Welcome Master Admin!' : 'Account approval ke liye pending hai.',
       );
     } on AuthServiceException {
       rethrow;
     } catch (e) {
       throw AuthServiceException('Google sign-in error: $e');
     }
+  }
+
+  Future<void> completeGoogleRegistration({
+    required String email,
+    required String fullName,
+    required String mobileNumber,
+    required String password,
+    required String? idToken,
+    required String? accessToken,
+  }) async {
+    String? userId;
+
+    if (idToken != null) {
+      try {
+        final res = await _client.auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: idToken,
+          accessToken: accessToken,
+        );
+        userId = res.user?.id;
+      } catch (e) {
+        throw AuthServiceException('Google verification failed: $e');
+      }
+    }
+
+    userId ??= _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw const AuthServiceException('Could not create Google account session. Please try again.');
+    }
+
+    // Set user password in Supabase Auth
+    try {
+      await _client.auth.updateUser(UserAttributes(
+        password: password,
+        data: {
+          'full_name': fullName.trim(),
+          'mobile_number': mobileNumber.trim(),
+          'role': 'principal',
+          'status': 'pending',
+        },
+      ));
+    } catch (_) {}
+
+    // Save profile in Supabase
+    try {
+      await _client.from('profiles').upsert({
+        'id': userId,
+        'full_name': fullName.trim(),
+        'mobile_number': mobileNumber.trim(),
+        'email': email.trim().toLowerCase(),
+        'role': 'principal',
+        'status': 'pending',
+      });
+    } catch (e) {
+      throw AuthServiceException('Failed to save profile details: $e');
+    }
+
+    // Save remembered credentials locally
+    await _secureStorage.write(key: _localUserIdKey, value: userId);
+    await _secureStorage.write(key: _localFullNameKey, value: fullName.trim());
+    await _secureStorage.write(key: _lastContactKey, value: email.trim().toLowerCase());
+    await _secureStorage.write(key: _lastPasswordKey, value: password);
+    await _secureStorage.write(key: _userRoleKey, value: 'principal');
+    await _secureStorage.write(key: _userStatusKey, value: 'pending');
+    await _secureStorage.write(key: _rememberMeKey, value: 'true');
+    await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
+  }
+
+  Future<AuthCreateResult> signInWithGoogle() async {
+    final res = await handleGoogleSignIn();
+    if (res == null) {
+      throw const AuthServiceException('Google sign-in was canceled.');
+    }
+    return AuthCreateResult(
+      status: res.outcome == GoogleSignInOutcome.signedInActive
+          ? AuthAccountStatus.active
+          : AuthAccountStatus.pendingApproval,
+      email: res.email,
+      message: res.message,
+    );
   }
 
   Future<bool> getRememberedPreference() async {

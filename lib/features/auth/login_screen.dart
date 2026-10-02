@@ -12,6 +12,7 @@ import 'auth_providers.dart';
 import 'auth_service.dart';
 import 'create_account_screen.dart';
 import 'forgot_password_screen.dart';
+import 'google_complete_profile_screen.dart';
 
 /// Screen 1: Login Page with Fingerprint & Remembered Credential support.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -171,21 +172,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
     });
     try {
-      await ref.read(authServiceProvider).signInWithGoogle();
-      ref.read(appUnlockedProvider.notifier).state = true;
+      final result = await ref.read(authServiceProvider).handleGoogleSignIn();
+      if (result == null) {
+        // User dismissed Google account chooser
+        return;
+      }
+
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AppLockGate(
-            child: SyncCoordinator(
-              child: AccessControlGate(
-                child: SchoolGate(),
+
+      if (result.outcome == GoogleSignInOutcome.needsProfileCompletion) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => GoogleCompleteProfileScreen(
+              googleEmail: result.email,
+              googleDisplayName: result.displayName,
+              idToken: result.idToken,
+              accessToken: result.accessToken,
+            ),
+          ),
+        );
+      } else {
+        ref.read(appUnlockedProvider.notifier).state = true;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const AppLockGate(
+              child: SyncCoordinator(
+                child: AccessControlGate(
+                  child: SchoolGate(),
+                ),
               ),
             ),
           ),
-        ),
-        (route) => false,
-      );
+          (route) => false,
+        );
+      }
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {

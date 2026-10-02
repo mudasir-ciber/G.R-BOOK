@@ -65,30 +65,130 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
     final userId = user['id']?.toString() ?? '';
     final name = user['full_name']?.toString() ?? 'User';
     final mobile = user['mobile_number']?.toString() ?? '';
+    final email = user['email']?.toString() ?? '';
     final auth = ref.read(authServiceProvider);
 
     try {
       await auth.approveUser(userId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF0F9D58),
-            content: Text('$name ka account kamyabi se approve ho chuka hai!'),
-            action: mobile.isNotEmpty
-                ? SnackBarAction(
-                    label: 'WhatsApp Notify',
-                    textColor: Colors.white,
-                    onPressed: () => _notifyUserOnWhatsApp(user, isApproval: true),
-                  )
-                : null,
-          ),
-        );
         _loadData();
+        if (email.isNotEmpty) {
+          _promptApprovalEmail(user);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFF0F9D58),
+              content: Text('$name ka account kamyabi se approve ho chuka hai!'),
+              action: mobile.isNotEmpty
+                  ? SnackBarAction(
+                      label: 'WhatsApp Notify',
+                      textColor: Colors.white,
+                      onPressed: () => _notifyUserOnWhatsApp(user, isApproval: true),
+                    )
+                  : null,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _promptApprovalEmail(Map<String, dynamic> user) async {
+    final name = user['full_name']?.toString() ?? 'User';
+    final email = user['email']?.toString() ?? '';
+
+    final sendNow = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: Color(0xFF0F9D58), size: 28),
+            SizedBox(width: 10),
+            Text('Account Approved!'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$name ka account active ho gaya hai.'),
+            const SizedBox(height: 10),
+            Text(
+              'User ko approval email ($email) bhejne ke liye "Send Email" dabayein:',
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Baad Mein (Later)'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0F9D58)),
+            icon: const Icon(Icons.email_rounded, size: 18),
+            label: const Text('Send Email'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (sendNow == true) {
+      await _sendApprovalEmail(user);
+    }
+  }
+
+  Future<void> _sendApprovalEmail(Map<String, dynamic> user) async {
+    final name = user['full_name']?.toString() ?? 'User';
+    final email = user['email']?.toString() ?? '';
+    final mobile = user['mobile_number']?.toString() ?? '';
+
+    if (email.isEmpty) return;
+
+    final subject = 'Your G.R. BOOK Account is Approved!';
+    final body = '''Hello $name,
+
+Good news! Your G.R. BOOK account has been approved by Admin Mudasir Ahmed.
+
+You can now open the app and log in using your Google account or your password.
+
+Account Details:
+• Name: $name
+• Email: $email${mobile.isNotEmpty ? '\n• Phone: $mobile' : ''}
+• Status: Active
+
+If you need any help, please contact Mudasir Ahmed at 0336-8456907.
+
+Thank you,
+G.R. BOOK Team''';
+
+    final uri = Uri(
+      scheme: 'mailto',
+      path: email,
+      queryParameters: {
+        'subject': subject,
+        'body': body,
+      },
+    );
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        final fallback = Uri.parse('mailto:$email?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}');
+        await launchUrl(fallback, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Email application open nahi ho saki.')),
         );
       }
     }
@@ -526,6 +626,18 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
                   onPressed: () => _callUser(mobile),
                 ),
               ],
+              if (email.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                IconButton.outlined(
+                  style: IconButton.styleFrom(
+                    foregroundColor: Colors.blue.shade700,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.email_outlined, size: 18),
+                  tooltip: 'Email User',
+                  onPressed: () => _sendApprovalEmail(user),
+                ),
+              ],
             ],
           ),
         ],
@@ -673,6 +785,13 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
                         icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 20),
                         tooltip: 'WhatsApp',
                         onPressed: () => _notifyUserOnWhatsApp(user, isApproval: false),
+                      ),
+                    ],
+                    if (email.isNotEmpty) ...[
+                      IconButton(
+                        icon: Icon(Icons.email_outlined, color: Colors.blue.shade600, size: 20),
+                        tooltip: 'Email User',
+                        onPressed: () => _sendApprovalEmail(user),
                       ),
                     ],
                     Text(
