@@ -41,6 +41,17 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
     super.dispose();
   }
 
+  bool _isUserSuperAdmin(Map<String, dynamic> u) {
+    final role = u['role']?.toString() ?? '';
+    final mobile = u['mobile_number']?.toString() ?? '';
+    final email = u['email']?.toString() ?? '';
+    final name = u['full_name']?.toString() ?? '';
+    return role == 'super_admin' ||
+        MasterAdminConfig.isFounderIdentifier(mobile) ||
+        MasterAdminConfig.isFounderIdentifier(email) ||
+        name == MasterAdminConfig.founderName;
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final auth = ref.read(authServiceProvider);
@@ -48,6 +59,13 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
     try {
       final pending = await auth.fetchPendingUsers();
       final all = await auth.fetchAllUsers();
+      all.sort((a, b) {
+        final aIsSuper = _isUserSuperAdmin(a);
+        final bIsSuper = _isUserSuperAdmin(b);
+        if (aIsSuper && !bIsSuper) return -1;
+        if (!aIsSuper && bIsSuper) return 1;
+        return 0;
+      });
 
       if (mounted) {
         setState(() {
@@ -297,7 +315,14 @@ G.R. BOOK Team''';
       final phone = (u['mobile_number']?.toString() ?? '').toLowerCase();
       final school = (u['school_name']?.toString() ?? '').toLowerCase();
       return name.contains(query) || email.contains(query) || phone.contains(query) || school.contains(query);
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        final aIsSuper = _isUserSuperAdmin(a);
+        final bIsSuper = _isUserSuperAdmin(b);
+        if (aIsSuper && !bIsSuper) return -1;
+        if (!aIsSuper && bIsSuper) return 1;
+        return 0;
+      });
 
     return Scaffold(
       backgroundColor: isDark ? GrBookTheme.darkBackground : GrBookTheme.background,
@@ -657,8 +682,7 @@ G.R. BOOK Team''';
     final email = user['email']?.toString() ?? '';
     final school = user['school_name']?.toString() ?? '';
     final status = user['status']?.toString() ?? 'pending';
-    final role = user['role']?.toString() ?? 'principal';
-    final isSuper = role == 'super_admin' || MasterAdminConfig.isFounderIdentifier(mobile) || MasterAdminConfig.isFounderIdentifier(email);
+    final isSuper = _isUserSuperAdmin(user);
     final isActive = status == 'active';
 
     Color badgeColor;

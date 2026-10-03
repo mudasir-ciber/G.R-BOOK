@@ -795,7 +795,19 @@ class AuthService {
           .from('profiles')
           .select()
           .order('created_at', ascending: false);
-      return List<Map<String, dynamic>>.from(data);
+      final list = List<Map<String, dynamic>>.from(data);
+      list.sort((a, b) {
+        final aIsSuper = a['role'] == 'super_admin' ||
+            MasterAdminConfig.isFounderIdentifier(a['mobile_number']?.toString() ?? '') ||
+            MasterAdminConfig.isFounderIdentifier(a['email']?.toString() ?? '');
+        final bIsSuper = b['role'] == 'super_admin' ||
+            MasterAdminConfig.isFounderIdentifier(b['mobile_number']?.toString() ?? '') ||
+            MasterAdminConfig.isFounderIdentifier(b['email']?.toString() ?? '');
+        if (aIsSuper && !bIsSuper) return -1;
+        if (!aIsSuper && bIsSuper) return 1;
+        return 0;
+      });
+      return list;
     } catch (_) {
       return [];
     }
