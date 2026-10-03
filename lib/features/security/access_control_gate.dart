@@ -30,6 +30,8 @@ class _AccessControlGateState extends ConsumerState<AccessControlGate> with Widg
   bool _isOfflineExpired = false;
   String _userStatus = 'pending';
   StreamSubscription<bool>? _connectivitySub;
+  StreamSubscription? _profileRealtimeSub;
+  Timer? _heartbeatTimer;
 
   @override
   void initState() {
@@ -38,13 +40,16 @@ class _AccessControlGateState extends ConsumerState<AccessControlGate> with Widg
     _evaluateAccess();
     _connectivitySub = ref.read(connectivityServiceProvider).onStatusChange.listen((online) {
       if (online && mounted) {
-        _evaluateAccess();
+        _silentlySyncStatus();
+        _setupProfileRealtime();
       }
     });
   }
 
   @override
   void dispose() {
+    _heartbeatTimer?.cancel();
+    _profileRealtimeSub?.cancel();
     _connectivitySub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -55,6 +60,74 @@ class _AccessControlGateState extends ConsumerState<AccessControlGate> with Widg
     if (state == AppLifecycleState.resumed) {
       _evaluateAccess();
     }
+  }
+
+  void _setupLiveListeners() {
+    _heartbeatTimer?.cancel();
+    // Heartbeat every 15 seconds: if phone is online, silently syncs status with server!
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      if (!mounted) return;
+      final online = await ref.read(connectivityServiceProvider).isOnline();
+      if (online) {
+        _silentlySyncStatus();
+      }
+    });
+
+    _setupProfileRealtime();
+  }
+
+  Future<void> _setupProfileRealtime() async {
+    _profileRealtimeSub?.cancel();
+    final auth = ref.read(authServiceProvider);
+    if (await auth.isCurrentUserSuperAdmin()) return; // Founder does not need live blocking
+
+    final targetId = await auth.getEffectiveUserId();
+    if (targetId.isEmpty || targetId == 'local_admin') return;
+
+    try {
+      final client = ref.read(supabaseClientProvider);
+      _profileRealtimeSub = client
+          .from('profiles')
+          .stream(primaryKey: ['id'])
+          .eq('id', targetId)
+          .listen((records) async {
+            if (records.isNotEmpty && mounted) {
+              final profile = records.first;
+              final status = profile['status']?.toString() ?? 'pending';
+              final role = profile['role']?.toString() ?? 'principal';
+
+              // Persist locally immediately so even going offline keeps it locked
+              final storage = ref.read(secureStorageProvider);
+              await storage.write(key: 'grbook_user_status', value: status);
+              await storage.write(key: 'grbook_user_role', value: role);
+              await storage.write(key: 'grbook_last_online_verified', value: DateTime.now().toIso8601String());
+
+              if (mounted) {
+                setState(() {
+                  _userStatus = status;
+                });
+              }
+            }
+          });
+    } catch (_) {}
+  }
+
+  Future<void> _silentlySyncStatus() async {
+    try {
+      final auth = ref.read(authServiceProvider);
+      final updatedStatus = await auth.refreshOnlineStatus();
+      if (mounted) {
+        final recheckExpired = await auth.isOfflineGracePeriodExpired();
+        final isSuper = await auth.isCurrentUserSuperAdmin();
+        if (_userStatus != updatedStatus || _isOfflineExpired != recheckExpired || _isSuperAdmin != isSuper) {
+          setState(() {
+            _userStatus = updatedStatus;
+            _isOfflineExpired = recheckExpired;
+            _isSuperAdmin = isSuper;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _evaluateAccess() async {
@@ -73,9 +146,31 @@ class _AccessControlGateState extends ConsumerState<AccessControlGate> with Widg
       return;
     }
 
-    // 2. Read local status first
+    // 2. Read local status first (cached in secure storage)
     final cachedStatus = await auth.getUserStatus();
     final offlineExpired = await auth.isOfflineGracePeriodExpired();
+    final isOnline = await ref.read(connectivityServiceProvider).isOnline();
+
+    // SMART 72-HOUR LOGIC:
+    // If 72 hours passed BUT phone is online right now, don't show the warning screen!
+    // Instead, silently refresh right now and reset the 3-day timer!
+    if (offlineExpired && isOnline) {
+      try {
+        final updatedStatus = await auth.refreshOnlineStatus();
+        final recheckExpired = await auth.isOfflineGracePeriodExpired();
+        final isSuper = await auth.isCurrentUserSuperAdmin();
+        if (mounted) {
+          setState(() {
+            _isSuperAdmin = isSuper;
+            _userStatus = updatedStatus;
+            _isOfflineExpired = recheckExpired;
+            _isLoading = false;
+          });
+        }
+        _setupLiveListeners();
+        return;
+      } catch (_) {}
+    }
 
     if (mounted) {
       setState(() {
@@ -86,19 +181,23 @@ class _AccessControlGateState extends ConsumerState<AccessControlGate> with Widg
       });
     }
 
-    // 3. Try to refresh live status from Supabase
-    try {
-      final updatedStatus = await auth.refreshOnlineStatus();
-      if (mounted) {
-        final recheckExpired = await auth.isOfflineGracePeriodExpired();
-        final isSuper = await auth.isCurrentUserSuperAdmin();
-        setState(() {
-          _userStatus = updatedStatus;
-          _isOfflineExpired = recheckExpired;
-          _isSuperAdmin = isSuper;
-        });
-      }
-    } catch (_) {}
+    // 3. If online, sync live status from Supabase
+    if (isOnline) {
+      try {
+        final updatedStatus = await auth.refreshOnlineStatus();
+        if (mounted) {
+          final recheckExpired = await auth.isOfflineGracePeriodExpired();
+          final isSuper = await auth.isCurrentUserSuperAdmin();
+          setState(() {
+            _userStatus = updatedStatus;
+            _isOfflineExpired = recheckExpired;
+            _isSuperAdmin = isSuper;
+          });
+        }
+      } catch (_) {}
+    }
+
+    _setupLiveListeners();
   }
 
   @override

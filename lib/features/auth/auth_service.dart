@@ -755,20 +755,45 @@ class AuthService {
 
     final localUid = await _secureStorage.read(key: _localUserIdKey);
     final targetId = _client.auth.currentUser?.id ?? localUid;
-    if (targetId == null || targetId == 'local_admin') {
-      return await getUserStatus();
-    }
 
     try {
-      final profile = await _client
-          .from('profiles')
-          .select('role, status')
-          .eq('id', targetId)
-          .maybeSingle();
+      Map<String, dynamic>? profile;
+      if (targetId != null && targetId != 'local_admin' && !targetId.startsWith('user_')) {
+        profile = await _client
+            .from('profiles')
+            .select('id, role, status')
+            .eq('id', targetId)
+            .maybeSingle();
+      }
+
+      if (profile == null) {
+        final contact = await getRememberedContact();
+        final currentEmail = _client.auth.currentUser?.email;
+        final lookupContact = currentEmail ?? contact;
+        if (lookupContact != null && lookupContact.isNotEmpty) {
+          if (isEmail(lookupContact)) {
+            profile = await _client
+                .from('profiles')
+                .select('id, role, status')
+                .eq('email', lookupContact.trim().toLowerCase())
+                .maybeSingle();
+          } else {
+            profile = await _client
+                .from('profiles')
+                .select('id, role, status')
+                .eq('mobile_number', lookupContact.trim())
+                .maybeSingle();
+          }
+        }
+      }
 
       if (profile != null) {
         final status = profile['status'] as String? ?? 'pending';
         final role = profile['role'] as String? ?? 'principal';
+        final realId = profile['id']?.toString();
+        if (realId != null && realId.isNotEmpty) {
+          await _secureStorage.write(key: _localUserIdKey, value: realId);
+        }
         await _secureStorage.write(key: _userStatusKey, value: status);
         await _secureStorage.write(key: _userRoleKey, value: role);
         await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
