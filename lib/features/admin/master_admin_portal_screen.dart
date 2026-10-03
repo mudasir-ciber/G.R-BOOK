@@ -94,13 +94,163 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
     }
   }
 
+  Future<void> _showStatusResultDialog({
+    required bool isSuccess,
+    required String title,
+    required String message,
+    Map<String, dynamic>? user,
+    String? actionType,
+  }) async {
+    final mobile = user?['mobile_number']?.toString() ?? '';
+    final email = user?['email']?.toString() ?? '';
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        final bgColor = GrBookTheme.getCardBackground(ctx);
+        final textPrimary = GrBookTheme.getTextPrimary(ctx);
+        final textSecondary = GrBookTheme.getTextSecondary(ctx);
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 12,
+          backgroundColor: bgColor,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Reference Symbol (Green Checkmark / Red Cross)
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isSuccess ? const Color(0xFF22C55E) : const Color(0xFFEF4444)).withValues(alpha: 0.35),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: CustomPaint(
+                    size: const Size(90, 90),
+                    painter: _StatusSymbolPainter(isSuccess: isSuccess),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.4,
+                    color: textSecondary,
+                  ),
+                ),
+                if (user != null &&
+                    (mobile.isNotEmpty || email.isNotEmpty) &&
+                    (actionType == 'approval' || actionType == 'reactivate' || actionType == 'reject')) ...[
+                  const SizedBox(height: 20),
+                  Divider(height: 1, color: GrBookTheme.getBorderColor(ctx)),
+                  const SizedBox(height: 16),
+                  if (mobile.isNotEmpty) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.chat_rounded, size: 20),
+                        label: const Text(
+                          'WhatsApp Notify',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          _notifyUserOnWhatsApp(user, messageType: actionType ?? 'general');
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  if (email.isNotEmpty && (actionType == 'approval' || actionType == 'reactivate')) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0F9D58),
+                          side: const BorderSide(color: Color(0xFF0F9D58), width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.email_outlined, size: 20),
+                        label: Text(
+                          actionType == 'approval' ? 'Send Approval Email' : 'Send Reactivation Email',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        onPressed: () {
+                          if (actionType == 'approval') {
+                            _sendApprovalEmail(user);
+                          } else {
+                            _sendReactivationEmail(user);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: isSuccess ? const Color(0xFF0F9D58) : const Color(0xFF64748B),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _deleteUser(Map<String, dynamic> user) async {
     final userId = user['id']?.toString() ?? '';
     final name = user['full_name']?.toString() ?? 'User';
 
     if (_isUserSuperAdmin(user)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot delete Super Admin account.')),
+      _showStatusResultDialog(
+        isSuccess: false,
+        title: 'Action Not Allowed',
+        message: 'Cannot delete Super Admin account.',
       );
       return;
     }
@@ -141,17 +291,20 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
       await ref.read(authServiceProvider).deleteUserAccount(userId);
       if (mounted) {
         _loadData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red.shade700,
-            content: Text('$name\'s account has been deleted.'),
-          ),
+        _showStatusResultDialog(
+          isSuccess: false,
+          title: 'Account Deleted',
+          message: '$name\'s account has been completely deleted from the server.',
+          user: user,
+          actionType: 'delete',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        _showStatusResultDialog(
+          isSuccess: false,
+          title: 'Delete Failed',
+          message: 'Error deleting account: $e',
         );
       }
     }
@@ -160,36 +313,26 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
   Future<void> _approveUser(Map<String, dynamic> user) async {
     final userId = user['id']?.toString() ?? '';
     final name = user['full_name']?.toString() ?? 'User';
-    final mobile = user['mobile_number']?.toString() ?? '';
-    final email = user['email']?.toString() ?? '';
     final auth = ref.read(authServiceProvider);
 
     try {
       await auth.approveUser(userId);
       if (mounted) {
         _loadData();
-        if (email.isNotEmpty) {
-          _promptApprovalEmail(user);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: const Color(0xFF0F9D58),
-              content: Text('$name has been approved!'),
-              action: mobile.isNotEmpty
-                  ? SnackBarAction(
-                      label: 'WhatsApp Notify',
-                      textColor: Colors.white,
-                      onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'approval'),
-                    )
-                  : null,
-            ),
-          );
-        }
+        _showStatusResultDialog(
+          isSuccess: true,
+          title: 'Account Approved!',
+          message: '$name has been approved successfully.\nTheir account is now active and ready to log in.',
+          user: user,
+          actionType: 'approval',
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        _showStatusResultDialog(
+          isSuccess: false,
+          title: 'Approval Failed',
+          message: 'Error approving $name: $e',
         );
       }
     }
@@ -198,7 +341,6 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
   Future<void> _rejectUser(Map<String, dynamic> user) async {
     final userId = user['id']?.toString() ?? '';
     final name = user['full_name']?.toString() ?? 'User';
-    final mobile = user['mobile_number']?.toString() ?? '';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -233,24 +375,20 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
       await ref.read(authServiceProvider).rejectUser(userId);
       if (mounted) {
         _loadData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red.shade700,
-            content: Text('$name\'s request has been rejected.'),
-            action: mobile.isNotEmpty
-                ? SnackBarAction(
-                    label: 'WhatsApp',
-                    textColor: Colors.white,
-                    onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'reject'),
-                  )
-                : null,
-          ),
+        _showStatusResultDialog(
+          isSuccess: false,
+          title: 'Request Rejected',
+          message: '$name\'s registration request has been rejected.',
+          user: user,
+          actionType: 'reject',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        _showStatusResultDialog(
+          isSuccess: false,
+          title: 'Operation Failed',
+          message: 'Error: $e',
         );
       }
     }
@@ -259,8 +397,6 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
   Future<void> _reactivateUser(Map<String, dynamic> user) async {
     final userId = user['id']?.toString() ?? '';
     final name = user['full_name']?.toString() ?? 'User';
-    final mobile = user['mobile_number']?.toString() ?? '';
-    final email = user['email']?.toString() ?? '';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -295,78 +431,25 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
       await ref.read(authServiceProvider).reactivateUser(userId);
       if (mounted) {
         _loadData();
-        if (email.isNotEmpty) {
-          _promptReactivationEmail(user);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: const Color(0xFF0F9D58),
-              content: Text('$name has been reactivated!'),
-              action: mobile.isNotEmpty
-                  ? SnackBarAction(
-                      label: 'WhatsApp Notify',
-                      textColor: Colors.white,
-                      onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'reactivate'),
-                    )
-                  : null,
-            ),
-          );
-        }
+        _showStatusResultDialog(
+          isSuccess: true,
+          title: 'Account Reactivated!',
+          message: '$name has been reactivated successfully.\nThey can now log in and access all records.',
+          user: user,
+          actionType: 'reactivate',
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        _showStatusResultDialog(
+          isSuccess: false,
+          title: 'Operation Failed',
+          message: 'Error: $e',
         );
       }
     }
   }
 
-  Future<void> _promptApprovalEmail(Map<String, dynamic> user) async {
-    final name = user['full_name']?.toString() ?? 'User';
-    final email = user['email']?.toString() ?? '';
-
-    final sendNow = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Color(0xFF0F9D58), size: 28),
-            SizedBox(width: 10),
-            Text('Account Approved!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$name is now active.'),
-            const SizedBox(height: 10),
-            Text(
-              'Send a welcome email to $email:',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Later'),
-          ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0F9D58)),
-            icon: const Icon(Icons.email_rounded, size: 18),
-            label: const Text('Send Email'),
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
-    );
-
-    if (sendNow == true) {
-      await _sendApprovalEmail(user);
-    }
-  }
 
   Future<void> _promptReactivationEmail(Map<String, dynamic> user) async {
     final name = user['full_name']?.toString() ?? 'User';
@@ -547,18 +630,23 @@ G.R. BOOK Team''';
     try {
       await ref.read(authServiceProvider).setUserStatus(userId, newStatus);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: newStatus == 'active' ? const Color(0xFF0F9D58) : Colors.orange.shade800,
-            content: Text('$name is now ${newStatus == "active" ? "active" : "blocked"}.'),
-          ),
-        );
         _loadData();
+        _showStatusResultDialog(
+          isSuccess: newStatus == 'active',
+          title: newStatus == 'active' ? 'Account Activated' : 'Account Blocked',
+          message: newStatus == 'active'
+              ? '$name is now active and has access to school records.'
+              : '$name has been blocked from accessing school records.',
+          user: user,
+          actionType: 'toggle',
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        _showStatusResultDialog(
+          isSuccess: false,
+          title: 'Operation Failed',
+          message: 'Error: $e',
         );
       }
     }
@@ -1978,3 +2066,54 @@ G.R. BOOK Team''';
   );
 }
 }
+
+class _StatusSymbolPainter extends CustomPainter {
+  final bool isSuccess;
+
+  const _StatusSymbolPainter({required this.isSuccess});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    // Draw circular solid colored background
+    final circlePaint = Paint()
+      ..color = isSuccess ? const Color(0xFF22C55E) : const Color(0xFFEF4444)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius, circlePaint);
+
+    // Draw white checkmark or cross inside
+    final strokePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.11
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    if (isSuccess) {
+      final path = Path();
+      path.moveTo(size.width * 0.28, size.height * 0.52);
+      path.lineTo(size.width * 0.44, size.height * 0.68);
+      path.lineTo(size.width * 0.72, size.height * 0.36);
+      canvas.drawPath(path, strokePaint);
+    } else {
+      final d = size.width * 0.20;
+      canvas.drawLine(
+        Offset(center.dx - d, center.dy - d),
+        Offset(center.dx + d, center.dy + d),
+        strokePaint,
+      );
+      canvas.drawLine(
+        Offset(center.dx + d, center.dy - d),
+        Offset(center.dx - d, center.dy + d),
+        strokePaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StatusSymbolPainter oldDelegate) =>
+      oldDelegate.isSuccess != isSuccess;
+}
+
