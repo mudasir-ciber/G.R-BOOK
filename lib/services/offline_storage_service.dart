@@ -391,11 +391,26 @@ class OfflineStorageService {
       final classList = (payload['classes'] as List?) ?? [];
       for (final item in classList) {
         final c = item as Map<String, dynamic>;
+        final restoredId = c['id'].toString();
+        final sId = c['schoolId'].toString();
+        final cCode = c['classCode'].toString().trim();
+
+        final localMatches = await (_db.select(_db.classesTable)
+              ..where((t) => t.schoolId.equals(sId) & t.classCode.equals(cCode)))
+            .get();
+        for (final local in localMatches) {
+          if (local.id != restoredId) {
+            await (_db.update(_db.studentsTable)..where((t) => t.classId.equals(local.id)))
+                .write(StudentsTableCompanion(classId: drift.Value(restoredId)));
+            await (_db.delete(_db.classesTable)..where((t) => t.id.equals(local.id))).go();
+          }
+        }
+
         await _db.into(_db.classesTable).insertOnConflictUpdate(
               ClassesTableCompanion.insert(
-                id: c['id'].toString(),
-                schoolId: c['schoolId'].toString(),
-                classCode: c['classCode'].toString(),
+                id: restoredId,
+                schoolId: sId,
+                classCode: cCode,
                 displayName: c['displayName'].toString(),
                 sortOrder: drift.Value(_parseInt(c['sortOrder']) ?? 0),
                 minAdmissionAgeMonths: drift.Value(_parseInt(c['minAdmissionAgeMonths'])),

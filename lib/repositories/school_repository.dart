@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -123,11 +123,46 @@ class SchoolRepository {
 
     for (final row in classRows as List) {
       final map = row as Map<String, dynamic>;
+      final serverId = map['id'] as String;
+      final serverCode = map['class_code'] as String;
+
+      // Check if local class row exists for this school and class code
+      final localMatches = await (_db.select(_db.classesTable)
+            ..where((t) => t.schoolId.equals(school.id) & t.classCode.equals(serverCode)))
+          .get();
+
+      for (final local in localMatches) {
+        if (local.id != serverId) {
+          // Re-link students to serverId
+          await (_db.update(_db.studentsTable)..where((t) => t.classId.equals(local.id)))
+              .write(StudentsTableCompanion(classId: Value(serverId)));
+
+          // Re-link promotion batches to serverId
+          await (_db.update(_db.promotionBatchesTable)..where((t) => t.fromClassId.equals(local.id)))
+              .write(PromotionBatchesTableCompanion(fromClassId: Value(serverId)));
+          await (_db.update(_db.promotionBatchesTable)..where((t) => t.toClassId.equals(local.id)))
+              .write(PromotionBatchesTableCompanion(toClassId: Value(serverId)));
+
+          // Re-link promotion records to serverId
+          await (_db.update(_db.promotionRecordsTable)..where((t) => t.previousClassId.equals(local.id)))
+              .write(PromotionRecordsTableCompanion(previousClassId: Value(serverId)));
+          await (_db.update(_db.promotionRecordsTable)..where((t) => t.newClassId.equals(local.id)))
+              .write(PromotionRecordsTableCompanion(newClassId: Value(serverId)));
+
+          // Re-link promotesToClassId in classesTable to serverId
+          await (_db.update(_db.classesTable)..where((t) => t.promotesToClassId.equals(local.id)))
+              .write(ClassesTableCompanion(promotesToClassId: Value(serverId)));
+
+          // Delete obsolete local class row
+          await (_db.delete(_db.classesTable)..where((t) => t.id.equals(local.id))).go();
+        }
+      }
+
       await _db.into(_db.classesTable).insertOnConflictUpdate(
             ClassesTableCompanion.insert(
-              id: map['id'] as String,
+              id: serverId,
               schoolId: map['school_id'] as String,
-              classCode: map['class_code'] as String,
+              classCode: serverCode,
               displayName: map['display_name'] as String,
               sortOrder: Value(map['sort_order'] as int? ?? 0),
               minAdmissionAgeMonths: Value(map['min_admission_age_months'] as int?),

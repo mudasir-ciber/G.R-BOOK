@@ -246,11 +246,26 @@ class GoogleDriveBackupService {
 
   Future<void> _restoreClasses(List<Map<String, dynamic>> rows) async {
     for (final json in rows) {
+      final restoredId = json['id'] as String;
+      final sId = json['schoolId'] as String;
+      final cCode = (json['classCode'] as String).trim();
+
+      final localMatches = await (_db.select(_db.classesTable)
+            ..where((t) => t.schoolId.equals(sId) & t.classCode.equals(cCode)))
+          .get();
+      for (final local in localMatches) {
+        if (local.id != restoredId) {
+          await (_db.update(_db.studentsTable)..where((t) => t.classId.equals(local.id)))
+              .write(StudentsTableCompanion(classId: drift.Value(restoredId)));
+          await (_db.delete(_db.classesTable)..where((t) => t.id.equals(local.id))).go();
+        }
+      }
+
       await _db.into(_db.classesTable).insertOnConflictUpdate(
             ClassesTableCompanion.insert(
-              id: json['id'] as String,
-              schoolId: json['schoolId'] as String,
-              classCode: json['classCode'] as String,
+              id: restoredId,
+              schoolId: sId,
+              classCode: cCode,
               displayName: json['displayName'] as String,
               sortOrder: drift.Value(json['sortOrder'] as int? ?? 0),
               minAdmissionAgeMonths: drift.Value(json['minAdmissionAgeMonths'] as int?),
