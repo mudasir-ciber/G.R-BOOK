@@ -1,7 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
+
 
 import '../../config/app_config.dart';
 import '../../config/master_admin_config.dart';
@@ -128,7 +128,7 @@ class AuthService {
 
     final isRealEmail = isEmail(trimmedContact);
     final authEmail = resolveAuthEmail(trimmedContact);
-    String effectiveId = const Uuid().v4();
+    String effectiveId;
     bool requiresOtp = false;
 
     try {
@@ -145,14 +145,39 @@ class AuthService {
       );
 
       final user = response.user;
-      if (user != null) {
-        effectiveId = user.id;
-        // If real email and email confirmation is required
-        if (isRealEmail && (response.session == null || user.emailConfirmedAt == null)) {
-          requiresOtp = true;
-        }
+      if (user == null) {
+        throw const AuthServiceException('Could not create account on server. Please try again.');
+      }
 
+      effectiveId = user.id;
+
+      // If real email and email confirmation is required
+      if (isRealEmail && (response.session == null || user.emailConfirmedAt == null)) {
+        requiresOtp = true;
+      }
+
+      // If no active session yet and not waiting for OTP, sign in immediately so client has active auth session for RLS
+      if (response.session == null && !requiresOtp) {
         try {
+          await _client.auth.signInWithPassword(email: authEmail, password: password);
+        } catch (_) {}
+      }
+
+      // Guarantee upsert into public.profiles on Supabase
+      try {
+        await _client.from('profiles').upsert({
+          'id': user.id,
+          'full_name': fullName,
+          'mobile_number': isRealEmail ? '' : trimmedContact,
+          'email': isRealEmail ? trimmedContact : null,
+          'role': 'principal',
+          'status': 'pending',
+          'school_name': schoolName ?? '',
+        });
+      } catch (e) {
+        // If upsert threw RLS error because session was not active, sign in and retry upsert
+        try {
+          await _client.auth.signInWithPassword(email: authEmail, password: password);
           await _client.from('profiles').upsert({
             'id': user.id,
             'full_name': fullName,
@@ -162,14 +187,18 @@ class AuthService {
             'status': 'pending',
             'school_name': schoolName ?? '',
           });
-        } catch (_) {}
+        } catch (e2) {
+          throw AuthServiceException('Could not save profile to server: $e2');
+        }
       }
+    } on AuthServiceException {
+      rethrow;
     } catch (e) {
       final msg = e.toString().toLowerCase();
       if (msg.contains('already registered') || msg.contains('user already exists')) {
         throw const AuthServiceException('This phone number or email is already registered. Please log in.');
       }
-      // Offline fallback: save locally as pending
+      throw AuthServiceException('Failed to create account: $e');
     }
 
     // Cache local credentials
@@ -213,12 +242,20 @@ class AuthService {
         await _secureStorage.write(key: _userStatusKey, value: 'pending');
         await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
 
+        final userMeta = user.userMetadata ?? {};
+        final name = (userMeta['full_name'] as String?) ?? 'Principal';
+        final mobile = (userMeta['contact'] as String?) ?? '';
+        final sName = (userMeta['school_name'] as String?) ?? '';
+
         try {
           await _client.from('profiles').upsert({
             'id': user.id,
-            'email': email,
+            'full_name': name,
+            'mobile_number': mobile,
+            'email': email.trim().toLowerCase(),
             'role': 'principal',
             'status': 'pending',
+            'school_name': sName,
           });
         } catch (_) {}
       }
@@ -299,8 +336,33 @@ class AuthService {
             if (fullName.isNotEmpty) {
               await _secureStorage.write(key: _localFullNameKey, value: fullName);
             }
+          } else {
+            // Profile row missing on server!
+            // Self-heal: Create profile in Supabase with status: 'pending' so Master Admin sees it!
+            final userMeta = user.userMetadata ?? {};
+            final name = (userMeta['full_name'] as String?) ?? 'Principal';
+            final contact = (userMeta['contact'] as String?) ?? trimmed;
+            final sName = (userMeta['school_name'] as String?) ?? '';
+
+            try {
+              await _client.from('profiles').upsert({
+                'id': user.id,
+                'full_name': name,
+                'mobile_number': isEmail(contact) ? '' : contact,
+                'email': isEmail(contact) ? contact : null,
+                'role': 'principal',
+                'status': 'pending',
+                'school_name': sName,
+              });
+            } catch (_) {}
+
+            await _secureStorage.write(key: _userRoleKey, value: 'principal');
+            await _secureStorage.write(key: _userStatusKey, value: 'pending');
           }
-        } catch (_) {}
+        } catch (_) {
+          // If fetching profile fails online, default to PENDING (never active!)
+          await _secureStorage.write(key: _userStatusKey, value: 'pending');
+        }
 
         await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
       }
@@ -319,8 +381,6 @@ class AuthService {
       final storedPassword = await _secureStorage.read(key: _lastPasswordKey);
       if (storedContact == trimmed && storedPassword == password) {
         // Authenticated offline
-      } else if (storedContact == null && storedPassword == null) {
-        await _secureStorage.write(key: _localUserIdKey, value: 'user_${trimmed.replaceAll(RegExp(r'[^0-9]'), '')}');
       } else {
         throw const AuthServiceException('Incorrect phone number, email, or password.');
       }
@@ -713,7 +773,7 @@ class AuthService {
 
   Future<String> getUserStatus() async {
     if (await isCurrentUserSuperAdmin()) return 'active';
-    return (await _secureStorage.read(key: _userStatusKey)) ?? 'active';
+    return (await _secureStorage.read(key: _userStatusKey)) ?? 'pending';
   }
 
   Future<String> getUserRole() async {
@@ -816,8 +876,29 @@ class AuthService {
         await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
         return status;
       } else {
-        // Connected to Supabase, reset timer
+        // Connected to Supabase, but profile not found.
+        // Self-heal profile into Supabase as pending so Master Admin can see it!
+        if (_client.auth.currentUser != null) {
+          final u = _client.auth.currentUser!;
+          final meta = u.userMetadata ?? {};
+          final name = (meta['full_name'] as String?) ?? 'Principal';
+          final contact = (meta['contact'] as String?) ?? '';
+          final sName = (meta['school_name'] as String?) ?? '';
+          try {
+            await _client.from('profiles').upsert({
+              'id': u.id,
+              'full_name': name,
+              'mobile_number': isEmail(contact) ? '' : contact,
+              'email': isEmail(contact) ? contact : (u.email?.endsWith('@grbook.local') == true ? null : u.email),
+              'role': 'principal',
+              'status': 'pending',
+              'school_name': sName,
+            });
+          } catch (_) {}
+        }
+        await _secureStorage.write(key: _userStatusKey, value: 'pending');
         await _secureStorage.write(key: _lastOnlineVerifiedKey, value: DateTime.now().toIso8601String());
+        return 'pending';
       }
     } catch (_) {}
 
