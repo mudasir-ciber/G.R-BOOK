@@ -177,6 +177,8 @@ class _AccountPendingApprovalScreenState extends ConsumerState<AccountPendingApp
 
   Future<void> _logout() async {
     ref.read(appUnlockedProvider.notifier).state = false;
+    ref.invalidate(isSuperAdminProvider);
+    ref.invalidate(currentUserProvider);
     await ref.read(authServiceProvider).logout();
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -528,6 +530,8 @@ class AccountSuspendedScreen extends ConsumerWidget {
                 TextButton(
                   onPressed: () async {
                     ref.read(appUnlockedProvider.notifier).state = false;
+                    ref.invalidate(isSuperAdminProvider);
+                    ref.invalidate(currentUserProvider);
                     await ref.read(authServiceProvider).logout();
                     if (context.mounted) {
                       Navigator.of(context).pushAndRemoveUntil(
@@ -700,6 +704,8 @@ class _OfflineSecurityVerificationScreenState
                 TextButton(
                   onPressed: () async {
                     ref.read(appUnlockedProvider.notifier).state = false;
+                    ref.invalidate(isSuperAdminProvider);
+                    ref.invalidate(currentUserProvider);
                     await ref.read(authServiceProvider).logout();
                     if (context.mounted) {
                       Navigator.of(context).pushAndRemoveUntil(

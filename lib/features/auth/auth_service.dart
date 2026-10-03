@@ -705,13 +705,29 @@ class AuthService {
   }
 
   Future<bool> isCurrentUserSuperAdmin() async {
+    // 1. If an active Supabase user is logged in:
+    final currentEmail = _client.auth.currentUser?.email?.trim().toLowerCase();
+    if (currentEmail != null && currentEmail.isNotEmpty) {
+      if (currentEmail == MasterAdminConfig.founderEmail) return true;
+      // If someone else is logged in (e.g. regular principal), check if their profile role is super_admin
+      final role = await _secureStorage.read(key: _userRoleKey);
+      return role == 'super_admin';
+    }
+
+    // 2. If running offline / local session:
+    final localUid = await _secureStorage.read(key: _localUserIdKey);
     final contact = await getRememberedContact();
-    if (contact != null && MasterAdminConfig.isFounderIdentifier(contact)) return true;
     final role = await _secureStorage.read(key: _userRoleKey);
-    if (role == 'super_admin') return true;
-    final currentUserEmail = _client.auth.currentUser?.email;
-    if (currentUserEmail != null && currentUserEmail == MasterAdminConfig.founderEmail) return true;
-    return false;
+
+    if (localUid == 'master_super_admin' && role == 'super_admin') {
+      return true;
+    }
+
+    if (contact != null && contact.isNotEmpty && MasterAdminConfig.isFounderIdentifier(contact) && role == 'super_admin') {
+      return true;
+    }
+
+    return role == 'super_admin';
   }
 
   /// 3-Day Offline Security Check:
@@ -845,6 +861,20 @@ class AuthService {
     try {
       await _client.auth.signOut();
     } catch (_) {}
+
+    try {
+      final googleSignIn = GoogleSignIn();
+      await googleSignIn.signOut();
+    } catch (_) {}
+
+    // Complete memory wipe: clean all secure storage session keys so no residual admin rights linger
+    await _secureStorage.delete(key: _userRoleKey);
+    await _secureStorage.delete(key: _userStatusKey);
+    await _secureStorage.delete(key: _localUserIdKey);
+    await _secureStorage.delete(key: _localFullNameKey);
+    await _secureStorage.delete(key: _lastPasswordKey);
+    await _secureStorage.delete(key: _lastContactKey);
+    await _secureStorage.delete(key: _rememberMeKey);
   }
 
   Future<void> updateFullName(String fullName) async {

@@ -103,6 +103,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         rememberMe: true,
       );
       ref.read(appUnlockedProvider.notifier).state = true;
+      ref.invalidate(isSuperAdminProvider);
+      ref.invalidate(currentUserProvider);
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
@@ -138,6 +140,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             rememberMe: _rememberMe,
           );
       ref.read(appUnlockedProvider.notifier).state = true;
+      ref.invalidate(isSuperAdminProvider);
+      ref.invalidate(currentUserProvider);
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
@@ -193,6 +197,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       } else {
         ref.read(appUnlockedProvider.notifier).state = true;
+        ref.invalidate(isSuperAdminProvider);
+        ref.invalidate(currentUserProvider);
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => const AppLockGate(

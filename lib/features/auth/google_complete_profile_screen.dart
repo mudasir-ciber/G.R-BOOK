@@ -84,6 +84,8 @@ class _GoogleCompleteProfileScreenState extends ConsumerState<GoogleCompleteProf
           );
 
       ref.read(appUnlockedProvider.notifier).state = true;
+      ref.invalidate(isSuperAdminProvider);
+      ref.invalidate(currentUserProvider);
 
       if (!mounted) return;
 

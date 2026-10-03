@@ -39,6 +39,8 @@ final appUnlockedProvider = StateProvider<bool>((ref) => false);
 
 /// Checks whether the currently logged-in user is Master Admin (Mudasir Ahmed)
 final isSuperAdminProvider = FutureProvider<bool>((ref) async {
+  // Re-evaluates whenever auth state changes (sign in, sign out, token refresh)!
+  ref.watch(authStateChangesProvider);
   return ref.watch(authServiceProvider).isCurrentUserSuperAdmin();
 });
 
