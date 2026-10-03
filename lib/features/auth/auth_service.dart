@@ -11,6 +11,7 @@ enum AuthAccountStatus {
   pending,
   pendingApproval,
   suspended,
+  rejected,
   requiresEmailOtp,
 }
 
@@ -30,6 +31,7 @@ enum GoogleSignInOutcome {
   signedInActive,
   signedInPending,
   signedInSuspended,
+  signedInRejected,
   needsProfileCompletion,
 }
 
@@ -565,6 +567,12 @@ class AuthService {
             email: email,
             displayName: fullName,
           );
+        } else if (status == 'rejected') {
+          return GoogleSignInResult(
+            outcome: GoogleSignInOutcome.signedInRejected,
+            email: email,
+            displayName: fullName,
+          );
         } else {
           return GoogleSignInResult(
             outcome: GoogleSignInOutcome.signedInPending,
@@ -660,10 +668,19 @@ class AuthService {
     if (res == null) {
       throw const AuthServiceException('Google sign-in was canceled.');
     }
+    AuthAccountStatus status;
+    if (res.outcome == GoogleSignInOutcome.signedInActive) {
+      status = AuthAccountStatus.active;
+    } else if (res.outcome == GoogleSignInOutcome.signedInSuspended) {
+      status = AuthAccountStatus.suspended;
+    } else if (res.outcome == GoogleSignInOutcome.signedInRejected) {
+      status = AuthAccountStatus.rejected;
+    } else {
+      status = AuthAccountStatus.pendingApproval;
+    }
+
     return AuthCreateResult(
-      status: res.outcome == GoogleSignInOutcome.signedInActive
-          ? AuthAccountStatus.active
-          : AuthAccountStatus.pendingApproval,
+      status: status,
       email: res.email,
       message: res.message,
     );
@@ -854,6 +871,22 @@ class AuthService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchRejectedUsers() async {
+    try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
+      final data = await _client
+          .from('profiles')
+          .select()
+          .eq('status', 'rejected')
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<void> approveUser(String userId) async {
     try {
       if (await isCurrentUserSuperAdmin()) {
@@ -862,9 +895,38 @@ class AuthService {
       await _client.from('profiles').update({
         'status': 'active',
         'approved_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', userId);
     } catch (e) {
       throw AuthServiceException('Could not approve user: $e');
+    }
+  }
+
+  Future<void> rejectUser(String userId) async {
+    try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
+      await _client.from('profiles').update({
+        'status': 'rejected',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+    } catch (e) {
+      throw AuthServiceException('Could not reject user: $e');
+    }
+  }
+
+  Future<void> reactivateUser(String userId) async {
+    try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
+      await _client.from('profiles').update({
+        'status': 'active',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+    } catch (e) {
+      throw AuthServiceException('Could not reactivate user: $e');
     }
   }
 

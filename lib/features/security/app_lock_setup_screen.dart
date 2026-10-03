@@ -139,7 +139,7 @@ class _AppLockSetupScreenState extends ConsumerState<AppLockSetupScreen> {
           children: [
             Card(
               child: SwitchListTile(
-                activeColor: GrBookTheme.primary,
+                activeThumbColor: GrBookTheme.primary,
                 value: _lockEnabled,
                 title: const Text('Enable App Lock'),
                 subtitle: const Text('Require a PIN (and optionally fingerprint) to open the app'),
@@ -160,7 +160,7 @@ class _AppLockSetupScreenState extends ConsumerState<AppLockSetupScreen> {
                 const SizedBox(height: 12),
                 Card(
                   child: SwitchListTile(
-                    activeColor: GrBookTheme.primary,
+                    activeThumbColor: GrBookTheme.primary,
                     value: _biometricEnabled,
                     title: const Text('Use Fingerprint / Face Unlock'),
                     subtitle: const Text('Falls back to your PIN if biometric fails'),
