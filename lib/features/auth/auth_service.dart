@@ -925,6 +925,22 @@ class AuthService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchActiveUsers() async {
+    try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
+      final data = await _client
+          .from('profiles')
+          .select()
+          .eq('status', 'active')
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchAllUsers() async {
     try {
       if (await isCurrentUserSuperAdmin()) {
@@ -1022,6 +1038,20 @@ class AuthService {
       }).eq('id', userId);
     } catch (e) {
       throw AuthServiceException('Could not update status: $e');
+    }
+  }
+
+  Future<void> deleteUserAccount(String userId) async {
+    try {
+      if (await isCurrentUserSuperAdmin()) {
+        await ensureSuperAdminSupabaseSession();
+      }
+      await _client.from('profiles').update({
+        'status': 'deleted',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+    } catch (e) {
+      throw AuthServiceException('Could not delete account: $e');
     }
   }
 

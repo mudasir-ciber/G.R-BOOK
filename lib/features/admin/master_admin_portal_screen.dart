@@ -23,6 +23,7 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
   late TabController _tabController;
   bool _isLoading = true;
   List<Map<String, dynamic>> _pendingUsers = [];
+  List<Map<String, dynamic>> _activeUsers = [];
   List<Map<String, dynamic>> _rejectedUsers = [];
   List<Map<String, dynamic>> _allUsers = [];
   String _searchQuery = '';
@@ -31,7 +32,7 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadData();
   }
 
@@ -59,8 +60,18 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
 
     try {
       final pending = await auth.fetchPendingUsers();
+      final active = await auth.fetchActiveUsers();
       final rejected = await auth.fetchRejectedUsers();
       final all = await auth.fetchAllUsers();
+
+      active.sort((a, b) {
+        final aIsSuper = _isUserSuperAdmin(a);
+        final bIsSuper = _isUserSuperAdmin(b);
+        if (aIsSuper && !bIsSuper) return -1;
+        if (!aIsSuper && bIsSuper) return 1;
+        return 0;
+      });
+
       all.sort((a, b) {
         final aIsSuper = _isUserSuperAdmin(a);
         final bIsSuper = _isUserSuperAdmin(b);
@@ -72,6 +83,7 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
       if (mounted) {
         setState(() {
           _pendingUsers = pending;
+          _activeUsers = active;
           _rejectedUsers = rejected;
           _allUsers = all;
           _isLoading = false;
@@ -79,6 +91,69 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
       }
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteUser(Map<String, dynamic> user) async {
+    final userId = user['id']?.toString() ?? '';
+    final name = user['full_name']?.toString() ?? 'User';
+
+    if (_isUserSuperAdmin(user)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot delete Super Admin account.')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_forever_rounded, color: Colors.red, size: 24),
+            SizedBox(width: 8),
+            Text('Delete Account'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to completely delete the account for "$name"?\n\n'
+          '• The account status will be set to DELETED on the server.\n'
+          '• When they try to log in, they will see the "Account Deleted" screen.\n'
+          '• They will be completely blocked from accessing school records.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(authServiceProvider).deleteUserAccount(userId);
+      if (mounted) {
+        _loadData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red.shade700,
+            content: Text('$name\'s account has been deleted.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
@@ -574,9 +649,12 @@ G.R. BOOK Team''';
           indicatorColor: GrBookTheme.primary,
           labelColor: GrBookTheme.primary,
           unselectedLabelColor: textSecondary,
+          isScrollable: true,
+          tabAlignment: TabAlignment.center,
           tabs: [
             Tab(
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Pending'),
@@ -603,6 +681,34 @@ G.R. BOOK Team''';
             ),
             Tab(
               child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Active'),
+                  if (_activeUsers.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F9D58),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${_activeUsers.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Rejected'),
@@ -629,6 +735,7 @@ G.R. BOOK Team''';
             ),
             Tab(
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('All Accounts'),
@@ -688,7 +795,47 @@ G.R. BOOK Team''';
                         ),
                 ),
 
-                // TAB 2: REJECTED REQUESTS
+                // TAB 2: ACTIVE ACCOUNTS
+                RefreshIndicator(
+                  color: GrBookTheme.primary,
+                  onRefresh: _loadData,
+                  child: _activeUsers.isEmpty
+                      ? ListView(
+                          children: [
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.people_outline_rounded, size: 64, color: GrBookTheme.primary.withValues(alpha: 0.4)),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    'No Active Accounts',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Approved accounts will appear here.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 13, color: textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _activeUsers.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (ctx, i) {
+                            final user = _activeUsers[i];
+                            return _buildActiveCard(user, cardBg, borderColor, textPrimary, textSecondary);
+                          },
+                        ),
+                ),
+
+                // TAB 3: REJECTED REQUESTS
                 RefreshIndicator(
                   color: GrBookTheme.primary,
                   onRefresh: _loadData,
@@ -969,6 +1116,20 @@ G.R. BOOK Team''';
                       onPressed: () => _sendApprovalEmail(user),
                     ),
                   ],
+                  if (!_isUserSuperAdmin(user)) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.red.withValues(alpha: 0.12),
+                        foregroundColor: Colors.red.shade700,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      tooltip: 'Delete Account',
+                      onPressed: () => _deleteUser(user),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1015,6 +1176,262 @@ G.R. BOOK Team''';
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveCard(
+    Map<String, dynamic> user,
+    Color cardBg,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    final name = user['full_name']?.toString() ?? 'Unnamed';
+    final mobile = user['mobile_number']?.toString() ?? '';
+    final email = user['email']?.toString() ?? '';
+    final school = user['school_name']?.toString() ?? '';
+    final isSuper = _isUserSuperAdmin(user);
+    final approvedAtRaw = user['approved_at']?.toString() ?? user['created_at']?.toString() ?? '';
+    String formattedDate = '';
+    if (approvedAtRaw.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(approvedAtRaw);
+        formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(dt);
+      } catch (_) {}
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSuper ? Colors.amber.shade400 : const Color(0xFF0F9D58).withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: isSuper
+                    ? Colors.amber.shade600
+                    : const Color(0xFF0F9D58).withValues(alpha: 0.15),
+                foregroundColor: isSuper ? Colors.white : const Color(0xFF0F9D58),
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isSuper) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade200,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'ADMIN',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.brown,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (school.isNotEmpty)
+                      Text(
+                        school,
+                        style: TextStyle(fontSize: 13, color: textSecondary),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F9D58).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Active',
+                  style: TextStyle(color: Color(0xFF0F9D58), fontWeight: FontWeight.bold, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(color: borderColor, height: 1),
+          const SizedBox(height: 10),
+
+          // Contact details
+          if (mobile.isNotEmpty) ...[
+            Row(
+              children: [
+                const Icon(Icons.phone_outlined, size: 16, color: GrBookTheme.primary),
+                const SizedBox(width: 8),
+                Text(mobile, style: TextStyle(color: textPrimary, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
+          if (email.isNotEmpty) ...[
+            Row(
+              children: [
+                const Icon(Icons.email_outlined, size: 16, color: GrBookTheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    email,
+                    style: TextStyle(color: textPrimary, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
+          if (formattedDate.isNotEmpty)
+            Row(
+              children: [
+                Icon(Icons.calendar_today_outlined, size: 14, color: textSecondary),
+                const SizedBox(width: 8),
+                Text(
+                  'Active since: $formattedDate',
+                  style: TextStyle(color: textSecondary, fontSize: 12),
+                ),
+              ],
+            ),
+
+          // Quick Contact Bar (WhatsApp, Call, Email, Delete)
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: GrBookTheme.isDark(context)
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: borderColor.withValues(alpha: 0.6)),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  'Quick Contact:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                if (mobile.isNotEmpty) ...[
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
+                      foregroundColor: const Color(0xFF1E7E34),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.chat_rounded, size: 18),
+                    tooltip: 'WhatsApp',
+                    onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'general'),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      backgroundColor: GrBookTheme.primary.withValues(alpha: 0.12),
+                      foregroundColor: GrBookTheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.phone_rounded, size: 18),
+                    tooltip: 'Call Phone',
+                    onPressed: () => _callUser(mobile),
+                  ),
+                ],
+                if (email.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.blue.withValues(alpha: 0.12),
+                      foregroundColor: Colors.blue.shade700,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.email_outlined, size: 18),
+                    tooltip: 'Send Email',
+                    onPressed: () => _sendApprovalEmail(user),
+                  ),
+                ],
+                if (!isSuper) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.red.withValues(alpha: 0.12),
+                      foregroundColor: Colors.red.shade700,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    tooltip: 'Delete Account',
+                    onPressed: () => _deleteUser(user),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          if (!isSuper) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.orange.shade800,
+                  side: BorderSide(color: Colors.orange.shade400, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.block_rounded, size: 20),
+                label: const Text(
+                  'Suspend Access',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                onPressed: () => _toggleUserStatus(user),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1201,6 +1618,20 @@ G.R. BOOK Team''';
                       onPressed: () => _promptReactivationEmail(user),
                     ),
                   ],
+                  if (!_isUserSuperAdmin(user)) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.red.withValues(alpha: 0.12),
+                        foregroundColor: Colors.red.shade700,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      tooltip: 'Delete Account',
+                      onPressed: () => _deleteUser(user),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1248,6 +1679,7 @@ G.R. BOOK Team''';
     final isActive = status == 'active';
     final isSuspended = status == 'suspended';
     final isRejected = status == 'rejected';
+    final isDeleted = status == 'deleted';
     final isPending = status == 'pending';
 
     Color badgeColor;
@@ -1255,6 +1687,9 @@ G.R. BOOK Team''';
     if (isActive) {
       badgeColor = const Color(0xFF0F9D58);
       badgeText = 'Active';
+    } else if (isDeleted) {
+      badgeColor = Colors.grey.shade700;
+      badgeText = 'Deleted';
     } else if (isSuspended) {
       badgeColor = Colors.red;
       badgeText = 'Suspended';
@@ -1370,6 +1805,20 @@ G.R. BOOK Team''';
                     tooltip: 'Email User',
                     onPressed: () => _sendApprovalEmail(user),
                   ),
+                if (!isSuper) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.red.withValues(alpha: 0.12),
+                      foregroundColor: Colors.red.shade700,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    tooltip: 'Delete Account',
+                    onPressed: () => _deleteUser(user),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 6),
@@ -1444,7 +1893,42 @@ G.R. BOOK Team''';
                           onPressed: () => _sendApprovalEmail(user),
                         ),
                       ],
-                      if (isSuspended || isRejected) ...[
+                      if (!isSuper && !isDeleted) ...[
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.red.withValues(alpha: 0.12),
+                            foregroundColor: Colors.red.shade700,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                          tooltip: 'Delete Account',
+                          onPressed: () => _deleteUser(user),
+                        ),
+                      ],
+                      if (isDeleted) ...[
+                        Text(
+                          'Deleted',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red.shade700,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F9D58),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.replay_rounded, size: 16),
+                          label: const Text('Restore', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          onPressed: () => _reactivateUser(user),
+                        ),
+                      ] else if (isSuspended || isRejected) ...[
                         FilledButton.icon(
                           style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF0F9D58),

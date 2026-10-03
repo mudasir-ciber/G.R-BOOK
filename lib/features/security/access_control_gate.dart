@@ -220,6 +220,12 @@ class _AccessControlGateState extends ConsumerState<AccessControlGate> with Widg
       );
     }
 
+    if (_userStatus == 'deleted') {
+      return AccountDeletedScreen(
+        onRefresh: _evaluateAccess,
+      );
+    }
+
     if (_userStatus == 'suspended') {
       return AccountSuspendedScreen(
         onRefresh: _evaluateAccess,
@@ -1099,6 +1105,285 @@ class _OfflineSecurityVerificationScreenState
                     }
                   },
                   child: Text('Logout', style: TextStyle(color: textSecondary)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Screen shown when account has been deleted by Master Admin
+class AccountDeletedScreen extends ConsumerStatefulWidget {
+  const AccountDeletedScreen({super.key, required this.onRefresh});
+
+  final Future<void> Function() onRefresh;
+
+  @override
+  ConsumerState<AccountDeletedScreen> createState() => _AccountDeletedScreenState();
+}
+
+class _AccountDeletedScreenState extends ConsumerState<AccountDeletedScreen> {
+  bool _isChecking = false;
+
+  Future<void> _launchContact(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() => _isChecking = true);
+    await widget.onRefresh();
+    if (mounted) {
+      setState(() => _isChecking = false);
+      final status = await ref.read(authServiceProvider).getUserStatus();
+      if (status == 'deleted') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your account is deleted. Please contact Admin if you need help.'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    ref.read(appUnlockedProvider.notifier).state = false;
+    ref.invalidate(isSuperAdminProvider);
+    ref.invalidate(currentUserProvider);
+    await ref.read(authServiceProvider).logout();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = GrBookTheme.isDark(context);
+    final cardBg = GrBookTheme.getCardBackground(context);
+    final borderColor = GrBookTheme.getBorderColor(context);
+    final textPrimary = GrBookTheme.getTextPrimary(context);
+    final textSecondary = GrBookTheme.getTextSecondary(context);
+
+    return Scaffold(
+      backgroundColor: isDark ? GrBookTheme.darkBackground : GrBookTheme.background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.red.shade700, width: 2),
+                  ),
+                  child: Icon(
+                    Icons.person_off_rounded,
+                    size: 48,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.red.shade700),
+                  ),
+                  child: const Text(
+                    'ACCOUNT DELETED',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Your Account Is No More Active',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'This account has been deleted by Administrator Mudasir Ahmed.\n\nYou cannot access school records with this account.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textSecondary,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Master Admin Contact Card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: borderColor),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF0F9D58), Color(0xFF0B8043)],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF0F9D58).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'MA',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  MasterAdminConfig.founderName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Master Administrator & Founder',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  MasterAdminConfig.founderFormattedPhone,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: GrBookTheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Divider(color: borderColor, height: 1),
+                      const SizedBox(height: 14),
+
+                      // Direct WhatsApp Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 46,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF25D366),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.chat_rounded, size: 20),
+                          label: const Text(
+                            'Contact Admin on WhatsApp',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          onPressed: () {
+                            final msg = Uri.encodeComponent(
+                              'Hello Mudasir Bhai, my G.R. BOOK account shows deleted. Please check my account.',
+                            );
+                            _launchContact('https://wa.me/${MasterAdminConfig.founderPhone}?text=$msg');
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Phone Call Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 42,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: textPrimary,
+                            side: BorderSide(color: borderColor),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.phone_rounded, size: 18),
+                          label: const Text('Call Admin'),
+                          onPressed: () => _launchContact('tel:+${MasterAdminConfig.founderPhone}'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Check Status Again
+                GrBookGradientButton(
+                  text: 'Check Status Again',
+                  icon: Icons.refresh_rounded,
+                  isLoading: _isChecking,
+                  onPressed: _handleRefresh,
+                ),
+                const SizedBox(height: 12),
+
+                // Logout
+                TextButton(
+                  onPressed: _logout,
+                  child: Text(
+                    'Logout / Switch Account',
+                    style: TextStyle(color: textSecondary, fontSize: 13),
+                  ),
                 ),
               ],
             ),
