@@ -907,75 +907,112 @@ G.R. BOOK Team''';
                 ),
               ],
             ),
-          const SizedBox(height: 14),
+          // Quick Contact Bar (WhatsApp, Call, Email)
+          if (mobile.isNotEmpty || email.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: GrBookTheme.isDark(context)
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: borderColor.withValues(alpha: 0.6)),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    'Quick Contact:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: textSecondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (mobile.isNotEmpty) ...[
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
+                        foregroundColor: const Color(0xFF1E7E34),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.chat_rounded, size: 18),
+                      tooltip: 'WhatsApp',
+                      onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'general'),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: GrBookTheme.primary.withValues(alpha: 0.12),
+                        foregroundColor: GrBookTheme.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.phone_rounded, size: 18),
+                      tooltip: 'Call Phone',
+                      onPressed: () => _callUser(mobile),
+                    ),
+                  ],
+                  if (email.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.blue.withValues(alpha: 0.12),
+                        foregroundColor: Colors.blue.shade700,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.email_outlined, size: 18),
+                      tooltip: 'Send Email',
+                      onPressed: () => _sendApprovalEmail(user),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
 
-          // Action Buttons: Approve, Reject, WhatsApp, Call, Email
+          const SizedBox(height: 12),
+
+          // Primary Decision Buttons: Approve & Reject
           Row(
             children: [
               Expanded(
-                flex: 4,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0F9D58),
                     foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  icon: const Icon(Icons.check_circle_rounded, size: 18),
-                  label: const Text('Approve', style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.check_circle_rounded, size: 20),
+                  label: const Text(
+                    'Approve',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                   onPressed: () => _approveUser(user),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
-                flex: 4,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red.shade700,
-                    side: BorderSide(color: Colors.red.shade400),
+                    side: BorderSide(color: Colors.red.shade400, width: 1.5),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  icon: const Icon(Icons.cancel_outlined, size: 18),
-                  label: const Text('Reject', style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.cancel_outlined, size: 20),
+                  label: Text(
+                    'Reject',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red.shade700),
+                  ),
                   onPressed: () => _rejectUser(user),
                 ),
               ),
-              if (mobile.isNotEmpty) ...[
-                const SizedBox(width: 6),
-                IconButton.filled(
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.chat_rounded, size: 18),
-                  tooltip: 'WhatsApp User',
-                  onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'general'),
-                ),
-                const SizedBox(width: 4),
-                IconButton.outlined(
-                  style: IconButton.styleFrom(
-                    foregroundColor: textPrimary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.phone_rounded, size: 18),
-                  tooltip: 'Call User',
-                  onPressed: () => _callUser(mobile),
-                ),
-              ],
-              if (email.isNotEmpty) ...[
-                const SizedBox(width: 4),
-                IconButton.outlined(
-                  style: IconButton.styleFrom(
-                    foregroundColor: Colors.blue.shade700,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.email_outlined, size: 18),
-                  tooltip: 'Email User',
-                  onPressed: () => _sendApprovalEmail(user),
-                ),
-              ],
             ],
           ),
         ],
@@ -1102,61 +1139,93 @@ G.R. BOOK Team''';
                 ),
               ],
             ),
-          const SizedBox(height: 14),
-
-          // Action Buttons: Reactivate, WhatsApp, Call, Email
-          Row(
-            children: [
-              Expanded(
-                flex: 4,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F9D58),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  icon: const Icon(Icons.replay_rounded, size: 18),
-                  label: const Text('Reactivate', style: TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: () => _reactivateUser(user),
-                ),
+          // Quick Contact Bar (WhatsApp, Call, Email)
+          if (mobile.isNotEmpty || email.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: GrBookTheme.isDark(context)
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: borderColor.withValues(alpha: 0.6)),
               ),
-              if (mobile.isNotEmpty) ...[
-                const SizedBox(width: 6),
-                IconButton.filled(
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              child: Row(
+                children: [
+                  Text(
+                    'Quick Contact:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: textSecondary,
+                    ),
                   ),
-                  icon: const Icon(Icons.chat_rounded, size: 18),
-                  tooltip: 'WhatsApp User',
-                  onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'reactivate'),
-                ),
-                const SizedBox(width: 4),
-                IconButton.outlined(
-                  style: IconButton.styleFrom(
-                    foregroundColor: textPrimary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.phone_rounded, size: 18),
-                  tooltip: 'Call User',
-                  onPressed: () => _callUser(mobile),
-                ),
-              ],
-              if (email.isNotEmpty) ...[
-                const SizedBox(width: 4),
-                IconButton.outlined(
-                  style: IconButton.styleFrom(
-                    foregroundColor: Colors.blue.shade700,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.email_outlined, size: 18),
-                  tooltip: 'Email User',
-                  onPressed: () => _promptReactivationEmail(user),
-                ),
-              ],
-            ],
+                  const Spacer(),
+                  if (mobile.isNotEmpty) ...[
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.15),
+                        foregroundColor: const Color(0xFF1E7E34),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.chat_rounded, size: 18),
+                      tooltip: 'WhatsApp',
+                      onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'reactivate'),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: GrBookTheme.primary.withValues(alpha: 0.12),
+                        foregroundColor: GrBookTheme.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.phone_rounded, size: 18),
+                      tooltip: 'Call Phone',
+                      onPressed: () => _callUser(mobile),
+                    ),
+                  ],
+                  if (email.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.blue.withValues(alpha: 0.12),
+                        foregroundColor: Colors.blue.shade700,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.email_outlined, size: 18),
+                      tooltip: 'Send Email',
+                      onPressed: () => _promptReactivationEmail(user),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // Primary Decision Button: Reactivate Account
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F9D58),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.replay_rounded, size: 20),
+              label: const Text(
+                'Reactivate Account',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              onPressed: () => _reactivateUser(user),
+            ),
           ),
         ],
       ),
@@ -1281,75 +1350,113 @@ G.R. BOOK Team''';
           const SizedBox(height: 8),
 
           // Control Switch and Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (mobile.isNotEmpty)
-                Text(
-                  mobile,
-                  style: TextStyle(fontSize: 12, color: textSecondary),
-                )
-              else if (email.isNotEmpty)
-                Expanded(
-                  child: Text(
-                    email,
-                    style: TextStyle(fontSize: 12, color: textSecondary),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                )
-              else
+          if (!isSuper && isPending) ...[
+            Row(
+              children: [
+                if (mobile.isNotEmpty)
+                  Text(mobile, style: TextStyle(fontSize: 12, color: textSecondary)),
                 const Spacer(),
+                if (mobile.isNotEmpty)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 18),
+                    tooltip: 'WhatsApp',
+                    onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'general'),
+                  ),
+                if (email.isNotEmpty)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(Icons.email_outlined, color: Colors.blue.shade600, size: 18),
+                    tooltip: 'Email User',
+                    onPressed: () => _sendApprovalEmail(user),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F9D58),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    icon: const Icon(Icons.check_circle_rounded, size: 16),
+                    label: const Text('Approve', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    onPressed: () => _approveUser(user),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      side: BorderSide(color: Colors.red.shade400),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text('Reject', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    onPressed: () => _rejectUser(user),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (mobile.isNotEmpty)
+                  Text(
+                    mobile,
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  )
+                else if (email.isNotEmpty)
+                  Expanded(
+                    child: Text(
+                      email,
+                      style: TextStyle(fontSize: 12, color: textSecondary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )
+                else
+                  const Spacer(),
 
-              if (!isSuper) ...[
-                Row(
-                  children: [
-                    if (mobile.isNotEmpty) ...[
-                      IconButton(
-                        icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 20),
-                        tooltip: 'WhatsApp',
-                        onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'general'),
-                      ),
-                    ],
-                    if (email.isNotEmpty) ...[
-                      IconButton(
-                        icon: Icon(Icons.email_outlined, color: Colors.blue.shade600, size: 20),
-                        tooltip: 'Email User',
-                        onPressed: () => _sendApprovalEmail(user),
-                      ),
-                    ],
-                    if (isSuspended || isRejected) ...[
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F9D58),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                if (!isSuper) ...[
+                  Row(
+                    children: [
+                      if (mobile.isNotEmpty) ...[
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 18),
+                          tooltip: 'WhatsApp',
+                          onPressed: () => _notifyUserOnWhatsApp(user, messageType: 'general'),
                         ),
-                        icon: const Icon(Icons.replay_rounded, size: 16),
-                        label: const Text('Reactivate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        onPressed: () => _reactivateUser(user),
-                      ),
-                    ] else if (isPending) ...[
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF0F9D58),
-                          side: const BorderSide(color: Color(0xFF0F9D58)),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      ],
+                      if (email.isNotEmpty) ...[
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(Icons.email_outlined, color: Colors.blue.shade600, size: 18),
+                          tooltip: 'Email User',
+                          onPressed: () => _sendApprovalEmail(user),
                         ),
-                        onPressed: () => _approveUser(user),
-                        child: const Text('Approve', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: 4),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      ],
+                      if (isSuspended || isRejected) ...[
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F9D58),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.replay_rounded, size: 16),
+                          label: const Text('Reactivate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          onPressed: () => _reactivateUser(user),
                         ),
-                        onPressed: () => _rejectUser(user),
-                        child: const Text('Reject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ] else ...[
+                      ] else ...[
                       Text(
                         isActive ? 'Allowed' : 'Blocked',
                         style: TextStyle(
@@ -1382,7 +1489,8 @@ G.R. BOOK Team''';
             ],
           ),
         ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 }
