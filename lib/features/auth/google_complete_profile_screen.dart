@@ -64,7 +64,7 @@ class _GoogleCompleteProfileScreenState extends ConsumerState<GoogleCompleteProf
 
     final isOnline = await ref.read(connectivityServiceProvider).isOnline();
     if (!isOnline) {
-      setState(() => _errorMessage = 'Registration complete karne ke liye internet lazmi hai.');
+      setState(() => _errorMessage = 'An internet connection is required to complete registration.');
       return;
     }
 
@@ -175,7 +175,7 @@ class _GoogleCompleteProfileScreenState extends ConsumerState<GoogleCompleteProf
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Apni maloomat darj karein taake account review ke liye bheja ja sake.',
+                          'Enter your details to send your account for Admin review.',
                           style: TextStyle(fontSize: 13, color: textSecondary),
                           textAlign: TextAlign.center,
                         ),

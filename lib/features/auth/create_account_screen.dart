@@ -39,7 +39,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     final isOnline = await ref.read(connectivityServiceProvider).isOnline();
     if (!isOnline) {
       setState(() {
-        _errorMessage = 'Account create karne ke liye internet connection lazmi hai. Baraye mehrbani apna Mobile Data ya Wi-Fi on karein.';
+        _errorMessage = 'An internet connection is required to create an account. Please turn on Mobile Data or Wi-Fi.';
       });
       return;
     }
@@ -102,7 +102,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     final isOnline = await ref.read(connectivityServiceProvider).isOnline();
     if (!isOnline) {
       setState(() {
-        _errorMessage = 'Google se account banane ke liye internet connection lazmi hai.';
+        _errorMessage = 'An internet connection is required to continue with Google.';
       });
       return;
     }

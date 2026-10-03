@@ -71,7 +71,7 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
   Future<void> _verifyOtp() async {
     final code = _otpCode;
     if (code.length < 6) {
-      setState(() => _errorMessage = 'Baraye mehrbani poora 6-digit code enter karein.');
+      setState(() => _errorMessage = 'Please enter the complete 6-digit code.');
       return;
     }
 
@@ -92,7 +92,7 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFF0F9D58),
-          content: Text('Email kamyabi se verify ho chuka hai!'),
+          content: Text('Email verified successfully!'),
         ),
       );
 
@@ -111,7 +111,7 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
-      setState(() => _errorMessage = 'Code verify nahi ho saka: $e');
+      setState(() => _errorMessage = 'Could not verify code: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -131,7 +131,7 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFF0F9D58),
-          content: Text('Naya verification code aapke Gmail par bhej diya gaya hai.'),
+          content: Text('A new verification code was sent to your Gmail.'),
         ),
       );
     } on AuthServiceException catch (e) {
@@ -247,7 +247,7 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Humne 6-digit verification code aapke Gmail par bheja hai:',
+                        'We sent a 6-digit verification code to your Gmail:',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
@@ -400,7 +400,7 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
 
                       // Hint for Spam Folder
                       Text(
-                        '💡 Hint: Agar Inbox mein code na mile to Gmail ka Spam ya Promotions folder check karein.',
+                        '💡 Hint: If you cannot find the code in your Inbox, please check your Spam or Promotions folder.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 11,

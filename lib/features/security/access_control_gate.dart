@@ -168,7 +168,7 @@ class _AccountPendingApprovalScreenState extends ConsumerState<AccountPendingApp
       if (status != 'active') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Aapka account abhi bhi review mein hai. Baraye mehrbani Admin se raabta karein.'),
+            content: Text('Your account is still under review. Please contact Admin.'),
           ),
         );
       }
@@ -251,7 +251,7 @@ class _AccountPendingApprovalScreenState extends ConsumerState<AccountPendingApp
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Aapka account kamyabi se ban chuka hai! School record ki security aur verification ke liye Master Admin se approval darkaar hai.',
+                  'Your account has been created! To protect school records, Admin Mudasir Ahmed will review and approve your account.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -359,12 +359,12 @@ class _AccountPendingApprovalScreenState extends ConsumerState<AccountPendingApp
                           ),
                           icon: const Icon(Icons.chat_rounded, size: 20),
                           label: const Text(
-                            'WhatsApp Par Rabta Karein',
+                            'Contact on WhatsApp',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           onPressed: () {
                             final msg = Uri.encodeComponent(
-                              'Assalam-o-Alaikum Mudasir Bhai, mene G.R. Book app par account banaya hai. Baraye mehrbani mera account approve farmayein.',
+                              'Hello Mudasir Bhai, I created my G.R. BOOK account. Please review and approve my account.',
                             );
                             _launchContact('https://wa.me/${MasterAdminConfig.founderPhone}?text=$msg');
                           },
@@ -484,7 +484,7 @@ class AccountSuspendedScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Aapka account Master Admin ki janib se temporarily suspend (block) kar diya gaya hai. Access bahal karwane ke liye baraye mehrbani Master Admin Mudasir Ahmed se raabta karein.',
+                  'Your account has been suspended by Admin Mudasir Ahmed. To restore your access, please contact Admin.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -508,7 +508,7 @@ class AccountSuspendedScreen extends ConsumerWidget {
                     label: const Text('Contact Mudasir Ahmed on WhatsApp'),
                     onPressed: () {
                       final msg = Uri.encodeComponent(
-                        'Assalam-o-Alaikum Mudasir Bhai, mera account suspend show ho raha hai. Baraye mehrbani review farmayein.',
+                        'Hello Mudasir Bhai, my G.R. BOOK account is suspended. Please check my account.',
                       );
                       _launchContact('https://wa.me/${MasterAdminConfig.founderPhone}?text=$msg');
                     },
@@ -574,13 +574,13 @@ class _OfflineSecurityVerificationScreenState
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               backgroundColor: Color(0xFF0F9D58),
-              content: Text('Online security verification kamyab! App unlock ho chuki hai.'),
+              content: Text('Online security check passed! App is unlocked.'),
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Status: $updatedStatus. Baraye mehrbani internet connect karein ya Admin se raabta karein.'),
+              content: Text('Status: $updatedStatus. Please connect to internet or contact Admin.'),
             ),
           );
         }
@@ -589,7 +589,7 @@ class _OfflineSecurityVerificationScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Internet se connect karein aur dubara koshish karein.'),
+            content: Text('Please connect to the internet and try again.'),
           ),
         );
       }
@@ -661,7 +661,7 @@ class _OfflineSecurityVerificationScreenState
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'School record ki hifazat aur access verification ke liye har 3 din mein kam az kam 1 baar internet se connect hona lazmi hai.\n\nBaraye mehrbani apna Mobile Data ya Wi-Fi on karein aur niche button tap karein.',
+                  'To protect student records, please connect to the internet for 1 minute once every 3 days.\n\nPlease turn on Wi-Fi or Mobile Data and tap the button below.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -686,7 +686,7 @@ class _OfflineSecurityVerificationScreenState
                   icon: Icons.chat_rounded,
                   onPressed: () async {
                     final msg = Uri.encodeComponent(
-                      'Assalam-o-Alaikum Mudasir Bhai, mera 3-day offline verification required hai.',
+                      'Hello Mudasir Bhai, my G.R. BOOK app needs 3-day verification.',
                     );
                     final uri = Uri.parse('https://wa.me/${MasterAdminConfig.founderPhone}?text=$msg');
                     if (await canLaunchUrl(uri)) {

@@ -165,7 +165,7 @@ class AuthService {
     } catch (e) {
       final msg = e.toString().toLowerCase();
       if (msg.contains('already registered') || msg.contains('user already exists')) {
-        throw const AuthServiceException('Yeh phone number ya email pehle se registered hai. Baraye mehrbani Login karein.');
+        throw const AuthServiceException('This phone number or email is already registered. Please log in.');
       }
       // Offline fallback: save locally as pending
     }
@@ -184,13 +184,13 @@ class AuthService {
       return AuthCreateResult(
         status: AuthAccountStatus.requiresEmailOtp,
         email: authEmail,
-        message: 'Verification code aapke Gmail par bhej diya gaya hai.',
+        message: 'Verification code has been sent to your Gmail.',
       );
     }
 
     return const AuthCreateResult(
       status: AuthAccountStatus.pendingApproval,
-      message: 'Aapka account ban chuka hai aur Admin approval ka muntazir hai.',
+      message: 'Account created! Waiting for Admin approval.',
     );
   }
 
@@ -221,9 +221,9 @@ class AuthService {
         } catch (_) {}
       }
     } on AuthException catch (e) {
-      throw AuthServiceException('Verification code ghalat hai ya expire ho chuka hai: ${e.message}');
+      throw AuthServiceException('Verification code is invalid or expired: ${e.message}');
     } catch (e) {
-      throw AuthServiceException('Code verify nahi ho saka: $e');
+      throw AuthServiceException('Could not verify code: $e');
     }
   }
 
@@ -234,7 +234,7 @@ class AuthService {
         email: email.trim().toLowerCase(),
       );
     } on AuthException catch (e) {
-      throw AuthServiceException('Code dubara bhejne mein masla aaya: ${e.message}');
+      throw AuthServiceException('Error resending code: ${e.message}');
     } catch (e) {
       throw AuthServiceException('Resend error: $e');
     }
@@ -320,7 +320,7 @@ class AuthService {
       } else if (storedContact == null && storedPassword == null) {
         await _secureStorage.write(key: _localUserIdKey, value: 'user_${trimmed.replaceAll(RegExp(r'[^0-9]'), '')}');
       } else {
-        throw const AuthServiceException('Mobile number / Email ya password ghalat hai.');
+        throw const AuthServiceException('Incorrect phone number, email, or password.');
       }
     }
 
@@ -359,10 +359,10 @@ class AuthService {
   String _friendlyLoginError(AuthException e) {
     final msg = e.message.toLowerCase();
     if (msg.contains('invalid login credentials')) {
-      return 'Mobile number / Email ya password ghalat hai.';
+      return 'Incorrect phone number, email, or password.';
     }
     if (msg.contains('email not confirmed')) {
-      return 'Email verify nahi huwi. Baraye mehrbani pehle apna email code verify karein.';
+      return 'Email not verified. Please verify your email code first.';
     }
     return 'Login failed: ${e.message}';
   }
@@ -823,7 +823,7 @@ class AuthService {
         'approved_at': DateTime.now().toIso8601String(),
       }).eq('id', userId);
     } catch (e) {
-      throw AuthServiceException('User approve nahi ho saka: $e');
+      throw AuthServiceException('Could not approve user: $e');
     }
   }
 
@@ -837,7 +837,7 @@ class AuthService {
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', userId);
     } catch (e) {
-      throw AuthServiceException('Status update nahi ho saka: $e');
+      throw AuthServiceException('Could not update status: $e');
     }
   }
 

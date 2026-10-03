@@ -96,7 +96,7 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: const Color(0xFF0F9D58),
-              content: Text('$name ka account kamyabi se approve ho chuka hai!'),
+              content: Text('$name has been approved!'),
               action: mobile.isNotEmpty
                   ? SnackBarAction(
                       label: 'WhatsApp Notify',
@@ -135,10 +135,10 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('$name ka account active ho gaya hai.'),
+            Text('$name is now active.'),
             const SizedBox(height: 10),
             Text(
-              'User ko approval email ($email) bhejne ke liye "Send Email" dabayein:',
+              'Send a welcome email to $email:',
               style: const TextStyle(fontSize: 13, color: Colors.grey),
             ),
           ],
@@ -146,7 +146,7 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Baad Mein (Later)'),
+            child: const Text('Later'),
           ),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0F9D58)),
@@ -206,7 +206,7 @@ G.R. BOOK Team''';
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email application open nahi ho saki.')),
+          const SnackBar(content: Text('Could not open email app.')),
         );
       }
     }
@@ -217,14 +217,14 @@ G.R. BOOK Team''';
     final name = user['full_name']?.toString() ?? 'User';
     final currentStatus = user['status']?.toString() ?? 'pending';
     final newStatus = currentStatus == 'active' ? 'suspended' : 'active';
-    final actionText = newStatus == 'active' ? 'bahal (Activate)' : 'band (Suspend)';
+    final actionText = newStatus == 'active' ? 'activate' : 'block';
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(newStatus == 'active' ? 'Activate Account' : 'Suspend Account'),
+        title: Text(newStatus == 'active' ? 'Activate User' : 'Block User'),
         content: Text(
-          'Kya aap waqai "$name" ka account $actionText karna chahte hain?',
+          'Are you sure you want to $actionText "$name"?',
         ),
         actions: [
           TextButton(
@@ -236,7 +236,7 @@ G.R. BOOK Team''';
               backgroundColor: newStatus == 'active' ? const Color(0xFF0F9D58) : Colors.red.shade600,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(newStatus == 'active' ? 'Activate' : 'Suspend'),
+            child: Text(newStatus == 'active' ? 'Activate' : 'Block'),
           ),
         ],
       ),
@@ -250,7 +250,7 @@ G.R. BOOK Team''';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: newStatus == 'active' ? const Color(0xFF0F9D58) : Colors.orange.shade800,
-            content: Text('$name ka account $newStatus ho chuka hai.'),
+            content: Text('$name is now ${newStatus == "active" ? "active" : "blocked"}.'),
           ),
         );
         _loadData();
@@ -269,7 +269,7 @@ G.R. BOOK Team''';
     final name = user['full_name']?.toString() ?? 'User';
     if (mobile.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Is user ka koi phone number mojood nahi hai.')),
+        const SnackBar(content: Text('This user has no phone number.')),
       );
       return;
     }
@@ -278,8 +278,8 @@ G.R. BOOK Team''';
     final formattedNumber = digits.startsWith('0') ? '92${digits.substring(1)}' : digits;
 
     final message = isApproval
-        ? 'Assalam-o-Alaikum $name, Aapka G.R. Book application account Master Admin Mudasir Ahmed ki janib se approve kar diya gaya hai. Ab aap app mein mukammal login karke classes aur school record manage kar sakte hain.'
-        : 'Assalam-o-Alaikum $name, G.R. Book application ke hawale se Master Admin Mudasir Ahmed ki janib se raabta kiya gaya hai.';
+        ? 'Hello $name, your G.R. BOOK account has been approved by Admin Mudasir Ahmed. You can now log in and manage your school records.'
+        : 'Hello $name, this is Admin Mudasir Ahmed contacting you regarding your G.R. BOOK account.';
 
     final uri = Uri.parse('https://wa.me/$formattedNumber?text=${Uri.encodeComponent(message)}');
     try {
@@ -410,7 +410,7 @@ G.R. BOOK Team''';
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Tamam accounts approved hain ya koi naya signup pending nahi hai.',
+                                    'All accounts are approved. No new requests pending.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(fontSize: 13, color: textSecondary),
                                   ),
@@ -624,7 +624,7 @@ G.R. BOOK Team''';
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                   icon: const Icon(Icons.check_circle_rounded, size: 18),
-                  label: const Text('Approve (Manzoor)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text('Approve', style: TextStyle(fontWeight: FontWeight.bold)),
                   onPressed: () => _approveUser(user),
                 ),
               ),
