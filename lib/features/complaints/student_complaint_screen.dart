@@ -299,6 +299,9 @@ class _StudentComplaintScreenState extends ConsumerState<StudentComplaintScreen>
                 decoration: InputDecoration(
                   hintText: 'Write your complaint or note here...\n(e.g. attendance issue, homework concern, discipline notice, parent meeting request)',
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
                   hintStyle: TextStyle(color: GrBookTheme.getTextSecondary(context)),
                 ),
               ),

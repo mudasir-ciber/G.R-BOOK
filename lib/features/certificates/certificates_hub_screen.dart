@@ -597,6 +597,9 @@ class _CertificateStudentPickerScreenState
                 decoration: InputDecoration(
                   hintText: 'Enter any special conduct note or leaving reason...',
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
                   hintStyle: TextStyle(color: GrBookTheme.getTextSecondary(context)),
                 ),
               ),
