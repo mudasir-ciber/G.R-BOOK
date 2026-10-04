@@ -10,10 +10,10 @@ import '../../widgets/gr_book_ui_components.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 
-/// 3-Step Dedicated Password Recovery:
-/// Step 1: Enter Email & Request 6-digit OTP code
-/// Step 2: Verify 6-digit OTP code
-/// Step 3: Set New Password & Confirm Password
+/// Password Recovery Screen:
+/// Supports:
+/// 1. Email Account Recovery: 3-step OTP recovery (Email -> 6-digit OTP code -> Set New Password)
+/// 2. Mobile Number Account Recovery: Direct 1-tap WhatsApp or Phone request to Master Admin Mudasir Ahmed.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -22,19 +22,23 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
+  // Mode: 0 = Email OTP, 1 = Mobile Number
+  int _recoveryMode = 0;
   int _currentStep = 1;
 
   // Step 1 controllers
   final _emailController = TextEditingController();
-  final _step1FormKey = GlobalKey<FormState>();
+  final _phoneController = TextEditingController();
+  final _step1EmailFormKey = GlobalKey<FormState>();
+  final _step1PhoneFormKey = GlobalKey<FormState>();
 
-  // Step 2 controllers
+  // Step 2 controllers (OTP)
   final List<TextEditingController> _otpControllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
   int _resendCountdown = 60;
   Timer? _timer;
 
-  // Step 3 controllers
+  // Step 3 controllers (New Password)
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _step3FormKey = GlobalKey<FormState>();
@@ -48,6 +52,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   void dispose() {
     _timer?.cancel();
     _emailController.dispose();
+    _phoneController.dispose();
     for (final c in _otpControllers) {
       c.dispose();
     }
@@ -72,9 +77,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     });
   }
 
-  // --- Step 1: Send Code ---
+  // --- Step 1: Send Code via Email ---
   Future<void> _handleSendCode() async {
-    if (!_step1FormKey.currentState!.validate()) return;
+    if (!_step1EmailFormKey.currentState!.validate()) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -98,7 +103,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
   }
 
-  // --- Step 2: Verify Code ---
+  // --- Step 2: Verify OTP Code ---
   Future<void> _handleVerifyCode() async {
     final token = _otpControllers.map((c) => c.text.trim()).join();
     if (token.length < 6) {
@@ -148,25 +153,56 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.check_circle_rounded, color: Color(0xFF0F9D58), size: 28),
-              SizedBox(width: 10),
-              Text('Password Updated!'),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF22C55E),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(Icons.check_rounded, color: Colors.white, size: 48),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Password Updated!',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Your password has been changed successfully. You can now log in with your new password.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
+              ),
             ],
           ),
-          content: const Text(
-            'Your password has been changed successfully. You can now log in with your new password.',
-          ),
           actions: [
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0F9D58)),
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).pop(); // Back to Login
-              },
-              child: const Text('Back to Login'),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F9D58),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pop(); // Back to Login
+                },
+                child: const Text('Back to Login', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         ),
@@ -198,6 +234,29 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
   }
 
+  Future<void> _requestWhatsAppReset([String? phone]) async {
+    final cleanPhone = (phone ?? _phoneController.text).trim();
+    final phoneText = cleanPhone.isNotEmpty ? ' ($cleanPhone)' : '';
+    final msg = Uri.encodeComponent(
+      'Assalam-o-Alaikum Mudasir Bhai, my registered mobile number is$phoneText. I forgot my G.R. BOOK password. Please reset my account password.',
+    );
+    final uri = Uri.parse('https://wa.me/${MasterAdminConfig.founderPhone}?text=$msg');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _callFounder() async {
+    final uri = Uri.parse('tel:+${MasterAdminConfig.founderPhone}');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = GrBookTheme.isDark(context);
@@ -219,17 +278,113 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Step Progress Tracker
-              Row(
-                children: [
-                  _buildStepIndicator(1, 'Email', _currentStep >= 1, _currentStep == 1),
-                  Expanded(child: Container(height: 2, color: _currentStep >= 2 ? GrBookTheme.primary : borderColor)),
-                  _buildStepIndicator(2, 'Code', _currentStep >= 2, _currentStep == 2),
-                  Expanded(child: Container(height: 2, color: _currentStep >= 3 ? GrBookTheme.primary : borderColor)),
-                  _buildStepIndicator(3, 'Password', _currentStep >= 3, _currentStep == 3),
-                ],
-              ),
-              const SizedBox(height: 28),
+              // Step Progress Tracker (Only shown in Email Mode)
+              if (_recoveryMode == 0) ...[
+                Row(
+                  children: [
+                    _buildStepIndicator(1, 'Email', _currentStep >= 1, _currentStep == 1),
+                    Expanded(child: Container(height: 2, color: _currentStep >= 2 ? GrBookTheme.primary : borderColor)),
+                    _buildStepIndicator(2, 'Code', _currentStep >= 2, _currentStep == 2),
+                    Expanded(child: Container(height: 2, color: _currentStep >= 3 ? GrBookTheme.primary : borderColor)),
+                    _buildStepIndicator(3, 'Password', _currentStep >= 3, _currentStep == 3),
+                  ],
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // Mode Switcher Tabs (Only shown on Step 1)
+              if (_currentStep == 1) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            _recoveryMode = 0;
+                            _errorMessage = null;
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _recoveryMode == 0
+                                  ? (isDark ? GrBookTheme.primary : Colors.white)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: _recoveryMode == 0
+                                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.email_outlined,
+                                  size: 18,
+                                  color: _recoveryMode == 0 ? GrBookTheme.primary : textSecondary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Email OTP',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: _recoveryMode == 0 ? textPrimary : textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            _recoveryMode = 1;
+                            _errorMessage = null;
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _recoveryMode == 1
+                                  ? (isDark ? GrBookTheme.primary : Colors.white)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: _recoveryMode == 1
+                                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.phone_android_rounded,
+                                  size: 18,
+                                  color: _recoveryMode == 1 ? const Color(0xFF22C55E) : textSecondary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Mobile Number',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: _recoveryMode == 1 ? textPrimary : textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
 
               // Error Banner
               if (_errorMessage != null) ...[
@@ -248,7 +403,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 const SizedBox(height: 18),
               ],
 
-              // Card Container
+              // Main Card Container
               Container(
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
@@ -263,48 +418,51 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                   ],
                 ),
-                child: _buildCurrentStepContent(textPrimary, textSecondary, borderColor, isDark),
+                child: _recoveryMode == 1
+                    ? _buildMobileRecoveryContent(textPrimary, textSecondary, borderColor, isDark)
+                    : _buildCurrentStepContent(textPrimary, textSecondary, borderColor, isDark),
               ),
               const SizedBox(height: 24),
 
-              // WhatsApp Help for Phone Number Users
+              // Bottom Support Card
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: borderColor),
                 ),
                 child: Column(
                   children: [
-                    Text(
-                      'Account created with a mobile number?',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textPrimary),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.support_agent_rounded, size: 20, color: GrBookTheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Need Immediate Help?',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textPrimary),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
-                      'If you do not have an email address, contact Master Admin Mudasir Ahmed for a direct password reset.',
+                      'Contact Founder Mudasir Ahmed directly on WhatsApp for instant assistance with your account.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: textSecondary),
+                      style: TextStyle(fontSize: 12, color: textSecondary, height: 1.4),
                     ),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF25D366),
-                        side: const BorderSide(color: Color(0xFF25D366)),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       icon: const Icon(Icons.chat_rounded, size: 18),
-                      label: const Text('Contact Founder on WhatsApp'),
-                      onPressed: () async {
-                        final msg = Uri.encodeComponent(
-                          'Assalam-o-Alaikum Mudasir Bhai, I forgot my G.R. BOOK password. Please help me reset my account password.',
-                        );
-                        final uri = Uri.parse('https://wa.me/${MasterAdminConfig.founderPhone}?text=$msg');
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
+                      label: const Text('Contact on WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
+                      onPressed: () => _requestWhatsAppReset(),
                     ),
                   ],
                 ),
@@ -343,6 +501,104 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     );
   }
 
+  // --- Mobile Recovery Content ---
+  Widget _buildMobileRecoveryContent(
+    Color textPrimary,
+    Color textSecondary,
+    Color borderColor,
+    bool isDark,
+  ) {
+    return Form(
+      key: _step1PhoneFormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.phone_android_rounded, color: Color(0xFF16A34A), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mobile Number Account',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary),
+                    ),
+                    Text(
+                      'Reset via Master Admin',
+                      style: TextStyle(fontSize: 12, color: textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Enter your registered mobile number below to request an instant password reset from Master Admin Mudasir Ahmed.',
+            style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 18),
+          TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            style: TextStyle(color: textPrimary),
+            decoration: const InputDecoration(
+              hintText: '03001234567',
+              prefixIcon: Icon(Icons.phone_rounded, color: Color(0xFF16A34A), size: 20),
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Mobile number is required';
+              final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.length < 10) return 'Please enter a valid 11-digit mobile number';
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.chat_rounded, size: 22),
+            label: const Text(
+              'Request Reset on WhatsApp',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              if (_step1PhoneFormKey.currentState!.validate()) {
+                _requestWhatsAppReset(_phoneController.text.trim());
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: textPrimary,
+              side: BorderSide(color: borderColor),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.phone_forwarded_rounded, size: 20),
+            label: const Text('Call Mudasir Ahmed: 0336-8456907'),
+            onPressed: _callFounder,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Email 3-Step Content ---
   Widget _buildCurrentStepContent(
     Color textPrimary,
     Color textSecondary,
@@ -352,7 +608,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     switch (_currentStep) {
       case 1:
         return Form(
-          key: _step1FormKey,
+          key: _step1EmailFormKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -401,7 +657,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'We sent a 6-digit verification code to ${_emailController.text.trim()}.',
+              'We sent a 6-digit verification code to ${_emailController.text.trim()}. Please check your inbox and spam folder.',
               style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
             ),
             const SizedBox(height: 20),

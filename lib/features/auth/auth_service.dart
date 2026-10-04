@@ -439,36 +439,48 @@ class AuthService {
   Future<void> sendPasswordResetOtp(String email) async {
     final targetEmail = email.trim().toLowerCase();
 
-    // 1. Master Admin credentials check
-    final isFounder = MasterAdminConfig.isFounderIdentifier(targetEmail);
-
-    // 2. Check if user is registered in Supabase
-    if (!isFounder) {
-      try {
-        final exists = await _client.rpc(
-          'check_user_email_exists',
-          params: {'lookup_email': targetEmail},
-        );
-
-        if (exists != true) {
-          throw const AuthServiceException(
-            'This email is not registered with any school account. Please check the email or create a new account.',
-          );
-        }
-      } on AuthServiceException {
-        rethrow;
-      } catch (e) {
-        if (e is AuthServiceException) rethrow;
-        throw AuthServiceException('Could not verify email registration. Please check your internet connection.');
-      }
-    }
-
     try {
       await _client.auth.resetPasswordForEmail(targetEmail);
     } on AuthException catch (e) {
+      final msg = e.message.toLowerCase();
+      if (msg.contains('rate limit')) {
+        throw const AuthServiceException('Too many requests. Please wait a few minutes before trying again.');
+      }
+      if (msg.contains('not found') || msg.contains('user not found')) {
+        throw const AuthServiceException('This email is not registered. Please check the email or create a new account.');
+      }
       throw AuthServiceException('Failed to send reset code: ${e.message}');
     } catch (e) {
       throw AuthServiceException('Error sending code to email: $e');
+    }
+  }
+
+  Future<void> adminResetUserPassword({
+    required String userId,
+    required String newPassword,
+  }) async {
+    if (newPassword.length < 6) {
+      throw const AuthServiceException('Password must be at least 6 characters long.');
+    }
+
+    try {
+      await _client.rpc(
+        'admin_reset_user_password',
+        params: {
+          'target_user_id': userId,
+          'new_password': newPassword,
+        },
+      );
+    } on PostgrestException catch (e) {
+      if (e.message.toLowerCase().contains('function') &&
+          e.message.toLowerCase().contains('does not exist')) {
+        throw const AuthServiceException(
+          'Please execute 07_admin_password_reset.sql in your Supabase SQL Editor to enable Master Admin password reset.',
+        );
+      }
+      throw AuthServiceException('Failed to reset password: ${e.message}');
+    } catch (e) {
+      throw AuthServiceException('Reset password error: $e');
     }
   }
 

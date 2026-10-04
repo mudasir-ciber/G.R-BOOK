@@ -242,6 +242,127 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
     );
   }
 
+  Future<void> _showAdminResetPasswordDialog(Map<String, dynamic> user) async {
+    final userId = user['id']?.toString() ?? '';
+    final name = user['full_name']?.toString() ?? 'User';
+    final mobile = user['mobile_number']?.toString() ?? '';
+    final newPassController = TextEditingController(text: '123456');
+    bool shareOnWhatsApp = mobile.isNotEmpty;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.key_rounded, color: GrBookTheme.primary, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Reset Password for $name', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter new password for this user (minimum 6 characters):',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: newPassController,
+                decoration: InputDecoration(
+                  labelText: 'New Password',
+                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              if (mobile.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: shareOnWhatsApp,
+                  title: const Text('Share new password on WhatsApp', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  onChanged: (v) => setDialogState(() => shareOnWhatsApp = v ?? true),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: GrBookTheme.primary),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Reset Password'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    final newPassword = newPassController.text.trim();
+    if (newPassword.length < 6) {
+      _showStatusResultDialog(
+        isSuccess: false,
+        title: 'Invalid Password',
+        message: 'Password must be at least 6 characters long.',
+      );
+      return;
+    }
+
+    try {
+      await ref.read(authServiceProvider).adminResetUserPassword(
+            userId: userId,
+            newPassword: newPassword,
+          );
+
+      if (mounted) {
+        if (shareOnWhatsApp && mobile.isNotEmpty) {
+          _shareNewPasswordOnWhatsApp(user, newPassword);
+        }
+        _showStatusResultDialog(
+          isSuccess: true,
+          title: 'Password Reset!',
+          message: 'Password for "$name" has been reset to: $newPassword',
+          user: user,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showStatusResultDialog(
+          isSuccess: false,
+          title: 'Reset Failed',
+          message: '$e',
+        );
+      }
+    }
+  }
+
+  Future<void> _shareNewPasswordOnWhatsApp(Map<String, dynamic> user, String newPassword) async {
+    final mobile = user['mobile_number']?.toString() ?? '';
+    final name = user['full_name']?.toString() ?? 'User';
+    if (mobile.isEmpty) return;
+
+    final digits = AuthService.normalizePhone(mobile);
+    final formattedNumber = digits.startsWith('0') ? '92${digits.substring(1)}' : digits;
+    final message = 'Assalam-o-Alaikum $name, your G.R. BOOK password has been reset by Admin Mudasir Ahmed.\n\nYour new password is: $newPassword\n\nYou can now log in to the app.';
+
+    final uri = Uri.parse('https://wa.me/$formattedNumber?text=${Uri.encodeComponent(message)}');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _deleteUser(Map<String, dynamic> user) async {
     final userId = user['id']?.toString() ?? '';
     final name = user['full_name']?.toString() ?? 'User';
@@ -1209,6 +1330,18 @@ G.R. BOOK Team''';
                     IconButton(
                       visualDensity: VisualDensity.compact,
                       style: IconButton.styleFrom(
+                        backgroundColor: Colors.amber.withValues(alpha: 0.15),
+                        foregroundColor: Colors.amber.shade900,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.key_rounded, size: 18),
+                      tooltip: 'Reset Password',
+                      onPressed: () => _showAdminResetPasswordDialog(user),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
                         backgroundColor: Colors.red.withValues(alpha: 0.12),
                         foregroundColor: Colors.red.shade700,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1487,6 +1620,18 @@ G.R. BOOK Team''';
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     style: IconButton.styleFrom(
+                      backgroundColor: Colors.amber.withValues(alpha: 0.15),
+                      foregroundColor: Colors.amber.shade900,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.key_rounded, size: 18),
+                    tooltip: 'Reset Password',
+                    onPressed: () => _showAdminResetPasswordDialog(user),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
                       backgroundColor: Colors.red.withValues(alpha: 0.12),
                       foregroundColor: Colors.red.shade700,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1707,6 +1852,18 @@ G.R. BOOK Team''';
                     ),
                   ],
                   if (!_isUserSuperAdmin(user)) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.amber.withValues(alpha: 0.15),
+                        foregroundColor: Colors.amber.shade900,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.key_rounded, size: 18),
+                      tooltip: 'Reset Password',
+                      onPressed: () => _showAdminResetPasswordDialog(user),
+                    ),
                     const SizedBox(width: 8),
                     IconButton(
                       visualDensity: VisualDensity.compact,
@@ -1982,6 +2139,18 @@ G.R. BOOK Team''';
                         ),
                       ],
                       if (!isSuper && !isDeleted) ...[
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.amber.withValues(alpha: 0.15),
+                            foregroundColor: Colors.amber.shade900,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.key_rounded, size: 18),
+                          tooltip: 'Reset Password',
+                          onPressed: () => _showAdminResetPasswordDialog(user),
+                        ),
+                        const SizedBox(width: 6),
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           style: IconButton.styleFrom(
