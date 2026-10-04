@@ -1,241 +1,33 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/master_admin_config.dart';
 import '../../core/theme.dart';
-import '../../widgets/gr_book_ui_components.dart';
-import 'auth_providers.dart';
-import 'auth_service.dart';
 
 /// Password Recovery Screen:
-/// Supports:
-/// 1. Email Account Recovery: 3-step OTP recovery (Email -> 6-digit OTP code -> Set New Password)
-/// 2. Mobile Number Account Recovery: Direct 1-tap WhatsApp or Phone request to Master Admin Mudasir Ahmed.
-class ForgotPasswordScreen extends ConsumerStatefulWidget {
+/// Password recovery is handled directly via Master Admin Mudasir Ahmed
+/// for verified identity, security, and immediate assistance.
+class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
-  // Mode: 0 = Email OTP, 1 = Mobile Number
-  int _recoveryMode = 0;
-  int _currentStep = 1;
-
-  // Step 1 controllers
-  final _emailController = TextEditingController();
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _phoneController = TextEditingController();
-  final _step1EmailFormKey = GlobalKey<FormState>();
-  final _step1PhoneFormKey = GlobalKey<FormState>();
-
-  // Step 2 controllers (OTP)
-  final List<TextEditingController> _otpControllers = List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
-  int _resendCountdown = 60;
-  Timer? _timer;
-
-  // Step 3 controllers (New Password)
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  final _step3FormKey = GlobalKey<FormState>();
-  bool _obscurePassword = true;
-  bool _obscureConfirm = true;
-
-  bool _isLoading = false;
-  String? _errorMessage;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _emailController.dispose();
     _phoneController.dispose();
-    for (final c in _otpControllers) {
-      c.dispose();
-    }
-    for (final f in _otpFocusNodes) {
-      f.dispose();
-    }
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _startCountdown() {
-    _timer?.cancel();
-    setState(() => _resendCountdown = 60);
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      if (_resendCountdown > 0) {
-        setState(() => _resendCountdown--);
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-
-  // --- Step 1: Send Code via Email ---
-  Future<void> _handleSendCode() async {
-    if (!_step1EmailFormKey.currentState!.validate()) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    final email = _emailController.text.trim();
-    try {
-      await ref.read(authServiceProvider).sendPasswordResetOtp(email);
-      _startCountdown();
-      if (!mounted) return;
-      setState(() {
-        _currentStep = 2;
-        _isLoading = false;
-      });
-    } on AuthServiceException catch (e) {
-      setState(() => _errorMessage = e.message);
-    } catch (e) {
-      setState(() => _errorMessage = 'Failed to send code: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  // --- Step 2: Verify OTP Code ---
-  Future<void> _handleVerifyCode() async {
-    final token = _otpControllers.map((c) => c.text.trim()).join();
-    if (token.length < 6) {
-      setState(() => _errorMessage = 'Please enter the complete 6-digit code.');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    final email = _emailController.text.trim();
-    try {
-      await ref.read(authServiceProvider).verifyPasswordResetOtp(
-            email: email,
-            token: token,
-          );
-      if (!mounted) return;
-      setState(() {
-        _currentStep = 3;
-        _isLoading = false;
-      });
-    } on AuthServiceException catch (e) {
-      setState(() => _errorMessage = e.message);
-    } catch (e) {
-      setState(() => _errorMessage = 'Verification error: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  // --- Step 3: Update Password ---
-  Future<void> _handleUpdatePassword() async {
-    if (!_step3FormKey.currentState!.validate()) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    final newPass = _passwordController.text;
-    try {
-      await ref.read(authServiceProvider).updatePassword(newPass);
-      if (!mounted) return;
-
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF22C55E),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.check_rounded, color: Colors.white, size: 48),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Password Updated!',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Your password has been changed successfully. You can now log in with your new password.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
-              ),
-            ],
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F9D58),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).pop(); // Back to Login
-                },
-                child: const Text('Back to Login', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
-        ),
-      );
-    } on AuthServiceException catch (e) {
-      setState(() => _errorMessage = e.message);
-    } catch (e) {
-      setState(() => _errorMessage = 'Could not update password: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _resendCode() async {
-    if (_resendCountdown > 0) return;
-    setState(() => _errorMessage = null);
-    try {
-      await ref.read(authServiceProvider).sendPasswordResetOtp(_emailController.text.trim());
-      _startCountdown();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF0F9D58),
-          content: Text('A new verification code has been sent to your email.'),
-        ),
-      );
-    } catch (e) {
-      setState(() => _errorMessage = 'Resend error: $e');
-    }
-  }
-
-  Future<void> _requestWhatsAppReset([String? phone]) async {
-    final cleanPhone = (phone ?? _phoneController.text).trim();
+  Future<void> _requestWhatsAppReset() async {
+    if (!_formKey.currentState!.validate()) return;
+    final cleanPhone = _phoneController.text.trim();
     final phoneText = cleanPhone.isNotEmpty ? ' ($cleanPhone)' : '';
     final msg = Uri.encodeComponent(
       'Assalam-o-Alaikum Mudasir Bhai, my registered mobile number is$phoneText. I forgot my G.R. BOOK password. Please reset my account password.',
@@ -244,15 +36,30 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp. Please call Admin directly.')),
+        );
       }
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open WhatsApp. Please call Admin directly.')),
+      );
+    }
   }
 
-  Future<void> _callFounder() async {
+  Future<void> _callAdmin() async {
     final uri = Uri.parse('tel:+${MasterAdminConfig.founderPhone}');
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not start call. Dial 0336-8456907 manually.')),
+        );
       }
     } catch (_) {}
   }
@@ -274,135 +81,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Step Progress Tracker (Only shown in Email Mode)
-              if (_recoveryMode == 0) ...[
-                Row(
-                  children: [
-                    _buildStepIndicator(1, 'Email', _currentStep >= 1, _currentStep == 1),
-                    Expanded(child: Container(height: 2, color: _currentStep >= 2 ? GrBookTheme.primary : borderColor)),
-                    _buildStepIndicator(2, 'Code', _currentStep >= 2, _currentStep == 2),
-                    Expanded(child: Container(height: 2, color: _currentStep >= 3 ? GrBookTheme.primary : borderColor)),
-                    _buildStepIndicator(3, 'Password', _currentStep >= 3, _currentStep == 3),
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
-
-              // Mode Switcher Tabs (Only shown on Step 1)
-              if (_currentStep == 1) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() {
-                            _recoveryMode = 0;
-                            _errorMessage = null;
-                          }),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: _recoveryMode == 0
-                                  ? (isDark ? GrBookTheme.primary : Colors.white)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: _recoveryMode == 0
-                                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]
-                                  : null,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.email_outlined,
-                                  size: 18,
-                                  color: _recoveryMode == 0 ? GrBookTheme.primary : textSecondary,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Email OTP',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: _recoveryMode == 0 ? textPrimary : textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() {
-                            _recoveryMode = 1;
-                            _errorMessage = null;
-                          }),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: _recoveryMode == 1
-                                  ? (isDark ? GrBookTheme.primary : Colors.white)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: _recoveryMode == 1
-                                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]
-                                  : null,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.phone_android_rounded,
-                                  size: 18,
-                                  color: _recoveryMode == 1 ? const Color(0xFF22C55E) : textSecondary,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Mobile Number',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: _recoveryMode == 1 ? textPrimary : textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // Error Banner
-              if (_errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF3B151A) : Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.red.shade800 : Colors.red.shade200),
-                  ),
-                  child: Text(
-                    _errorMessage!,
-                    style: TextStyle(color: isDark ? Colors.red.shade200 : Colors.red.shade700, fontSize: 13),
-                  ),
-                ),
-                const SizedBox(height: 18),
-              ],
-
               // Main Card Container
               Container(
                 padding: const EdgeInsets.all(22),
@@ -418,13 +100,153 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                   ],
                 ),
-                child: _recoveryMode == 1
-                    ? _buildMobileRecoveryContent(textPrimary, textSecondary, borderColor, isDark)
-                    : _buildCurrentStepContent(textPrimary, textSecondary, borderColor, isDark),
-              ),
-              const SizedBox(height: 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header Icon & Title
+                      Center(
+                        child: Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF0F9D58).withValues(alpha: 0.12),
+                            border: Border.all(
+                              color: const Color(0xFF0F9D58).withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.lock_reset_rounded,
+                              size: 36,
+                              color: Color(0xFF0F9D58),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
-              // Bottom Support Card
+                      Text(
+                        'Password Recovery',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Account passwords are reset directly by Master Admin Mudasir Ahmed for account security.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+
+                      // Input Label
+                      Text(
+                        'Enter Registered Mobile Number',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Phone input with Pakistani format auto-prefix
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(12),
+                        ],
+                        decoration: InputDecoration(
+                          hintText: '923394865097',
+                          prefixIcon: const Icon(
+                            Icons.phone_android_rounded,
+                            color: Color(0xFF0F9D58),
+                            size: 20,
+                          ),
+                          helperText: 'Must start with 92 (12 digits, e.g. 923394865097)',
+                          helperStyle: TextStyle(fontSize: 11, color: textSecondary),
+                        ),
+                        onChanged: (val) {
+                          if (val.startsWith('0') && val.length >= 2) {
+                            final converted = '92${val.substring(1)}';
+                            if (converted.length <= 12) {
+                              _phoneController.value = TextEditingValue(
+                                text: converted,
+                                selection: TextSelection.collapsed(offset: converted.length),
+                              );
+                            }
+                          }
+                        },
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Mobile number is required';
+                          }
+                          final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (!digits.startsWith('92')) {
+                            return 'Mobile number must start with 92 (e.g. 923394865097)';
+                          }
+                          if (digits.length < 12) {
+                            return 'Invalid number. Must be exactly 12 digits (e.g. 923394865097)';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 22),
+
+                      // Request on WhatsApp Button
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const _WhatsAppBubbleIcon(size: 20),
+                        label: const Text(
+                          'Request Reset on WhatsApp',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: _requestWhatsAppReset,
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Direct Phone Call Button
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: textPrimary,
+                          side: BorderSide(color: borderColor),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.phone_forwarded_rounded, size: 20, color: Color(0xFF0F9D58)),
+                        label: const Text(
+                          'Call Mudasir Ahmed: 0336-8456907',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        onPressed: _callAdmin,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // How It Works Guide Box
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -433,39 +255,38 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   border: Border.all(color: borderColor),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.support_agent_rounded, size: 20, color: GrBookTheme.primary),
+                        const Icon(Icons.info_outline_rounded, size: 18, color: GrBookTheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          'Need Immediate Help?',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textPrimary),
+                          'How Password Reset Works',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: textPrimary,
+                          ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    _buildStepRow('1', 'Enter your registered mobile number above and tap WhatsApp or Call.', textSecondary),
                     const SizedBox(height: 6),
-                    Text(
-                      'Contact Founder Mudasir Ahmed directly on WhatsApp for instant assistance with your account.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: textSecondary, height: 1.4),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF25D366),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      icon: const Icon(Icons.chat_rounded, size: 18),
-                      label: const Text('Contact on WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
-                      onPressed: () => _requestWhatsAppReset(),
-                    ),
+                    _buildStepRow('2', 'Master Admin Mudasir Ahmed will verify your account in the Portal.', textSecondary),
+                    const SizedBox(height: 6),
+                    _buildStepRow('3', 'Your password will be reset instantly and provided to you.', textSecondary),
                   ],
                 ),
+              ),
+              const SizedBox(height: 16),
+
+              // Back to Login Button
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                label: const Text('Back to Login', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -474,340 +295,98 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     );
   }
 
-  Widget _buildStepIndicator(int step, String label, bool isDone, bool isCurrent) {
-    Color bg = isCurrent
-        ? GrBookTheme.primary
-        : (isDone ? const Color(0xFF0F9D58) : Colors.grey.shade400);
-    return Column(
+  Widget _buildStepRow(String number, String text, Color textColor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
-          radius: 14,
-          backgroundColor: bg,
+        Container(
+          width: 18,
+          height: 18,
+          margin: const EdgeInsets.only(top: 1, right: 8),
+          decoration: BoxDecoration(
+            color: GrBookTheme.primary.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
           child: Text(
-            '$step',
-            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+            number,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: GrBookTheme.primary,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-            color: isCurrent ? GrBookTheme.primary : Colors.grey,
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12, color: textColor, height: 1.35),
           ),
         ),
       ],
     );
   }
+}
 
-  // --- Mobile Recovery Content ---
-  Widget _buildMobileRecoveryContent(
-    Color textPrimary,
-    Color textSecondary,
-    Color borderColor,
-    bool isDark,
-  ) {
-    return Form(
-      key: _step1PhoneFormKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+class _WhatsAppBubbleIcon extends StatelessWidget {
+  final double size;
+
+  const _WhatsAppBubbleIcon({this.size = 20});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E).withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.phone_android_rounded, color: Color(0xFF16A34A), size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Mobile Number Account',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary),
-                    ),
-                    Text(
-                      'Reset via Master Admin',
-                      style: TextStyle(fontSize: 12, color: textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          CustomPaint(
+            size: Size(size, size),
+            painter: const _WhatsAppBubblePainter(),
           ),
-          const SizedBox(height: 14),
-          Text(
-            'Enter your registered mobile number below to request an instant password reset from Master Admin Mudasir Ahmed.',
-            style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
-          ),
-          const SizedBox(height: 18),
-          TextFormField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            style: TextStyle(color: textPrimary),
-            decoration: const InputDecoration(
-              hintText: '03001234567',
-              prefixIcon: Icon(Icons.phone_rounded, color: Color(0xFF16A34A), size: 20),
+          Transform.rotate(
+            angle: -0.35,
+            child: Icon(
+              Icons.phone,
+              color: Colors.white,
+              size: size * 0.52,
             ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Mobile number is required';
-              final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
-              if (digits.length < 10) return 'Please enter a valid 11-digit mobile number';
-              return null;
-            },
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF25D366),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            icon: const Icon(Icons.chat_rounded, size: 22),
-            label: const Text(
-              'Request Reset on WhatsApp',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-            onPressed: () {
-              if (_step1PhoneFormKey.currentState!.validate()) {
-                _requestWhatsAppReset(_phoneController.text.trim());
-              }
-            },
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: textPrimary,
-              side: BorderSide(color: borderColor),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            icon: const Icon(Icons.phone_forwarded_rounded, size: 20),
-            label: const Text('Call Mudasir Ahmed: 0336-8456907'),
-            onPressed: _callFounder,
           ),
         ],
       ),
     );
   }
+}
 
-  // --- Email 3-Step Content ---
-  Widget _buildCurrentStepContent(
-    Color textPrimary,
-    Color textSecondary,
-    Color borderColor,
-    bool isDark,
-  ) {
-    switch (_currentStep) {
-      case 1:
-        return Form(
-          key: _step1EmailFormKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Enter Registered Email',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Enter your registered Gmail address. We will send you a 6-digit verification code.',
-                style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: TextStyle(color: textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'name@gmail.com',
-                  prefixIcon: Icon(Icons.alternate_email_rounded, color: GrBookTheme.primary, size: 20),
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Email is required';
-                  if (!v.contains('@') || !v.contains('.')) return 'Please enter a valid email address';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 22),
-              GrBookGradientButton(
-                text: 'Send Code',
-                isLoading: _isLoading,
-                onPressed: _handleSendCode,
-                trailingIcon: Icons.arrow_forward_rounded,
-              ),
-            ],
-          ),
-        );
+class _WhatsAppBubblePainter extends CustomPainter {
+  const _WhatsAppBubblePainter();
 
-      case 2:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Enter 6-Digit Code',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'We sent a 6-digit verification code to ${_emailController.text.trim()}. Please check your inbox and spam folder.',
-              style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
-            ),
-            const SizedBox(height: 20),
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+    final radius = w * 0.46;
 
-            // 6 OTP Input Boxes
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(6, (index) {
-                return SizedBox(
-                  width: 44,
-                  height: 52,
-                  child: TextFormField(
-                    controller: _otpControllers[index],
-                    focusNode: _otpFocusNodes[index],
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    maxLength: 1,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      contentPadding: EdgeInsets.zero,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: borderColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: GrBookTheme.primary, width: 2),
-                      ),
-                    ),
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (val) {
-                      if (val.isNotEmpty && index < 5) {
-                        _otpFocusNodes[index + 1].requestFocus();
-                      } else if (val.isEmpty && index > 0) {
-                        _otpFocusNodes[index - 1].requestFocus();
-                      }
-                      if (_otpControllers.every((c) => c.text.isNotEmpty)) {
-                        _handleVerifyCode();
-                      }
-                    },
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 20),
+    final greenPaint = Paint()
+      ..color = const Color(0xFF25D366)
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
 
-            // Resend timer
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (_resendCountdown > 0)
-                  Text(
-                    'Resend code in $_resendCountdown seconds',
-                    style: TextStyle(fontSize: 12, color: textSecondary),
-                  )
-                else
-                  TextButton(
-                    onPressed: _resendCode,
-                    child: const Text('Resend Code', style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.primary)),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
+    final bubblePath = Path();
+    bubblePath.addOval(Rect.fromCircle(center: center, radius: radius));
 
-            GrBookGradientButton(
-              text: 'Verify Code',
-              isLoading: _isLoading,
-              onPressed: _handleVerifyCode,
-              trailingIcon: Icons.check_circle_outline_rounded,
-            ),
-          ],
-        );
+    final tailPath = Path()
+      ..moveTo(w * 0.22, h * 0.70)
+      ..lineTo(w * 0.05, h * 0.95)
+      ..lineTo(w * 0.42, h * 0.86)
+      ..close();
 
-      case 3:
-      default:
-        return Form(
-          key: _step3FormKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Set New Password',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Choose a strong new password for your account.',
-                style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
-              ),
-              const SizedBox(height: 20),
-
-              // New Password
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                style: TextStyle(color: textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'New Password',
-                  prefixIcon: const Icon(Icons.lock_outline, color: GrBookTheme.primary, size: 20),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: textSecondary,
-                      size: 20,
-                    ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                  ),
-                ),
-                validator: (v) => (v == null || v.length < 6) ? 'Password must be at least 6 characters' : null,
-              ),
-              const SizedBox(height: 14),
-
-              // Confirm Password
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: _obscureConfirm,
-                style: TextStyle(color: textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Confirm New Password',
-                  prefixIcon: const Icon(Icons.lock_outline, color: GrBookTheme.primary, size: 20),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: textSecondary,
-                      size: 20,
-                    ),
-                    onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                  ),
-                ),
-                validator: (v) {
-                  if (v != _passwordController.text) return 'Passwords do not match';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 22),
-
-              GrBookGradientButton(
-                text: 'Update Password',
-                isLoading: _isLoading,
-                onPressed: _handleUpdatePassword,
-                trailingIcon: Icons.save_rounded,
-              ),
-            ],
-          ),
-        );
-    }
+    bubblePath.addPath(tailPath, Offset.zero);
+    canvas.drawPath(bubblePath, greenPaint);
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
