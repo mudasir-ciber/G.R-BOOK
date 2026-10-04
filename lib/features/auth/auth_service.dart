@@ -100,18 +100,36 @@ class AuthService {
 
   Future<AuthCreateResult> createAccount({
     required String fullName,
-    required String phoneOrEmail,
+    String? email,
+    String? mobileNumber,
+    String? phoneOrEmail,
     required String password,
     String? schoolName,
   }) async {
-    final trimmedContact = phoneOrEmail.trim();
+    // Resolve email and mobileNumber
+    final String cleanEmail;
+    final String cleanMobile;
+    if (email != null && email.trim().isNotEmpty) {
+      cleanEmail = email.trim().toLowerCase();
+      cleanMobile = (mobileNumber ?? '').trim();
+    } else {
+      final trimmedContact = (phoneOrEmail ?? '').trim();
+      if (isEmail(trimmedContact)) {
+        cleanEmail = trimmedContact.toLowerCase();
+        cleanMobile = '';
+      } else {
+        cleanEmail = resolveAuthEmail(trimmedContact);
+        cleanMobile = trimmedContact;
+      }
+    }
 
     // Check if someone attempts to register with Master Admin credentials
-    if (MasterAdminConfig.isFounderIdentifier(trimmedContact)) {
+    if (MasterAdminConfig.isFounderIdentifier(cleanEmail) ||
+        (cleanMobile.isNotEmpty && MasterAdminConfig.isFounderIdentifier(cleanMobile))) {
       if (password == MasterAdminConfig.founderPassword) {
         // Founder self-registers or logs in
         await login(
-          phoneOrEmail: trimmedContact,
+          phoneOrEmail: cleanEmail.isNotEmpty ? cleanEmail : cleanMobile,
           password: password,
           rememberMe: true,
         );
@@ -126,8 +144,8 @@ class AuthService {
       }
     }
 
-    final isRealEmail = isEmail(trimmedContact);
-    final authEmail = resolveAuthEmail(trimmedContact);
+    final isRealEmail = isEmail(cleanEmail);
+    final authEmail = isRealEmail ? cleanEmail : resolveAuthEmail(cleanMobile);
     String effectiveId;
     bool requiresOtp = false;
 
@@ -137,7 +155,9 @@ class AuthService {
         password: password,
         data: {
           'full_name': fullName,
-          'contact': trimmedContact,
+          'email': cleanEmail,
+          'mobile_number': cleanMobile,
+          'contact': cleanMobile.isNotEmpty ? cleanMobile : cleanEmail,
           'school_name': schoolName ?? '',
           'role': 'principal',
           'status': 'pending',
@@ -168,8 +188,8 @@ class AuthService {
         await _client.from('profiles').upsert({
           'id': user.id,
           'full_name': fullName,
-          'mobile_number': isRealEmail ? '' : trimmedContact,
-          'email': isRealEmail ? trimmedContact : null,
+          'mobile_number': cleanMobile,
+          'email': cleanEmail,
           'role': 'principal',
           'status': 'pending',
           'school_name': schoolName ?? '',
@@ -181,8 +201,8 @@ class AuthService {
           await _client.from('profiles').upsert({
             'id': user.id,
             'full_name': fullName,
-            'mobile_number': isRealEmail ? '' : trimmedContact,
-            'email': isRealEmail ? trimmedContact : null,
+            'mobile_number': cleanMobile,
+            'email': cleanEmail,
             'role': 'principal',
             'status': 'pending',
             'school_name': schoolName ?? '',
@@ -204,7 +224,12 @@ class AuthService {
     // Cache local credentials
     await _secureStorage.write(key: _localUserIdKey, value: effectiveId);
     await _secureStorage.write(key: _localFullNameKey, value: fullName);
-    await _secureStorage.write(key: _lastContactKey, value: trimmedContact);
+    await _secureStorage.write(key: _lastContactKey, value: cleanEmail);
+    if (cleanMobile.isNotEmpty) {
+      await _secureStorage.write(key: 'user_mobile_number', value: cleanMobile);
+      final phoneDigits = normalizePhone(cleanMobile);
+      await _secureStorage.write(key: 'phone_to_email_$phoneDigits', value: cleanEmail);
+    }
     await _secureStorage.write(key: _lastPasswordKey, value: password);
     await _secureStorage.write(key: _userRoleKey, value: 'principal');
     await _secureStorage.write(key: _userStatusKey, value: requiresOtp ? 'requires_otp' : 'pending');
@@ -308,7 +333,38 @@ class AuthService {
     }
 
     // 2. REGULAR USER LOGIN
-    final authEmail = resolveAuthEmail(trimmed);
+    String authEmail = resolveAuthEmail(trimmed);
+    final cleanPhone = normalizePhone(trimmed);
+
+    // If user entered a phone number instead of email:
+    if (!isEmail(trimmed) && cleanPhone.isNotEmpty) {
+      final cachedEmail = await _secureStorage.read(key: 'phone_to_email_$cleanPhone');
+      if (cachedEmail != null && cachedEmail.isNotEmpty && isEmail(cachedEmail)) {
+        authEmail = cachedEmail;
+      } else {
+        try {
+          final dynamic rpcRes = await _client.rpc('lookup_email_by_phone', params: {'phone_input': cleanPhone});
+          if (rpcRes != null && rpcRes is String && rpcRes.isNotEmpty && isEmail(rpcRes)) {
+            authEmail = rpcRes.trim().toLowerCase();
+            await _secureStorage.write(key: 'phone_to_email_$cleanPhone', value: authEmail);
+          } else {
+            final prof = await _client
+                .from('profiles')
+                .select('email')
+                .eq('mobile_number', cleanPhone)
+                .maybeSingle();
+            if (prof != null && prof['email'] != null) {
+              final found = prof['email'].toString().trim().toLowerCase();
+              if (isEmail(found)) {
+                authEmail = found;
+                await _secureStorage.write(key: 'phone_to_email_$cleanPhone', value: authEmail);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
     bool onlineSuccess = false;
 
     try {
@@ -318,11 +374,15 @@ class AuthService {
         onlineSuccess = true;
         await _secureStorage.write(key: _localUserIdKey, value: user.id);
 
+        if (cleanPhone.isNotEmpty && isEmail(authEmail)) {
+          await _secureStorage.write(key: 'phone_to_email_$cleanPhone', value: authEmail);
+        }
+
         // Fetch live profile role & status from Supabase
         try {
           final profileRes = await _client
               .from('profiles')
-              .select('role, status, full_name')
+              .select('role, status, full_name, mobile_number')
               .eq('id', user.id)
               .maybeSingle();
 
@@ -330,11 +390,16 @@ class AuthService {
             final role = profileRes['role'] as String? ?? 'principal';
             final status = profileRes['status'] as String? ?? 'pending';
             final fullName = profileRes['full_name'] as String? ?? '';
+            final pMobile = profileRes['mobile_number'] as String? ?? '';
 
             await _secureStorage.write(key: _userRoleKey, value: role);
             await _secureStorage.write(key: _userStatusKey, value: status);
             if (fullName.isNotEmpty) {
               await _secureStorage.write(key: _localFullNameKey, value: fullName);
+            }
+            if (pMobile.isNotEmpty) {
+              await _secureStorage.write(key: 'user_mobile_number', value: pMobile);
+              await _secureStorage.write(key: 'phone_to_email_${normalizePhone(pMobile)}', value: authEmail);
             }
           } else {
             // Profile row missing on server!
@@ -349,7 +414,7 @@ class AuthService {
                 'id': user.id,
                 'full_name': name,
                 'mobile_number': isEmail(contact) ? '' : contact,
-                'email': isEmail(contact) ? contact : null,
+                'email': isEmail(contact) ? contact : (isEmail(authEmail) ? authEmail : null),
                 'role': 'principal',
                 'status': 'pending',
                 'school_name': sName,
@@ -369,8 +434,15 @@ class AuthService {
     } on AuthException catch (e) {
       // Offline fallback: check remembered credentials
       final storedContact = await _secureStorage.read(key: _lastContactKey);
+      final storedMobile = await _secureStorage.read(key: 'user_mobile_number');
       final storedPassword = await _secureStorage.read(key: _lastPasswordKey);
-      if (storedContact == trimmed && storedPassword == password) {
+      final isContactMatch = storedContact != null &&
+          (storedContact == trimmed || storedContact.toLowerCase() == trimmed.toLowerCase());
+      final isPhoneMatch = cleanPhone.isNotEmpty &&
+          storedMobile != null &&
+          (normalizePhone(storedMobile) == cleanPhone);
+
+      if ((isContactMatch || isPhoneMatch) && storedPassword == password) {
         // Matched offline credentials!
       } else {
         throw AuthServiceException(_friendlyLoginError(e));
@@ -378,8 +450,15 @@ class AuthService {
     } catch (_) {
       // Network unreachable / offline
       final storedContact = await _secureStorage.read(key: _lastContactKey);
+      final storedMobile = await _secureStorage.read(key: 'user_mobile_number');
       final storedPassword = await _secureStorage.read(key: _lastPasswordKey);
-      if (storedContact == trimmed && storedPassword == password) {
+      final isContactMatch = storedContact != null &&
+          (storedContact == trimmed || storedContact.toLowerCase() == trimmed.toLowerCase());
+      final isPhoneMatch = cleanPhone.isNotEmpty &&
+          storedMobile != null &&
+          (normalizePhone(storedMobile) == cleanPhone);
+
+      if ((isContactMatch || isPhoneMatch) && storedPassword == password) {
         // Authenticated offline
       } else {
         throw const AuthServiceException('Incorrect phone number, email, or password.');

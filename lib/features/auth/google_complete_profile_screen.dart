@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
@@ -273,20 +274,40 @@ class _GoogleCompleteProfileScreenState extends ConsumerState<GoogleCompleteProf
                         ),
                         const SizedBox(height: 14),
 
-                        // Phone Number
+                        // Phone Number (Pakistani: 92XXXXXXXXXX, exactly 12 digits)
                         TextFormField(
                           controller: _phoneController,
-                          keyboardType: TextInputType.phone,
+                          keyboardType: TextInputType.number,
                           style: TextStyle(color: textPrimary),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(12),
+                          ],
                           decoration: const InputDecoration(
                             labelText: 'Phone Number',
-                            hintText: '03361234567',
+                            hintText: '923394865097',
                             prefixIcon: Icon(Icons.phone_android_rounded, color: GrBookTheme.primary, size: 20),
                           ),
+                          onChanged: (val) {
+                            if (val.startsWith('0') && val.length >= 2) {
+                              final converted = '92${val.substring(1)}';
+                              if (converted.length <= 12) {
+                                _phoneController.value = TextEditingValue(
+                                  text: converted,
+                                  selection: TextSelection.collapsed(offset: converted.length),
+                                );
+                              }
+                            }
+                          },
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) return 'Phone number is required';
                             final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-                            if (digits.length < 10) return 'Enter a valid phone number (at least 10 digits)';
+                            if (!digits.startsWith('92')) {
+                              return 'Mobile number must start with 92 (e.g. 923394865097)';
+                            }
+                            if (digits.length < 12) {
+                              return 'Invalid mobile number. Must be exactly 12 digits (e.g. 923394865097)';
+                            }
                             return null;
                           },
                         ),

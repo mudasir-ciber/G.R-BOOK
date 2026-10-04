@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
@@ -24,7 +25,8 @@ class CreateAccountScreen extends ConsumerStatefulWidget {
 class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
-  final _contactController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isSubmitting = false;
@@ -51,12 +53,14 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
     try {
       final auth = ref.read(authServiceProvider);
       final fullName = _fullNameController.text.trim();
-      final contact = _contactController.text.trim();
+      final email = _emailController.text.trim().toLowerCase();
+      final mobile = _mobileController.text.trim();
       final password = _passwordController.text;
 
       final result = await auth.createAccount(
         fullName: fullName,
-        phoneOrEmail: contact,
+        email: email,
+        mobileNumber: mobile,
         password: password,
       );
 
@@ -67,7 +71,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => VerifyEmailOtpScreen(
-              email: result.email ?? contact,
+              email: result.email ?? email,
               fullName: fullName,
             ),
           ),
@@ -283,42 +287,83 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                           const SizedBox(height: 14),
                         ],
 
-                        // Full Name
+                        // 1. Full Name
                         TextFormField(
                           controller: _fullNameController,
+                          keyboardType: TextInputType.name,
+                          textCapitalization: TextCapitalization.words,
                           style: TextStyle(color: textPrimary),
                           decoration: const InputDecoration(
                             hintText: 'Full Name',
                             prefixIcon: Icon(Icons.person_outline, color: GrBookTheme.primary, size: 20),
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Full name is required' : null,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Full Name is required';
+                            if (v.trim().length < 3) return 'Full Name must be at least 3 characters';
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 12),
 
-                        // Phone Number or Email
+                        // 2. Email Address
                         TextFormField(
-                          controller: _contactController,
+                          controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           style: TextStyle(color: textPrimary),
                           decoration: const InputDecoration(
-                            hintText: 'Add Your Phone Number or Email',
-                            prefixIcon: Icon(Icons.person_pin_circle_outlined, color: GrBookTheme.primary, size: 20),
+                            hintText: 'Email Address (e.g. user@gmail.com)',
+                            prefixIcon: Icon(Icons.email_outlined, color: GrBookTheme.primary, size: 20),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Phone number or email is required';
+                            if (v == null || v.trim().isEmpty) return 'Email Address is required';
                             final val = v.trim();
-                            if (val.contains('@')) {
-                              if (!val.contains('.') || val.length < 5) return 'Enter a valid email address';
-                            } else {
-                              final digits = val.replaceAll(RegExp(r'[^0-9]'), '');
-                              if (digits.length < 10) return 'Enter a valid phone number (at least 10 digits)';
+                            final emailRegex = RegExp(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$');
+                            if (!emailRegex.hasMatch(val)) return 'Enter a valid email address';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // 3. Mobile Number (Pakistani: 92XXXXXXXXXX, exactly 12 digits)
+                        TextFormField(
+                          controller: _mobileController,
+                          keyboardType: TextInputType.number,
+                          style: TextStyle(color: textPrimary),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(12),
+                          ],
+                          decoration: const InputDecoration(
+                            hintText: 'Mobile Number (e.g. 923394865097)',
+                            prefixIcon: Icon(Icons.phone_android_rounded, color: GrBookTheme.primary, size: 20),
+                          ),
+                          onChanged: (val) {
+                            // Helpful auto-format: convert leading 0 to 92 (e.g. 03394865097 -> 923394865097)
+                            if (val.startsWith('0') && val.length >= 2) {
+                              final converted = '92${val.substring(1)}';
+                              if (converted.length <= 12) {
+                                _mobileController.value = TextEditingValue(
+                                  text: converted,
+                                  selection: TextSelection.collapsed(offset: converted.length),
+                                );
+                              }
+                            }
+                          },
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Mobile Number is required';
+                            final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+                            if (!digits.startsWith('92')) {
+                              return 'Mobile number must start with 92 (e.g. 923394865097)';
+                            }
+                            if (digits.length < 12) {
+                              return 'Invalid mobile number. Must be exactly 12 digits (e.g. 923394865097)';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 12),
 
-                        // Password
+                        // 4. Password
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
@@ -335,12 +380,15 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                             ),
                           ),
-                          validator: (v) =>
-                              (v == null || v.length < 6) ? 'Password must be at least 6 characters' : null,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Password is required';
+                            if (v.length < 6) return 'Password must be at least 6 characters';
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 12),
 
-                        // Confirm Password
+                        // 5. Confirm Password
                         TextFormField(
                           controller: _confirmPasswordController,
                           obscureText: _obscureConfirmPassword,
@@ -359,6 +407,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                             ),
                           ),
                           validator: (v) {
+                            if (v == null || v.isEmpty) return 'Confirm Password is required';
                             if (v != _passwordController.text) return 'Passwords do not match';
                             return null;
                           },
@@ -437,7 +486,8 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _contactController.dispose();
+    _emailController.dispose();
+    _mobileController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
