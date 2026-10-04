@@ -551,14 +551,17 @@ class AuthService {
         },
       );
     } on PostgrestException catch (e) {
-      if (e.message.toLowerCase().contains('function') &&
-          e.message.toLowerCase().contains('does not exist')) {
+      final msg = e.message.toLowerCase();
+      if (msg.contains('function') ||
+          msg.contains('schema cache') ||
+          msg.contains('does not exist')) {
         throw const AuthServiceException(
-          'Please execute 07_admin_password_reset.sql in your Supabase SQL Editor to enable Master Admin password reset.',
+          'Supabase SQL function missing. Please run 07_admin_password_reset.sql in your Supabase SQL Editor.',
         );
       }
       throw AuthServiceException('Failed to reset password: ${e.message}');
     } catch (e) {
+      if (e is AuthServiceException) rethrow;
       throw AuthServiceException('Reset password error: $e');
     }
   }

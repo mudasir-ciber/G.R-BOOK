@@ -34,3 +34,6 @@ $$ language plpgsql;
 
 -- Grant execution to public / anon so users can look up their login email before authentication
 grant execute on function public.lookup_email_by_phone(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+

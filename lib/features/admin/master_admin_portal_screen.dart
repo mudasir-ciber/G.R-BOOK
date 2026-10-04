@@ -340,7 +340,7 @@ class _MasterAdminPortalScreenState extends ConsumerState<MasterAdminPortalScree
         _showStatusResultDialog(
           isSuccess: false,
           title: 'Reset Failed',
-          message: '$e',
+          message: e is AuthServiceException ? e.message : '$e',
         );
       }
     }
