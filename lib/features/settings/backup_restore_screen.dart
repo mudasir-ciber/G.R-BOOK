@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -103,16 +101,15 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     });
     try {
       final storageService = ref.read(offlineStorageServiceProvider);
-      final dirPath = await storageService.exportCurrentStateToStorage();
-      final backupFile = File('$dirPath/gr_book_complete_backup.json');
-      if (await backupFile.exists()) {
+      final zipFile = await storageService.createCompleteZipBackup();
+      if (await zipFile.exists()) {
         await Share.shareXFiles(
-          [XFile(backupFile.path, mimeType: 'application/json')],
-          text: 'G.R BOOK Complete School Records Backup',
-          subject: 'G.R BOOK School Backup File',
+          [XFile(zipFile.path, mimeType: 'application/zip')],
+          text: 'G.R BOOK Complete School Records Backup (Data & Photos)',
+          subject: 'G.R BOOK School Backup ZIP',
         );
       } else {
-        throw Exception('Backup file could not be generated.');
+        throw Exception('Backup ZIP file could not be generated.');
       }
     } catch (e) {
       if (mounted) setState(() => _error = 'Share/Save failed: $e');

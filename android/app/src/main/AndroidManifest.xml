@@ -18,6 +18,8 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- All files access for persistent GR_BOOK folder and complete backup restore across re-installs -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <!-- Biometric app-lock (fingerprint/face) -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />

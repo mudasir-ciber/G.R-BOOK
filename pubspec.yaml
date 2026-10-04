@@ -66,6 +66,7 @@ dependencies:
   share_plus: ^10.0.2
   crop_image: ^1.0.17
   url_launcher: ^6.3.2
+  permission_handler: ^13.0.2
 
 dev_dependencies:
   flutter_test:

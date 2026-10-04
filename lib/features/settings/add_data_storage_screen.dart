@@ -4,9 +4,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/offline_storage_service.dart';
 import '../../widgets/gr_book_ui_components.dart';
 
 class AddDataStorageScreen extends ConsumerStatefulWidget {
@@ -59,6 +62,253 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
     }
   }
 
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.folder_shared_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 10),
+            Text('Storage Access Required', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: const Text(
+          'Android requires "All files access" permission to read and restore records from your phone\'s GR_BOOK folder.\n\nPlease tap "Allow in Settings" and enable access for G.R BOOK.',
+          style: TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: GrBookTheme.primary),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              openAppSettings();
+            },
+            child: const Text('Allow in Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Runs an async task while showing an animated 0% to 100% progress dialog.
+  Future<void> _runWithProgressDialog({
+    required String title,
+    required Future<void> Function(void Function(double progress, String status) onProgress) action,
+  }) async {
+    double progress = 0.0;
+    String status = 'Initializing...';
+    StateSetter? dialogSetState;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          dialogSetState = setModalState;
+          final pct = (progress * 100).clamp(0, 100).toInt();
+
+          return PopScope(
+            canPop: false,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: GrBookTheme.isDark(context) ? const Color(0xFF1E3A24) : GrBookTheme.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.sync_rounded, color: GrBookTheme.primary, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Progress',
+                        style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '$pct%',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: GrBookTheme.primary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: progress > 0 ? progress : null,
+                      backgroundColor: Colors.grey.shade200,
+                      valueColor: const AlwaysStoppedAnimation<Color>(GrBookTheme.primary),
+                      minHeight: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    status,
+                    style: TextStyle(fontSize: 13, color: GrBookTheme.getTextPrimary(context), height: 1.3),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    try {
+      await action((p, s) {
+        if (mounted && dialogSetState != null) {
+          dialogSetState!(() {
+            progress = p;
+            status = s;
+          });
+        }
+      });
+    } finally {
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+  }
+
+  /// Exports entire database and photos to a single ZIP archive, then opens share sheet for Google Drive.
+  Future<void> _saveToGoogleDriveZip() async {
+    setState(() {
+      _errorMessage = null;
+      _statusMessage = null;
+    });
+
+    try {
+      File? zipFile;
+      final storageService = ref.read(offlineStorageServiceProvider);
+
+      await _runWithProgressDialog(
+        title: 'Saving to Google Drive',
+        action: (onProgress) async {
+          zipFile = await storageService.createCompleteZipBackup(onProgress: onProgress);
+        },
+      );
+
+      if (zipFile == null || !await zipFile!.exists()) return;
+
+      if (!mounted) return;
+
+      await Share.shareXFiles(
+        [XFile(zipFile!.path, mimeType: 'application/zip')],
+        text: 'G.R BOOK Complete Backup Archive (School Data & Photos)',
+        subject: 'G.R BOOK Backup Archive',
+      );
+
+      if (mounted) {
+        setState(() {
+          _statusMessage = '✓ Backup ZIP created! Choose Google Drive in the share options to save.';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Backup ZIP ready! Tap "Save to Drive" in the share options.'),
+            backgroundColor: GrBookTheme.primaryDark,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Failed to create Google Drive backup: $e');
+      }
+    }
+  }
+
+  /// Restores from a chosen ZIP archive (or JSON) with 0% to 100% progress indicator.
+  Future<void> _restoreFromZipPicker() async {
+    try {
+      final pickResult = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip', 'json'],
+        dialogTitle: 'Select Backup File (.zip or .json)',
+      );
+
+      if (pickResult == null || pickResult.files.single.path == null) return;
+      final pickedPath = pickResult.files.single.path!;
+      final pickedFile = File(pickedPath);
+
+      if (pickedPath.toLowerCase().endsWith('.zip')) {
+        RestoreSummary? result;
+        final storageService = ref.read(offlineStorageServiceProvider);
+
+        await _runWithProgressDialog(
+          title: 'Restoring from ZIP Backup',
+          action: (onProgress) async {
+            result = await storageService.restoreFromZipFile(pickedFile, onProgress: onProgress);
+          },
+        );
+
+        if (!mounted || result == null) return;
+
+        if (result!.success) {
+          setState(() {
+            _statusMessage = '✓ ${result!.message}';
+          });
+          _showSuccessDialog(result!.schoolName, result!.studentsCount, result!.classesCount, result!.photosCount);
+        } else {
+          setState(() {
+            _errorMessage = result!.message;
+          });
+        }
+      } else {
+        // Direct JSON file
+        setState(() {
+          _isProcessing = true;
+          _errorMessage = null;
+          _statusMessage = null;
+        });
+
+        final storageService = ref.read(offlineStorageServiceProvider);
+        final result = await storageService.restoreFromStorageFolder(customPath: pickedPath);
+
+        if (!mounted) return;
+
+        if (result.success) {
+          setState(() {
+            _statusMessage = '✓ ${result.message}';
+          });
+          _showSuccessDialog(result.schoolName, result.studentsCount, result.classesCount, result.photosCount);
+        } else {
+          setState(() {
+            _errorMessage = result.message;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Restore failed: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   Future<void> _restoreFromDetected() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -91,6 +341,15 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
 
     if (confirmed != true) return;
 
+    // Check permission first
+    if (!await OfflineStorageService.hasStoragePermission()) {
+      final granted = await OfflineStorageService.requestStoragePermission();
+      if (!granted && mounted) {
+        _showPermissionDialog();
+        return;
+      }
+    }
+
     setState(() {
       _isProcessing = true;
       _errorMessage = null;
@@ -103,6 +362,14 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
 
       if (!mounted) return;
 
+      if (result.needsPermission) {
+        _showPermissionDialog();
+        setState(() {
+          _errorMessage = result.message;
+        });
+        return;
+      }
+
       if (result.success) {
         setState(() {
           _statusMessage = '✓ ${result.message}';
@@ -115,49 +382,11 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().toLowerCase();
+        if (msg.contains('permission denied') || msg.contains('errno = 13')) {
+          _showPermissionDialog();
+        }
         setState(() => _errorMessage = 'Restore failed: $e');
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
-  }
-
-  Future<void> _pickAndRestoreFile() async {
-    try {
-      final pickResult = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-        dialogTitle: 'Select GR BOOK Backup File',
-      );
-
-      if (pickResult == null || pickResult.files.single.path == null) return;
-
-      final filePath = pickResult.files.single.path!;
-
-      setState(() {
-        _isProcessing = true;
-        _errorMessage = null;
-        _statusMessage = null;
-      });
-
-      final storageService = ref.read(offlineStorageServiceProvider);
-      final result = await storageService.restoreFromStorageFolder(customPath: filePath);
-
-      if (!mounted) return;
-
-      if (result.success) {
-        setState(() {
-          _statusMessage = '✓ ${result.message}';
-        });
-        _showSuccessDialog(result.schoolName, result.studentsCount, result.classesCount, result.photosCount);
-      } else {
-        setState(() {
-          _errorMessage = result.message;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _errorMessage = 'File selection failed: $e');
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -253,7 +482,7 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
               const GrBookTopBar(showBack: true),
               const GrBookPageHeader(
                 title: 'Add Data',
-                subtitle: 'Restore & Sync records from phone\'s GR BOOK folder',
+                subtitle: 'Restore & Sync records from Google Drive or phone storage',
               ),
               Expanded(
                 child: _isLoading
@@ -281,19 +510,198 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                             Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: GrBookTheme.isDark(context) ? const Color(0xFF321414) : Colors.red.shade50,
+                                color: GrBookTheme.isDark(context) ? const Color(0xFF331616) : Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: GrBookTheme.isDark(context) ? const Color(0xFF5A2020) : Colors.red.shade300),
+                                border: Border.all(color: GrBookTheme.isDark(context) ? const Color(0xFF5C2424) : Colors.red.shade300),
                               ),
-                              child: Text(
-                                _errorMessage!,
-                                style: TextStyle(color: GrBookTheme.isDark(context) ? const Color(0xFFF87171) : Colors.red.shade900, fontSize: 13),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _errorMessage!,
+                                          style: TextStyle(color: GrBookTheme.isDark(context) ? const Color(0xFFFCA5A5) : Colors.red.shade900, fontSize: 12.5),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (_errorMessage!.contains('permission') || _errorMessage!.contains('Permission')) ...[
+                                    const SizedBox(height: 10),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.red.shade700,
+                                          side: BorderSide(color: Colors.red.shade300),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                        icon: const Icon(Icons.settings_outlined, size: 18),
+                                        label: const Text('Open Settings to Grant Permission', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                        onPressed: openAppSettings,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                             const SizedBox(height: 16),
                           ],
 
-                          // Detected Phone Storage Card
+                          // 1. Save Data to Google Drive (ZIP Archive)
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: GrBookTheme.isDark(context)
+                                    ? [const Color(0xFF1A3828), const Color(0xFF142C1F)]
+                                    : [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: GrBookTheme.primary.withValues(alpha: 0.3), width: 1.5),
+                              boxShadow: const [
+                                BoxShadow(color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 3)),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: GrBookTheme.primary,
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: const Icon(Icons.cloud_upload_rounded, color: Colors.white, size: 26),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Save to Google Drive',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16.5,
+                                              color: GrBookTheme.getTextPrimary(context),
+                                            ),
+                                          ),
+                                          Text(
+                                            'Create ZIP Archive (0% - 100%)',
+                                            style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Bundles all school records, classes, register, and student photos into a secure ZIP archive and lets you upload directly to Google Drive or share via WhatsApp.',
+                                  style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), height: 1.4),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: GrBookTheme.primary,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    icon: const Icon(Icons.add_to_drive_rounded, size: 20),
+                                    label: const Text(
+                                      'Save Data to Google Drive (ZIP)',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                    ),
+                                    onPressed: _isProcessing ? null : _saveToGoogleDriveZip,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // 2. Restore from ZIP Archive (Google Drive / WhatsApp)
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: GrBookTheme.getCardBackground(context),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: GrBookTheme.getBorderColor(context)),
+                              boxShadow: const [
+                                BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: GrBookTheme.isDark(context) ? const Color(0xFF263345) : const Color(0xFFE3F2FD),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(Icons.folder_zip_rounded, color: Color(0xFF1976D2), size: 24),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Restore from ZIP File',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
+                                          ),
+                                          Text(
+                                            'Google Drive / WhatsApp Backup',
+                                            style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Download your backup ZIP from Google Drive, and tap below to restore all student data and photos with automatic progress.',
+                                  style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), height: 1.4),
+                                ),
+                                const SizedBox(height: 14),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Color(0xFF1976D2), width: 1.5),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(vertical: 13),
+                                    ),
+                                    icon: const Icon(Icons.file_download_rounded, color: Color(0xFF1976D2)),
+                                    label: const Text(
+                                      'Select & Restore Backup ZIP',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1976D2)),
+                                    ),
+                                    onPressed: _isProcessing ? null : _restoreFromZipPicker,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // 3. Phone File Manager Folder (GR_BOOK Directory)
                           Container(
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
@@ -323,7 +731,7 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Phone File Manager Folder',
+                                            'Phone Storage Folder',
                                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
                                           ),
                                           Text(
@@ -355,8 +763,8 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                 const SizedBox(height: 12),
                                 Text(
                                   _backupExists
-                                      ? 'A complete backup file (gr_book_complete_backup.json) was detected in this folder. Tap below to sync and import all records.'
-                                      : 'No backup found in this folder yet. If you have backup files or reinstalling, you can select the file below, or create a backup now.',
+                                      ? 'A complete backup was detected in this folder. Tap below to sync and import all records.'
+                                      : 'No backup found in this folder yet. You can save a backup or restore from ZIP above.',
                                   style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), height: 1.4),
                                 ),
                                 const SizedBox(height: 16),
@@ -385,77 +793,7 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Browse & Pick Custom File Card
-                          Container(
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: GrBookTheme.getCardBackground(context),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: GrBookTheme.getBorderColor(context)),
-                              boxShadow: const [
-                                BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: GrBookTheme.isDark(context) ? const Color(0xFF1E2E24) : const Color(0xFFE8F5E9),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: const Icon(Icons.file_open_rounded, color: Color(0xFF2E7D32), size: 24),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Select Custom Backup File',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
-                                          ),
-                                          Text(
-                                            'Browse storage, SD card, or downloads',
-                                            style: TextStyle(fontSize: 12, color: GrBookTheme.getTextSecondary(context)),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'If your backup file is stored elsewhere or you received it via WhatsApp or Bluetooth, choose it from your phone storage.',
-                                  style: TextStyle(fontSize: 13, color: GrBookTheme.getTextSecondary(context), height: 1.4),
-                                ),
-                                const SizedBox(height: 14),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      side: BorderSide(color: GrBookTheme.getBorderColor(context), width: 1.4),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(vertical: 13),
-                                    ),
-                                    icon: const Icon(Icons.drive_folder_upload_rounded, color: GrBookTheme.primary),
-                                    label: Text(
-                                      'Browse File Manager (.json)',
-                                      style: TextStyle(fontWeight: FontWeight.bold, color: GrBookTheme.isDark(context) ? const Color(0xFF4ADE80) : GrBookTheme.primary),
-                                    ),
-                                    onPressed: _isProcessing ? null : _pickAndRestoreFile,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Manual Export Card
+                          // 4. Save Backup to Phone Now (Manual Local Export)
                           Container(
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
@@ -485,7 +823,7 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Save Backup to Phone Now',
+                                            'Save to Phone Storage',
                                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: GrBookTheme.getTextPrimary(context)),
                                           ),
                                           Text(

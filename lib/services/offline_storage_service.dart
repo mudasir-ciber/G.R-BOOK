@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../database/app_database.dart';
 
@@ -19,6 +21,7 @@ class RestoreSummary {
     required this.photosCount,
     required this.message,
     this.folderPath,
+    this.needsPermission = false,
   });
 
   final bool success;
@@ -28,6 +31,7 @@ class RestoreSummary {
   final int photosCount;
   final String message;
   final String? folderPath;
+  final bool needsPermission;
 }
 
 /// Service that manages the persistent, public `GR_BOOK` folder on the phone's
@@ -99,19 +103,54 @@ class OfflineStorageService {
     return targetDir;
   }
 
+  /// Ensures storage permission is granted.
+  /// On Android 11+ (API 30+), requests MANAGE_EXTERNAL_STORAGE.
+  /// On Android 10 and below, requests STORAGE.
+  static Future<bool> requestStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
+    try {
+      if (await Permission.manageExternalStorage.isGranted) return true;
+      final status = await Permission.manageExternalStorage.request();
+      if (status.isGranted) return true;
+    } catch (_) {}
+
+    try {
+      if (await Permission.storage.isGranted) return true;
+      final status = await Permission.storage.request();
+      if (status.isGranted) return true;
+    } catch (_) {}
+
+    return false;
+  }
+
+  static Future<bool> hasStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      if (await Permission.manageExternalStorage.isGranted) return true;
+      if (await Permission.storage.isGranted) return true;
+    } catch (_) {}
+    return false;
+  }
+
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  /// Resolves the persistent folder for a specific user (e.g. `GR_BOOK/Mudasir_Ahmed_923368456907/`)
-  /// so that multiple users on the same device have clearly isolated storage without deleting anything.
+  /// Resolves the persistent folder for a specific school/account (e.g. `GR_BOOK/GBPS_Mehar_Ghanghro/`)
+  /// so that multiple schools/accounts on the same device have clearly isolated storage folders.
   Future<Directory> getOrCreateGrBookDir({String? userFolder}) async {
     final baseDir = await _resolveBaseGrBookDir();
 
     String? targetFolderName = userFolder;
     if (targetFolderName == null || targetFolderName.trim().isEmpty) {
       try {
+        final school = await (_db.select(_db.schoolsTable)..limit(1)).getSingleOrNull();
         final name = await _storage.read(key: 'grbook_local_full_name') ?? await _storage.read(key: 'gr_auth_local_full_name');
         final contact = await _storage.read(key: 'grbook_last_mobile') ?? await _storage.read(key: 'gr_auth_last_contact');
-        if (name != null || contact != null) {
+
+        if (school != null && school.schoolName.trim().isNotEmpty) {
+          final sSchool = school.schoolName.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+          targetFolderName = sSchool;
+        } else if (name != null || contact != null) {
           final sName = (name ?? 'User').replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
           final sContact = (contact ?? 'Account').replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
           targetFolderName = '${sName}_$sContact';
@@ -268,9 +307,9 @@ class OfflineStorageService {
 
   /// Restores database from a selected `GR_BOOK` directory or JSON file.
   Future<RestoreSummary> restoreFromStorageFolder({String? customPath}) async {
+    Directory? grDir;
     try {
       File? targetBackupFile;
-      Directory? grDir;
 
       if (customPath != null && customPath.isNotEmpty) {
         final f = File(customPath);
@@ -292,6 +331,27 @@ class OfflineStorageService {
         final candidate = File(p.join(grDir.path, 'gr_book_complete_backup.json'));
         if (await candidate.exists()) {
           targetBackupFile = candidate;
+        } else {
+          // Check base GR_BOOK root
+          final baseDir = await _resolveBaseGrBookDir();
+          final baseCandidate = File(p.join(baseDir.path, 'gr_book_complete_backup.json'));
+          if (await baseCandidate.exists()) {
+            targetBackupFile = baseCandidate;
+            grDir = baseDir;
+          } else if (await baseDir.exists()) {
+            try {
+              for (final entity in baseDir.listSync()) {
+                if (entity is Directory) {
+                  final subCandidate = File(p.join(entity.path, 'gr_book_complete_backup.json'));
+                  if (await subCandidate.exists()) {
+                    targetBackupFile = subCandidate;
+                    grDir = entity;
+                    break;
+                  }
+                }
+              }
+            } catch (_) {}
+          }
         }
       }
 
@@ -305,6 +365,27 @@ class OfflineStorageService {
           message: 'No "gr_book_complete_backup.json" found in ${grDir?.path ?? "storage"}.',
           folderPath: grDir?.path,
         );
+      }
+
+      // Check and request storage permission on Android
+      if (Platform.isAndroid && !await hasStoragePermission()) {
+        final granted = await requestStoragePermission();
+        if (!granted) {
+          try {
+            await targetBackupFile.readAsString();
+          } catch (e) {
+            return RestoreSummary(
+              success: false,
+              schoolName: '',
+              classesCount: 0,
+              studentsCount: 0,
+              photosCount: 0,
+              message: 'Storage permission denied. Please allow "All files access" in Android Settings to restore from the phone folder.',
+              folderPath: grDir?.path,
+              needsPermission: true,
+            );
+          }
+        }
       }
 
       final jsonStr = await targetBackupFile.readAsString();
@@ -554,16 +635,251 @@ class OfflineStorageService {
         message: 'Successfully restored $schoolName with ${studentList.length} students and ${classList.length} classes.',
         folderPath: grDir?.path,
       );
-    } catch (e) {
-      debugPrint('Error restoring from offline storage: $e');
+    } on PathAccessException catch (e) {
+      debugPrint('PathAccessException in restoreFromStorageFolder: $e');
       return RestoreSummary(
         success: false,
         schoolName: '',
         classesCount: 0,
         studentsCount: 0,
         photosCount: 0,
-        message: 'Restore failed: $e',
+        message: 'Storage permission denied: $e. Please allow "All files access" in Android Settings.',
+        needsPermission: true,
+        folderPath: grDir?.path,
+      );
+    } catch (e) {
+      debugPrint('Error restoring from offline storage: $e');
+      final msg = e.toString().toLowerCase();
+      final isPerm = msg.contains('permission denied') || msg.contains('errno = 13');
+      return RestoreSummary(
+        success: false,
+        schoolName: '',
+        classesCount: 0,
+        studentsCount: 0,
+        photosCount: 0,
+        message: isPerm
+            ? 'Storage permission denied. Please allow "All files access" in Android Settings to restore from the phone folder.'
+            : 'Restore failed: $e',
+        needsPermission: isPerm,
+        folderPath: grDir?.path,
       );
     }
+  }
+
+  /// Creates a complete self-contained ZIP archive containing database records
+  /// (gr_book_complete_backup.json), metadata, and all student photos.
+  /// Reports real-time progress from 0.0 to 1.0 (0% to 100%).
+  Future<File> createCompleteZipBackup({
+    void Function(double progress, String status)? onProgress,
+  }) async {
+    onProgress?.call(0.05, 'Preparing school database records...');
+    final schools = await _db.select(_db.schoolsTable).get();
+    if (schools.isEmpty) {
+      throw Exception('No school data found in the application.');
+    }
+
+    String? currentUserId;
+    try {
+      currentUserId = await _storage.read(key: 'grbook_local_user_id') ?? await _storage.read(key: 'gr_auth_local_user_id');
+    } catch (_) {}
+
+    final school = (currentUserId != null && currentUserId.isNotEmpty)
+        ? (schools.where((s) => s.createdBy == currentUserId).firstOrNull ?? schools.first)
+        : schools.first;
+    final schoolId = school.id;
+
+    onProgress?.call(0.15, 'Packaging students and classes...');
+    final classes = await (_db.select(_db.classesTable)..where((t) => t.schoolId.equals(schoolId))).get();
+    final students = await (_db.select(_db.studentsTable)..where((t) => t.schoolId.equals(schoolId) & t.isDeleted.equals(false))).get();
+    final photos = await _db.select(_db.studentPhotosTable).get();
+    final promoBatches = await (_db.select(_db.promotionBatchesTable)..where((t) => t.schoolId.equals(schoolId))).get();
+    final promoRecords = await _db.select(_db.promotionRecordsTable).get();
+    final struckOff = await (_db.select(_db.struckOffRecordsTable)..where((t) => t.schoolId.equals(schoolId))).get();
+    final passOutYears = await (_db.select(_db.passOutYearsTable)..where((t) => t.schoolId.equals(schoolId))).get();
+
+    List<Map<String, dynamic>> complaints = [];
+    try {
+      final rows = await _db.customSelect('SELECT * FROM student_complaints').get();
+      complaints = rows.map((r) => r.data).toList();
+    } catch (_) {}
+
+    Map<String, dynamic> studentToExportMap(StudentsTableData s) {
+      final m = Map<String, dynamic>.from(s.toJson());
+      final dobStr = s.dateOfBirth.toIso8601String().split('T').first;
+      final doaStr = s.dateOfAdmission.toIso8601String().split('T').first;
+      m['dateOfBirth'] = dobStr;
+      m['date_of_birth'] = dobStr;
+      m['dob'] = dobStr;
+      m['dateOfAdmission'] = doaStr;
+      m['date_of_admission'] = doaStr;
+      m['admission'] = doaStr;
+      if (s.struckOffDate != null) {
+        final soStr = s.struckOffDate!.toIso8601String().split('T').first;
+        m['struckOffDate'] = soStr;
+        m['struck_off_date'] = soStr;
+      }
+      return m;
+    }
+
+    final fullPayload = {
+      'backup_version': 2,
+      'app_name': 'G.R BOOK',
+      'creator': 'Mudasir Ahmed Ghanghro',
+      'generated_at': DateTime.now().toIso8601String(),
+      'school_id': schoolId,
+      'school': school.toJson(),
+      'classes': classes.map((c) => c.toJson()).toList(),
+      'students': students.map(studentToExportMap).toList(),
+      'photos': photos.map((p) => p.toJson()).toList(),
+      'promotion_batches': promoBatches.map((b) => b.toJson()).toList(),
+      'promotion_records': promoRecords.map((r) => r.toJson()).toList(),
+      'struck_off_records': struckOff.map((r) => r.toJson()).toList(),
+      'pass_out_years': passOutYears.map((y) => y.toJson()).toList(),
+      'complaints': complaints,
+    };
+
+    onProgress?.call(0.25, 'Building backup archive...');
+    final archive = Archive();
+
+    // 1. Add complete backup JSON
+    final jsonBytes = utf8.encode(const JsonEncoder.withIndent('  ').convert(fullPayload));
+    archive.addFile(ArchiveFile('gr_book_complete_backup.json', jsonBytes.length, jsonBytes));
+
+    // 2. Add metadata.json
+    final metaBytes = utf8.encode(jsonEncode({
+      'school_name': school.schoolName,
+      'semis_code': school.semisCode,
+      'district': school.district,
+      'taluka': school.taluka,
+      'students_count': students.length,
+      'classes_count': classes.length,
+      'photos_count': photos.length,
+      'exported_at': DateTime.now().toIso8601String(),
+    }));
+    archive.addFile(ArchiveFile('metadata.json', metaBytes.length, metaBytes));
+
+    // 3. Add student photos
+    final validPhotos = photos.where((p) => p.localPath != null && p.localPath!.isNotEmpty).toList();
+    for (int i = 0; i < validPhotos.length; i++) {
+      final pItem = validPhotos[i];
+      final srcFile = File(pItem.localPath!);
+      if (await srcFile.exists()) {
+        try {
+          final bytes = await srcFile.readAsBytes();
+          final ext = p.extension(srcFile.path).isNotEmpty ? p.extension(srcFile.path) : '.jpg';
+          final photoName = 'photo_${pItem.studentId}_${pItem.photoType}$ext';
+          archive.addFile(ArchiveFile('photos/$photoName', bytes.length, bytes));
+        } catch (_) {}
+      }
+      final ratio = 0.25 + (0.55 * ((i + 1) / (validPhotos.isEmpty ? 1 : validPhotos.length)));
+      onProgress?.call(ratio, 'Packing student photos (${i + 1}/${validPhotos.length})...');
+    }
+
+    onProgress?.call(0.85, 'Compressing ZIP archive...');
+    final zipEncoder = ZipEncoder();
+    final zipData = zipEncoder.encode(archive);
+    if (zipData == null) {
+      throw Exception('Failed to generate ZIP archive.');
+    }
+
+    onProgress?.call(0.95, 'Saving backup ZIP file...');
+    final tempDir = await getTemporaryDirectory();
+    final safeSchoolName = school.schoolName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').trim();
+    final dateTag = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+    final zipFileName = 'GR_BOOK_Backup_${safeSchoolName}_$dateTag.zip';
+    final zipFile = File(p.join(tempDir.path, zipFileName));
+    await zipFile.writeAsBytes(zipData);
+
+    // Also copy to persistent GR_BOOK/backups/ folder if accessible
+    try {
+      final grDir = await getOrCreateGrBookDir();
+      final backupsDir = Directory(p.join(grDir.path, 'backups'));
+      if (!await backupsDir.exists()) await backupsDir.create(recursive: true);
+      final destZip = File(p.join(backupsDir.path, zipFileName));
+      await zipFile.copy(destZip.path);
+    } catch (_) {}
+
+    onProgress?.call(1.0, 'Backup ZIP ready!');
+    return zipFile;
+  }
+
+  /// Restores complete database and photos from a picked ZIP archive file.
+  /// Reports real-time progress from 0.0 to 1.0 (0% to 100%).
+  Future<RestoreSummary> restoreFromZipFile(
+    File zipFile, {
+    void Function(double progress, String status)? onProgress,
+  }) async {
+    onProgress?.call(0.05, 'Reading backup ZIP file...');
+    final bytes = await zipFile.readAsBytes();
+
+    onProgress?.call(0.15, 'Decompressing backup archive...');
+    final archive = ZipDecoder().decodeBytes(bytes);
+
+    final tempDir = await getTemporaryDirectory();
+    final extractDir = Directory(p.join(tempDir.path, 'gr_restore_${DateTime.now().millisecondsSinceEpoch}'));
+    if (!await extractDir.exists()) await extractDir.create(recursive: true);
+
+    File? backupJsonFile;
+    final photosExtracted = <String, String>{}; // fileName -> filePath
+
+    final totalFiles = archive.length;
+    int processedFiles = 0;
+
+    for (final file in archive) {
+      processedFiles++;
+      if (file.isFile) {
+        final filePath = p.join(extractDir.path, file.name);
+        final f = File(filePath);
+        final parentDir = f.parent;
+        if (!await parentDir.exists()) await parentDir.create(recursive: true);
+        await f.writeAsBytes(file.content as List<int>);
+
+        if (file.name == 'gr_book_complete_backup.json') {
+          backupJsonFile = f;
+        } else if (file.name.startsWith('photos/')) {
+          photosExtracted[p.basename(file.name)] = f.path;
+        }
+      }
+      final ratio = 0.15 + (0.50 * (processedFiles / (totalFiles == 0 ? 1 : totalFiles)));
+      onProgress?.call(ratio, 'Extracting records & photos ($processedFiles/$totalFiles)...');
+    }
+
+    if (backupJsonFile == null || !await backupJsonFile.exists()) {
+      try {
+        await extractDir.delete(recursive: true);
+      } catch (_) {}
+      return const RestoreSummary(
+        success: false,
+        schoolName: '',
+        classesCount: 0,
+        studentsCount: 0,
+        photosCount: 0,
+        message: 'Invalid ZIP file: "gr_book_complete_backup.json" was not found inside the ZIP archive.',
+      );
+    }
+
+    onProgress?.call(0.70, 'Preserving extracted photos in app storage...');
+    final appDocs = await getApplicationDocumentsDirectory();
+    final appPhotosDir = Directory(p.join(appDocs.path, 'photos'));
+    if (!await appPhotosDir.exists()) await appPhotosDir.create(recursive: true);
+
+    for (final entry in photosExtracted.entries) {
+      final destFile = File(p.join(appPhotosDir.path, entry.key));
+      try {
+        await File(entry.value).copy(destFile.path);
+      } catch (_) {}
+    }
+
+    onProgress?.call(0.85, 'Importing classes, students, and register...');
+    final result = await restoreFromStorageFolder(customPath: backupJsonFile.path);
+
+    onProgress?.call(1.0, 'Restore completed successfully!');
+
+    // Clean up temporary folder
+    try {
+      await extractDir.delete(recursive: true);
+    } catch (_) {}
+
+    return result;
   }
 }
