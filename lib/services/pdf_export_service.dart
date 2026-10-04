@@ -42,7 +42,7 @@ class PdfExportService {
         pageFormat: PdfPageFormat.a4.landscape,
         header: (context) => _header(school, title),
         build: (context) => [
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: headers,
             data: students
                 .map((e) => [
@@ -84,7 +84,7 @@ class PdfExportService {
           children: [
             _header(school, 'Age Report — $className'),
             pw.SizedBox(height: 16),
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               headers: const ['Age (years)', 'Students'],
               data: ageBuckets.map((e) => ['${e.key}', '${e.value}']).toList(),
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -128,10 +128,17 @@ class PdfExportService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(formatSchoolName(school.schoolName), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                      if (school.semisCode != null) pw.Text('SEMIS CODE: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
-                      if (school.district != null || school.taluka != null)
-                        pw.Text('${school.taluka ?? ''}, ${school.district ?? ''}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.Text(
+                        formatSchoolName(school.schoolName),
+                        style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold),
+                      ),
+                      if (buildSchoolSubheader(school).isNotEmpty) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          buildSchoolSubheader(school),
+                          style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+                        ),
+                      ],
                       pw.SizedBox(height: 8),
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -233,20 +240,86 @@ class PdfExportService {
     return _save(await doc.save(), 'Profile_${student.grNumber}');
   }
 
+  static final List<(RegExp, String)> _schoolAcronymPatterns = [
+    // 5-letter abbreviations (longest first)
+    (_makeAcronymRegex('GBHSS'), 'Government Boys Higher Secondary School'),
+    (_makeAcronymRegex('GGHSS'), 'Government Girls Higher Secondary School'),
+    (_makeAcronymRegex('GBELS'), 'Government Boys Elementary School'),
+    (_makeAcronymRegex('GGELS'), 'Government Girls Elementary School'),
+    (_makeAcronymRegex('GBLSS'), 'Government Boys Lower Secondary School'),
+    (_makeAcronymRegex('GGLSS'), 'Government Girls Lower Secondary School'),
+    // 4-letter abbreviations
+    (_makeAcronymRegex('GBHS'), 'Government Boys High School'),
+    (_makeAcronymRegex('GGHS'), 'Government Girls High School'),
+    (_makeAcronymRegex('GHSS'), 'Government Higher Secondary School'),
+    (_makeAcronymRegex('GBPS'), 'Government Boys Primary School'),
+    (_makeAcronymRegex('GGPS'), 'Government Girls Primary School'),
+    (_makeAcronymRegex('GELS'), 'Government Elementary School'),
+    (_makeAcronymRegex('GLSS'), 'Government Lower Secondary School'),
+    // 3-letter abbreviations
+    (_makeAcronymRegex('GBH'), 'Government Boys High School'),
+    (_makeAcronymRegex('GGH'), 'Government Girls High School'),
+    (_makeAcronymRegex('GHS'), 'Government High School'),
+    (_makeAcronymRegex('GPS'), 'Government Primary School'),
+  ];
+
+  static RegExp _makeAcronymRegex(String acronym) {
+    final lettersPattern = acronym.split('').map(RegExp.escape).join(r'[\.\s]*');
+    return RegExp('^\\s*$lettersPattern[\\.\\s]*(?:[\\s\\-–—:]+|\$)', caseSensitive: false);
+  }
+
+  /// Automatically expands any school acronym prefix (e.g. GBPS, GGPS, GPS, GBHS, etc.)
+  /// into its official full title (e.g. "Government Boys Primary School Mehar Ghanghro").
   static String formatSchoolName(String name) {
-    var formatted = name.trim();
-    if (formatted.toUpperCase().startsWith('GBPS ')) {
-      formatted = 'Government Boys Primary School ${formatted.substring(5).trim()}';
-    } else if (formatted.toUpperCase().startsWith('GBPS-')) {
-      formatted = 'Government Boys Primary School ${formatted.substring(5).trim()}';
-    } else if (formatted.toUpperCase() == 'GBPS') {
-      formatted = 'Government Boys Primary School';
-    } else if (formatted.contains('GBPS')) {
-      formatted = formatted.replaceAll('GBPS', 'Government Boys Primary School');
-    } else if (formatted.toUpperCase().startsWith('GGPS ')) {
-      formatted = 'Government Girls Primary School ${formatted.substring(5).trim()}';
+    var trimmed = name.trim();
+    if (trimmed.isEmpty) return trimmed;
+
+    // Normalize leading "Govt." or "Govt " to "Government "
+    if (RegExp(r'^govt\.?\s+', caseSensitive: false).hasMatch(trimmed)) {
+      trimmed = trimmed.replaceFirst(RegExp(r'^govt\.?\s+', caseSensitive: false), 'Government ');
     }
-    return formatted;
+
+    // Check if starts with "Government " followed by an acronym (e.g. "Government GBPS Mehar")
+    if (RegExp(r'^government\s+', caseSensitive: false).hasMatch(trimmed)) {
+      final afterGovt = trimmed.replaceFirst(RegExp(r'^government\s+', caseSensitive: false), '');
+      for (final (regex, fullForm) in _schoolAcronymPatterns) {
+        final match = regex.firstMatch(afterGovt);
+        if (match != null) {
+          final remainder = afterGovt.substring(match.end).trim();
+          return remainder.isNotEmpty ? '$fullForm $remainder' : fullForm;
+        }
+      }
+      return trimmed;
+    }
+
+    // Check directly against acronym patterns
+    for (final (regex, fullForm) in _schoolAcronymPatterns) {
+      final match = regex.firstMatch(trimmed);
+      if (match != null) {
+        final remainder = trimmed.substring(match.end).trim();
+        return remainder.isNotEmpty ? '$fullForm $remainder' : fullForm;
+      }
+    }
+
+    return trimmed;
+  }
+
+  /// Formats the official secondary sub-header line:
+  /// "SEMIS CODE: [Code]   |   DISTRICT: [District]   |   CITY / TALUKA: [Taluka]"
+  static String buildSchoolSubheader(School school) {
+    final parts = <String>[];
+    if (school.semisCode != null && school.semisCode!.trim().isNotEmpty) {
+      parts.add('SEMIS CODE: ${school.semisCode!.trim()}');
+    }
+    if (school.district != null && school.district!.trim().isNotEmpty) {
+      parts.add('DISTRICT: ${school.district!.trim()}');
+    }
+    if (school.taluka != null && school.taluka!.trim().isNotEmpty) {
+      parts.add('CITY / TALUKA: ${school.taluka!.trim()}');
+    } else if (school.uc != null && school.uc!.trim().isNotEmpty) {
+      parts.add('UC: ${school.uc!.trim()}');
+    }
+    return parts.join('   |   ');
   }
 
   Future<String?> _loadPrincipalName() async {
@@ -298,12 +371,25 @@ class PdfExportService {
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(48),
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(formatSchoolName(school.schoolName), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
-            if (school.semisCode != null) pw.Text('SEMIS CODE: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
-            pw.SizedBox(height: 24),
+        build: (context) {
+          final subheader = buildSchoolSubheader(school);
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                formatSchoolName(school.schoolName),
+                style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+                textAlign: pw.TextAlign.center,
+              ),
+              if (subheader.isNotEmpty) ...[
+                pw.SizedBox(height: 3),
+                pw.Text(
+                  subheader,
+                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
+              pw.SizedBox(height: 20),
             pw.Text(type.title, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
             pw.SizedBox(height: 32),
             pw.Container(
@@ -333,9 +419,10 @@ class PdfExportService {
               ],
             ),
           ],
-        ),
-      ),
-    );
+        );
+      },
+    ),
+  );
 
     return _save(await doc.save(), '${type.name}_${student.grNumber}');
   }
@@ -366,12 +453,25 @@ class PdfExportService {
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(48),
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(formatSchoolName(school.schoolName), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
-            if (school.semisCode != null) pw.Text('SEMIS CODE: ${school.semisCode}', style: const pw.TextStyle(fontSize: 10)),
-            pw.SizedBox(height: 24),
+        build: (context) {
+          final subheader = buildSchoolSubheader(school);
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                formatSchoolName(school.schoolName),
+                style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+                textAlign: pw.TextAlign.center,
+              ),
+              if (subheader.isNotEmpty) ...[
+                pw.SizedBox(height: 3),
+                pw.Text(
+                  subheader,
+                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
+              pw.SizedBox(height: 20),
             pw.Text(certificateTitle, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
             pw.SizedBox(height: 32),
             pw.Container(
@@ -401,9 +501,10 @@ class PdfExportService {
               ],
             ),
           ],
-        ),
-      ),
-    );
+        );
+      },
+    ),
+  );
 
     final safeTitle = certificateTitle.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     return _save(await doc.save(), '${safeTitle}_${student.grNumber}');
@@ -429,28 +530,32 @@ class PdfExportService {
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(
-              formatSchoolName(school.schoolName),
-              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-              textAlign: pw.TextAlign.center,
-            ),
-            pw.SizedBox(height: 3),
-            if (school.semisCode != null && school.semisCode!.isNotEmpty)
+        build: (context) {
+          final subheader = buildSchoolSubheader(school);
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
               pw.Text(
-                'SEMIS CODE: ${school.semisCode}',
-                style: const pw.TextStyle(fontSize: 10),
+                formatSchoolName(school.schoolName),
+                style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+                textAlign: pw.TextAlign.center,
               ),
-            if (principalName != null && principalName.isNotEmpty) ...[
-              pw.SizedBox(height: 2),
-              pw.Text(
-                'Principal: $principalName',
-                style: const pw.TextStyle(fontSize: 10),
-              ),
-            ],
-            pw.SizedBox(height: 16),
+              if (subheader.isNotEmpty) ...[
+                pw.SizedBox(height: 3),
+                pw.Text(
+                  subheader,
+                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
+              if (principalName != null && principalName.isNotEmpty) ...[
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  'Principal: $principalName',
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+              ],
+              pw.SizedBox(height: 16),
             pw.Text(
               'Complaint Letter',
               style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline),
@@ -516,9 +621,10 @@ class PdfExportService {
               ],
             ),
           ],
-        ),
-      ),
-    );
+        );
+      },
+    ),
+  );
 
     return _save(await doc.save(), 'Note_${student.grNumber}');
   }
@@ -570,11 +676,15 @@ class PdfExportService {
   }
 
   pw.Widget _header(School school, String title) {
+    final subheader = buildSchoolSubheader(school);
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(formatSchoolName(school.schoolName), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-        if (school.semisCode != null) pw.Text('SEMIS CODE: ${school.semisCode}', style: const pw.TextStyle(fontSize: 9)),
+        if (subheader.isNotEmpty) ...[
+          pw.SizedBox(height: 2),
+          pw.Text(subheader, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800)),
+        ],
         pw.SizedBox(height: 6),
         pw.Text(title, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
         pw.Divider(),
