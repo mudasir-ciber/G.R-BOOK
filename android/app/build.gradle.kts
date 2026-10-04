@@ -76,9 +76,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            ndk {
-                debugSymbolLevel = "NONE"
-            }
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -98,7 +95,8 @@ android {
             excludes += "META-INF/*.version"
         }
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
+            keepDebugSymbols += "**/*.so"
         }
     }
 }
