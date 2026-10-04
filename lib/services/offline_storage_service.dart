@@ -8,7 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 
 import '../database/app_database.dart';
 
@@ -103,34 +103,36 @@ class OfflineStorageService {
     return targetDir;
   }
 
-  /// Ensures storage permission is granted.
-  /// On Android 11+ (API 30+), requests MANAGE_EXTERNAL_STORAGE.
-  /// On Android 10 and below, requests STORAGE.
+  static const MethodChannel _permissionChannel = MethodChannel('pk.gov.school.grbook/storage_permission');
+
+  /// Ensures storage permission is granted natively via Android MethodChannel.
+  /// On Android 11+ (API 30+), checks Environment.isExternalStorageManager().
+  /// On Android 10 and below, checks READ_EXTERNAL_STORAGE.
   static Future<bool> requestStoragePermission() async {
     if (!Platform.isAndroid) return true;
-
     try {
-      if (await Permission.manageExternalStorage.isGranted) return true;
-      final status = await Permission.manageExternalStorage.request();
-      if (status.isGranted) return true;
-    } catch (_) {}
-
-    try {
-      if (await Permission.storage.isGranted) return true;
-      final status = await Permission.storage.request();
-      if (status.isGranted) return true;
-    } catch (_) {}
-
-    return false;
+      final res = await _permissionChannel.invokeMethod<bool>('requestStoragePermission');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<bool> hasStoragePermission() async {
     if (!Platform.isAndroid) return true;
     try {
-      if (await Permission.manageExternalStorage.isGranted) return true;
-      if (await Permission.storage.isGranted) return true;
+      final res = await _permissionChannel.invokeMethod<bool>('hasStoragePermission');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> openAppSettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _permissionChannel.invokeMethod('openAppSettings');
     } catch (_) {}
-    return false;
   }
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage();

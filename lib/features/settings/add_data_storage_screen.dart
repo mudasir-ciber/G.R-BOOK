@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme.dart';
@@ -87,7 +86,7 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
             style: FilledButton.styleFrom(backgroundColor: GrBookTheme.primary),
             onPressed: () {
               Navigator.of(ctx).pop();
-              openAppSettings();
+              OfflineStorageService.openAppSettings();
             },
             child: const Text('Allow in Settings'),
           ),
@@ -541,7 +540,7 @@ class _AddDataStorageScreenState extends ConsumerState<AddDataStorageScreen> {
                                         ),
                                         icon: const Icon(Icons.settings_outlined, size: 18),
                                         label: const Text('Open Settings to Grant Permission', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                        onPressed: openAppSettings,
+                                        onPressed: OfflineStorageService.openAppSettings,
                                       ),
                                     ),
                                   ],
