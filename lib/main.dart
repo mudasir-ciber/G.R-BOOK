@@ -32,23 +32,44 @@ Future<void> main() async {
   runApp(const ProviderScope(child: GrBookApp()));
 }
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 class GrBookApp extends ConsumerWidget {
   const GrBookApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isUnlocked = ref.watch(appUnlockedProvider);
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'G.R. Book',
       debugShowCheckedModeBanner: false,
       theme: GrBookTheme.themeData,
       darkTheme: GrBookTheme.darkThemeData,
       themeMode: themeMode,
-      home: isUnlocked
-          ? const AppLockGate(child: SyncCoordinator(child: AccessControlGate(child: SchoolGate())))
-          : const LoginScreen(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends ConsumerWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isUnlocked = ref.watch(appUnlockedProvider);
+
+    if (!isUnlocked) {
+      return const LoginScreen();
+    }
+
+    return const AppLockGate(
+      child: SyncCoordinator(
+        child: AccessControlGate(
+          child: SchoolGate(),
+        ),
+      ),
     );
   }
 }

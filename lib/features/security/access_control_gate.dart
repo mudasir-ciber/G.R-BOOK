@@ -5,10 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/master_admin_config.dart';
 import '../../core/theme.dart';
+import '../../main.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/connectivity_service.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import '../auth/auth_providers.dart';
-import '../auth/login_screen.dart';
 
 /// Wraps the main application and enforces:
 /// 1. Master Admin (Mudasir Ahmed) instant access.
@@ -287,16 +288,12 @@ class _AccountPendingApprovalScreenState extends ConsumerState<AccountPendingApp
   }
 
   Future<void> _logout() async {
-    ref.read(appUnlockedProvider.notifier).state = false;
+    await ref.read(authServiceProvider).logout();
     ref.invalidate(isSuperAdminProvider);
     ref.invalidate(currentUserProvider);
-    await ref.read(authServiceProvider).logout();
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    ref.invalidate(currentSchoolProvider);
+    rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    ref.read(appUnlockedProvider.notifier).state = false;
   }
 
   @override
@@ -546,6 +543,15 @@ class AccountSuspendedScreen extends ConsumerWidget {
     } catch (_) {}
   }
 
+  Future<void> _logout(WidgetRef ref) async {
+    await ref.read(authServiceProvider).logout();
+    ref.invalidate(isSuperAdminProvider);
+    ref.invalidate(currentUserProvider);
+    ref.invalidate(currentSchoolProvider);
+    rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    ref.read(appUnlockedProvider.notifier).state = false;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = GrBookTheme.isDark(context);
@@ -639,18 +645,7 @@ class AccountSuspendedScreen extends ConsumerWidget {
 
                 // Logout
                 TextButton(
-                  onPressed: () async {
-                    ref.read(appUnlockedProvider.notifier).state = false;
-                    ref.invalidate(isSuperAdminProvider);
-                    ref.invalidate(currentUserProvider);
-                    await ref.read(authServiceProvider).logout();
-                    if (context.mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    }
-                  },
+                  onPressed: () => _logout(ref),
                   child: Text('Logout', style: TextStyle(color: textSecondary)),
                 ),
               ],
@@ -701,16 +696,12 @@ class _AccountRejectedScreenState extends ConsumerState<AccountRejectedScreen> {
   }
 
   Future<void> _logout() async {
-    ref.read(appUnlockedProvider.notifier).state = false;
+    await ref.read(authServiceProvider).logout();
     ref.invalidate(isSuperAdminProvider);
     ref.invalidate(currentUserProvider);
-    await ref.read(authServiceProvider).logout();
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    ref.invalidate(currentSchoolProvider);
+    rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    ref.read(appUnlockedProvider.notifier).state = false;
   }
 
   @override
@@ -992,6 +983,15 @@ class _OfflineSecurityVerificationScreenState
     }
   }
 
+  Future<void> _logout() async {
+    await ref.read(authServiceProvider).logout();
+    ref.invalidate(isSuperAdminProvider);
+    ref.invalidate(currentUserProvider);
+    ref.invalidate(currentSchoolProvider);
+    rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    ref.read(appUnlockedProvider.notifier).state = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = GrBookTheme.isDark(context);
@@ -1092,18 +1092,7 @@ class _OfflineSecurityVerificationScreenState
 
                 // Logout
                 TextButton(
-                  onPressed: () async {
-                    ref.read(appUnlockedProvider.notifier).state = false;
-                    ref.invalidate(isSuperAdminProvider);
-                    ref.invalidate(currentUserProvider);
-                    await ref.read(authServiceProvider).logout();
-                    if (context.mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    }
-                  },
+                  onPressed: _logout,
                   child: Text('Logout', style: TextStyle(color: textSecondary)),
                 ),
               ],
@@ -1154,16 +1143,12 @@ class _AccountDeletedScreenState extends ConsumerState<AccountDeletedScreen> {
   }
 
   Future<void> _logout() async {
-    ref.read(appUnlockedProvider.notifier).state = false;
+    await ref.read(authServiceProvider).logout();
     ref.invalidate(isSuperAdminProvider);
     ref.invalidate(currentUserProvider);
-    await ref.read(authServiceProvider).logout();
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    ref.invalidate(currentSchoolProvider);
+    rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    ref.read(appUnlockedProvider.notifier).state = false;
   }
 
   @override

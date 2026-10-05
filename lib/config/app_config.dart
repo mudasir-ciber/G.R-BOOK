@@ -50,6 +50,10 @@ class AppConfig {
   static const int defaultEceMinAdmissionAgeMonths = 36; // 3 years
   static const int defaultEceToClass1MinAgeMonths = 61; // 5 years 1 month
 
+  /// Current app version info for In-App Updates
+  static const String appVersion = '1.0.0';
+  static const int appBuildNumber = 5;
+
   static bool get isConfigured =>
       !supabaseUrl.contains('YOUR-PROJECT-REF') &&
       !supabaseAnonKey.contains('YOUR-SUPABASE-ANON-PUBLIC-KEY');

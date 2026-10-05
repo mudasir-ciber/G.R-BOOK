@@ -19,6 +19,7 @@ import java.io.FileOutputStream
 class MainActivity : FlutterFragmentActivity() {
     private val GALLERY_CHANNEL = "pk.gov.school.grbook/gallery"
     private val STORAGE_CHANNEL = "pk.gov.school.grbook/storage_permission"
+    private val UPDATE_CHANNEL = "pk.gov.school.grbook/app_update"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -81,6 +82,66 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             } else {
                 result.notImplemented()
+            }
+        }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UPDATE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "canRequestPackageInstalls" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        result.success(packageManager.canRequestPackageInstalls())
+                    } else {
+                        result.success(true)
+                    }
+                }
+                "openInstallPermissionSettings" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        try {
+                            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("SETTINGS_ERROR", e.localizedMessage, null)
+                        }
+                    } else {
+                        result.success(true)
+                    }
+                }
+                "installApk" -> {
+                    val filePath = call.argument<String>("filePath")
+                    if (filePath == null) {
+                        result.error("INVALID_ARGS", "File path cannot be null", null)
+                        return@setMethodCallHandler
+                    }
+                    val apkFile = File(filePath)
+                    if (!apkFile.exists()) {
+                        result.error("FILE_NOT_FOUND", "APK file does not exist at $filePath", null)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            androidx.core.content.FileProvider.getUriForFile(
+                                applicationContext,
+                                "$packageName.fileprovider",
+                                apkFile
+                            )
+                        } else {
+                            Uri.fromFile(apkFile)
+                        }
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(apkUri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("INSTALL_ERROR", e.localizedMessage, null)
+                    }
+                }
+                else -> result.notImplemented()
             }
         }
     }

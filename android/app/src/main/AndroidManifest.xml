@@ -28,6 +28,9 @@
     <!-- Local notification for backup/sync status (optional, Android 13+ requires runtime request) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Permission to install APK updates directly within the app -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <application
         android:label="G.R BOOK"
         android:name="${applicationName}"
@@ -64,6 +67,16 @@
                 <data android:scheme="pk.gov.school.grbook" android:host="login-callback" />
             </intent-filter>
         </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <meta-data
             android:name="flutterEmbedding"

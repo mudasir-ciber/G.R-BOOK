@@ -5,9 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../main.dart';
-import '../../services/sync_coordinator.dart';
-import '../security/access_control_gate.dart';
-import '../security/app_lock_gate.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 
@@ -88,6 +85,8 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
 
       if (!mounted) return;
       ref.read(appUnlockedProvider.notifier).state = true;
+      ref.invalidate(isSuperAdminProvider);
+      ref.invalidate(currentUserProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -96,18 +95,7 @@ class _VerifyEmailOtpScreenState extends ConsumerState<VerifyEmailOtpScreen> {
         ),
       );
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AppLockGate(
-            child: SyncCoordinator(
-              child: AccessControlGate(
-                child: SchoolGate(),
-              ),
-            ),
-          ),
-        ),
-        (route) => false,
-      );
+      rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {

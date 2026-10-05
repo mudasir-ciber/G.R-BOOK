@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../auth/auth_providers.dart';
 import '../classes/classes_screen.dart';
 import '../settings/settings_screen.dart';
 import 'home_screen.dart';
@@ -36,10 +37,12 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isUnlocked = ref.watch(appUnlockedProvider);
+
     return PopScope(
-      canPop: _currentIndex == 0,
+      canPop: _currentIndex == 0 || !isUnlocked,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _currentIndex != 0) {
+        if (!didPop && _currentIndex != 0 && isUnlocked) {
           setState(() => _currentIndex = 0);
         }
       },

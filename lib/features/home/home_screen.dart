@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/app_update_service.dart';
+import '../../widgets/app_update_dialog.dart';
 import '../auth/auth_providers.dart';
 import '../certificates/certificates_hub_screen.dart';
 import '../complaints/student_complaint_screen.dart';
@@ -38,10 +40,25 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  static bool _hasCheckedForUpdate = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (!_hasCheckedForUpdate) {
+      _hasCheckedForUpdate = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _silentCheckForUpdate());
+    }
+  }
+
+  Future<void> _silentCheckForUpdate() async {
+    try {
+      final update = await ref.read(appUpdateServiceProvider).checkForUpdate();
+      if (mounted && update != null) {
+        await AppUpdateDialog.show(context, update);
+      }
+    } catch (_) {}
   }
 
   @override

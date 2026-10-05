@@ -5,10 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
 import '../../services/connectivity_service.dart';
-import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
-import '../security/access_control_gate.dart';
-import '../security/app_lock_gate.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 import 'google_complete_profile_screen.dart';
@@ -22,7 +19,8 @@ class CreateAccountScreen extends ConsumerStatefulWidget {
   ConsumerState<CreateAccountScreen> createState() => _CreateAccountScreenState();
 }
 
-class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
+class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -33,6 +31,26 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String? _errorMessage;
+
+  late final AnimationController _logoAnimController;
+  late final Animation<double> _logoScaleAnimation;
+  late final Animation<double> _logoFadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _logoAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _logoScaleAnimation = Tween<double>(begin: 0.65, end: 1.0).animate(
+      CurvedAnimation(parent: _logoAnimController, curve: Curves.easeOutBack),
+    );
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoAnimController, curve: Curves.easeIn),
+    );
+    _logoAnimController.forward();
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -81,18 +99,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
       // Route through AccessControlGate to enforce Master Admin Approval!
       ref.read(appUnlockedProvider.notifier).state = true;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AppLockGate(
-            child: SyncCoordinator(
-              child: AccessControlGate(
-                child: SchoolGate(),
-              ),
-            ),
-          ),
-        ),
-        (route) => false,
-      );
+      ref.invalidate(isSuperAdminProvider);
+      ref.invalidate(currentUserProvider);
+      rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
@@ -137,18 +146,9 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
         );
       } else {
         ref.read(appUnlockedProvider.notifier).state = true;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const AppLockGate(
-              child: SyncCoordinator(
-                child: AccessControlGate(
-                  child: SchoolGate(),
-                ),
-              ),
-            ),
-          ),
-          (route) => false,
-        );
+        ref.invalidate(isSuperAdminProvider);
+        ref.invalidate(currentUserProvider);
+        rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
       }
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
@@ -169,8 +169,16 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: GrBookTheme.getBackgroundGradient(context),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0C823B), // Rich emerald green matching app logo
+              Color(0xFF08682F), // Deep lush forest green
+              Color(0xFF04481F), // Dark deep base green
+            ],
+          ),
         ),
         child: SafeArea(
           bottom: false,
@@ -187,62 +195,103 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: cardBg,
+                        color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
-                        border: Border.all(color: borderColor, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isDark ? Colors.black26 : const Color(0x0A000000),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
                       ),
                       child: IconButton(
                         padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: GrBookTheme.primary, size: 18),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
 
-                // Illustration Header
+                // Animated Brand Logo matching the official app logo
                 Center(
-                  child: Image.asset(
-                    'assets/images/auth_header.png',
-                    width: 280,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Column(
-                      children: [
-                        const Icon(Icons.menu_book_rounded, size: 48, color: GrBookTheme.primary),
-                        const SizedBox(height: 6),
-                        Text(
-                          'G.R. Book',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark,
+                  child: ScaleTransition(
+                    scale: _logoScaleAnimation,
+                    child: FadeTransition(
+                      opacity: _logoFadeAnimation,
+                      child: Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                            BoxShadow(
+                              color: const Color(0xFF4ADE80).withValues(alpha: 0.35),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: Image.asset(
+                            'assets/images/app_logo.png',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.menu_book_rounded,
+                              size: 50,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
+                FadeTransition(
+                  opacity: _logoFadeAnimation,
+                  child: Column(
+                    children: [
+                      const Text(
+                        'G.R. BOOK',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 2.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'School Management System',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
 
                 // Rounded Card
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
                   decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                    color: isDark ? GrBookTheme.darkCardBackground : Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                     border: isDark ? Border(top: BorderSide(color: borderColor)) : null,
                     boxShadow: [
                       BoxShadow(
-                        color: isDark ? Colors.black38 : const Color(0x140F7A42),
-                        blurRadius: 16,
-                        offset: const Offset(0, -4),
+                        color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.18),
+                        blurRadius: 24,
+                        offset: const Offset(0, -6),
                       ),
                     ],
                   ),
@@ -485,6 +534,7 @@ class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
 
   @override
   void dispose() {
+    _logoAnimController.dispose();
     _fullNameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();

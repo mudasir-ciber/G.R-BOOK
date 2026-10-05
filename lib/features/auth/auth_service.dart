@@ -466,6 +466,7 @@ class AuthService {
     }
 
     // Save remembered credentials
+    await _secureStorage.delete(key: 'grbook_logged_out');
     await _secureStorage.write(key: _rememberMeKey, value: rememberMe.toString());
     await _secureStorage.write(key: _lastContactKey, value: trimmed);
     if (rememberMe || !onlineSuccess) {
@@ -613,6 +614,9 @@ class AuthService {
       // Force account chooser by clearing cached account session first
       try {
         await googleSignIn.signOut();
+      } catch (_) {}
+      try {
+        await googleSignIn.disconnect();
       } catch (_) {}
 
       try {
@@ -1150,16 +1154,8 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    try {
-      await _client.auth.signOut();
-    } catch (_) {}
-
-    try {
-      final googleSignIn = GoogleSignIn();
-      await googleSignIn.signOut();
-    } catch (_) {}
-
-    // Complete memory wipe: clean all secure storage session keys so no residual admin rights linger
+    // 1. Immediately wipe all local credentials so logout is instantaneous
+    await _secureStorage.write(key: 'grbook_logged_out', value: 'true');
     await _secureStorage.delete(key: _userRoleKey);
     await _secureStorage.delete(key: _userStatusKey);
     await _secureStorage.delete(key: _localUserIdKey);
@@ -1167,6 +1163,19 @@ class AuthService {
     await _secureStorage.delete(key: _lastPasswordKey);
     await _secureStorage.delete(key: _lastContactKey);
     await _secureStorage.delete(key: _rememberMeKey);
+    await _secureStorage.delete(key: 'user_mobile_number');
+    await _secureStorage.delete(key: _lastOnlineVerifiedKey);
+
+    // 2. Remote sign-outs in background without blocking the UI
+    try {
+      _client.auth.signOut().catchError((_) {});
+    } catch (_) {}
+
+    try {
+      final googleSignIn = GoogleSignIn(serverClientId: AppConfig.googleOAuthClientId);
+      googleSignIn.signOut().catchError((_) => null);
+      googleSignIn.disconnect().catchError((_) => null);
+    } catch (_) {}
   }
 
   Future<void> updateFullName(String fullName) async {

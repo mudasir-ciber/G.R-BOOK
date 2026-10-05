@@ -4,10 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
 import '../../providers/app_lock_providers.dart';
-import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
-import '../security/access_control_gate.dart';
-import '../security/app_lock_gate.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 import 'create_account_screen.dart';
@@ -22,7 +19,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -33,19 +31,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _supportsBiometrics = false;
   String? _errorMessage;
 
+  late final AnimationController _logoAnimController;
+  late final Animation<double> _logoScaleAnimation;
+  late final Animation<double> _logoFadeAnimation;
+
   @override
   void initState() {
     super.initState();
+    _logoAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _logoScaleAnimation = Tween<double>(begin: 0.65, end: 1.0).animate(
+      CurvedAnimation(parent: _logoAnimController, curve: Curves.easeOutBack),
+    );
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoAnimController, curve: Curves.easeIn),
+    );
+    _logoAnimController.forward();
+
     _restoreRememberedCredentials();
   }
 
   Future<void> _restoreRememberedCredentials() async {
     final auth = ref.read(authServiceProvider);
     final lockService = ref.read(appLockServiceProvider);
+    final supportsBio = await lockService.deviceSupportsBiometrics();
+
+    // Check if user explicitly logged out
+    final wasExplicitlyLoggedOut =
+        (await ref.read(secureStorageProvider).read(key: 'grbook_logged_out')) == 'true';
+    if (wasExplicitlyLoggedOut) {
+      if (!mounted) return;
+      setState(() {
+        _rememberMe = false;
+        _mobileController.clear();
+        _passwordController.clear();
+        _hasSavedCredentials = false;
+        _supportsBiometrics = supportsBio;
+      });
+      return;
+    }
+
     final remembered = await auth.getRememberedPreference();
     final mobile = await auth.getRememberedMobile();
     final password = await auth.getRememberedPassword();
-    final supportsBio = await lockService.deviceSupportsBiometrics();
 
     if (!mounted) return;
     final hasCreds = (mobile != null && mobile.isNotEmpty && password != null && password.isNotEmpty);
@@ -102,22 +132,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         password: password,
         rememberMe: true,
       );
+      await ref.read(secureStorageProvider).delete(key: 'grbook_logged_out');
       ref.read(appUnlockedProvider.notifier).state = true;
       ref.invalidate(isSuperAdminProvider);
       ref.invalidate(currentUserProvider);
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AppLockGate(
-            child: SyncCoordinator(
-              child: AccessControlGate(
-                child: SchoolGate(),
-              ),
-            ),
-          ),
-        ),
-        (route) => false,
-      );
+      rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (_) {
@@ -139,22 +158,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             password: _passwordController.text,
             rememberMe: _rememberMe,
           );
+      await ref.read(secureStorageProvider).delete(key: 'grbook_logged_out');
       ref.read(appUnlockedProvider.notifier).state = true;
       ref.invalidate(isSuperAdminProvider);
       ref.invalidate(currentUserProvider);
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AppLockGate(
-            child: SyncCoordinator(
-              child: AccessControlGate(
-                child: SchoolGate(),
-              ),
-            ),
-          ),
-        ),
-        (route) => false,
-      );
+      rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
@@ -196,21 +204,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         );
       } else {
+        await ref.read(secureStorageProvider).delete(key: 'grbook_logged_out');
         ref.read(appUnlockedProvider.notifier).state = true;
         ref.invalidate(isSuperAdminProvider);
         ref.invalidate(currentUserProvider);
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const AppLockGate(
-              child: SyncCoordinator(
-                child: AccessControlGate(
-                  child: SchoolGate(),
-                ),
-              ),
-            ),
-          ),
-          (route) => false,
-        );
+        rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
       }
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
@@ -231,8 +229,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: GrBookTheme.getBackgroundGradient(context),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0C823B), // Rich emerald green matching app logo
+              Color(0xFF08682F), // Deep lush forest green
+              Color(0xFF04481F), // Dark deep base green
+            ],
+          ),
         ),
         child: SafeArea(
           bottom: false,
@@ -240,47 +246,90 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 12),
-                // Illustration Header
+                const SizedBox(height: 24),
+                // Animated Brand Logo matching the official app logo
                 Center(
-                  child: Image.asset(
-                    'assets/images/auth_header.png',
-                    width: 290,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Column(
-                      children: [
-                        const Icon(Icons.menu_book_rounded, size: 54, color: GrBookTheme.primary),
-                        const SizedBox(height: 8),
-                        Text(
-                          'G.R BOOK',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? const Color(0xFF4ADE80) : GrBookTheme.primaryDark,
+                  child: ScaleTransition(
+                    scale: _logoScaleAnimation,
+                    child: FadeTransition(
+                      opacity: _logoFadeAnimation,
+                      child: Container(
+                        width: 104,
+                        height: 104,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                            BoxShadow(
+                              color: const Color(0xFF4ADE80).withValues(alpha: 0.35),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(26),
+                          child: Image.asset(
+                            'assets/images/app_logo.png',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.menu_book_rounded,
+                              size: 54,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                        Text(
-                          'Digital School Record System',
-                          style: TextStyle(color: textSecondary),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+                FadeTransition(
+                  opacity: _logoFadeAnimation,
+                  child: Column(
+                    children: [
+                      const Text(
+                        'G.R. BOOK',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 2.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'School Management System',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
 
                 // Rounded Card
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
                   decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                    color: isDark ? GrBookTheme.darkCardBackground : Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                     border: isDark ? Border(top: BorderSide(color: borderColor)) : null,
                     boxShadow: [
                       BoxShadow(
-                        color: isDark ? Colors.black38 : const Color(0x140F7A42),
-                        blurRadius: 16,
-                        offset: const Offset(0, -4),
+                        color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.18),
+                        blurRadius: 24,
+                        offset: const Offset(0, -6),
                       ),
                     ],
                   ),
@@ -537,6 +586,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
+    _logoAnimController.dispose();
     _mobileController.dispose();
     _passwordController.dispose();
     super.dispose();

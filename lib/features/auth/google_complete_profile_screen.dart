@@ -5,10 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../main.dart';
 import '../../services/connectivity_service.dart';
-import '../../services/sync_coordinator.dart';
 import '../../widgets/gr_book_ui_components.dart';
-import '../security/access_control_gate.dart';
-import '../security/app_lock_gate.dart';
 import 'auth_providers.dart';
 import 'auth_service.dart';
 
@@ -88,21 +85,7 @@ class _GoogleCompleteProfileScreenState extends ConsumerState<GoogleCompleteProf
       ref.invalidate(isSuperAdminProvider);
       ref.invalidate(currentUserProvider);
 
-      if (!mounted) return;
-
-      // Navigate to AccessControlGate which renders AccountPendingApprovalScreen
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const AppLockGate(
-            child: SyncCoordinator(
-              child: AccessControlGate(
-                child: SchoolGate(),
-              ),
-            ),
-          ),
-        ),
-        (route) => false,
-      );
+      rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     } on AuthServiceException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {

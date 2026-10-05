@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../config/app_config.dart';
 import '../../core/theme.dart';
+import '../../main.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/app_update_service.dart';
+import '../../widgets/app_update_dialog.dart';
 import '../../widgets/gr_book_ui_components.dart';
 import '../admin/master_admin_portal_screen.dart';
 import '../auth/auth_providers.dart';
-import '../auth/login_screen.dart';
 import '../classes/manage_classes_screen.dart';
 import '../passout/pass_out_years_screen.dart';
 import '../school/school_profile_screen.dart';
@@ -25,28 +28,57 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to log out?'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('No'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Logout'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Yes'),
           ),
         ],
       ),
     );
     if (confirmed == true) {
-      ref.read(appUnlockedProvider.notifier).state = false;
+      await ref.read(authServiceProvider).logout();
       ref.invalidate(isSuperAdminProvider);
       ref.invalidate(currentUserProvider);
-      await ref.read(authServiceProvider).logout();
+      ref.invalidate(currentSchoolProvider);
+      rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+      ref.read(appUnlockedProvider.notifier).state = false;
+    }
+  }
+
+  Future<void> _manualCheckForUpdate(BuildContext context, WidgetRef ref) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Checking for updates...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+    try {
+      final update = await ref.read(appUpdateServiceProvider).checkForUpdate();
+      if (!context.mounted) return;
+
+      if (update != null) {
+        await AppUpdateDialog.show(context, update);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF0F9D58),
+            content: Text('Your app is up to date (v${AppConfig.appVersion})!'),
+          ),
+        );
+      }
+    } catch (e) {
       if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not check for updates: $e')),
         );
       }
     }
@@ -277,6 +309,15 @@ class SettingsScreen extends ConsumerWidget {
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const AboutScreen()),
                       ),
+                    ),
+                    _buildTile(
+                      context,
+                      icon: Icons.system_update_rounded,
+                      title: 'Check for Updates',
+                      subtitle: 'Current: v${AppConfig.appVersion} (Tap to check)',
+                      iconColor: GrBookTheme.primary,
+                      badgeColor: GrBookTheme.primary.withValues(alpha: 0.15),
+                      onTap: () => _manualCheckForUpdate(context, ref),
                     ),
                     _buildTile(
                       context,
