@@ -537,6 +537,7 @@ class OfflineStorageService {
                 phoneNumber: drift.Value(s['phoneNumber']?.toString()),
                 address: drift.Value(s['address']?.toString()),
                 previousSchool: drift.Value(s['previousSchool']?.toString()),
+                previousGrNumber: drift.Value((s['previousGrNumber'] ?? s['previous_gr_number'])?.toString()),
                 remarks: drift.Value(s['remarks']?.toString()),
                 status: drift.Value(s['status']?.toString() ?? 'ACTIVE'),
                 promotionStatus: drift.Value(s['promotionStatus']?.toString() ?? 'NONE'),

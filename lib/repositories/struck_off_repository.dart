@@ -54,6 +54,7 @@ class StruckOffRepository {
       struckOffReason: reason,
     );
     await _studentRepo.updateStudent(updated);
+    await _studentRepo.autoCorrectSerialNumbersForClass(student.classId);
 
     await _writeAudit(
       schoolId: schoolId,
@@ -99,6 +100,7 @@ class StruckOffRepository {
       struckOffReason: null,
     );
     await _studentRepo.updateStudent(restored);
+    await _studentRepo.autoCorrectSerialNumbersForClass(student.classId);
 
     await _writeAudit(
       schoolId: schoolId,
@@ -197,6 +199,7 @@ class StruckOffRepository {
         phoneNumber: row.phoneNumber,
         address: row.address,
         previousSchool: row.previousSchool,
+        previousGrNumber: row.previousGrNumber,
         remarks: row.remarks,
         status: StudentStatusX.fromDb(row.status),
         promotionStatus: PromotionStatusX.fromDb(row.promotionStatus),

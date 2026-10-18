@@ -131,6 +131,7 @@ class DashboardRepository {
         phoneNumber: row.phoneNumber,
         address: row.address,
         previousSchool: row.previousSchool,
+        previousGrNumber: row.previousGrNumber,
         remarks: row.remarks,
         status: StudentStatusX.fromDb(row.status),
         promotionStatus: PromotionStatusX.fromDb(row.promotionStatus),

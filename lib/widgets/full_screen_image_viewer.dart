@@ -54,11 +54,18 @@ class FullScreenImageViewer extends StatefulWidget {
   State<FullScreenImageViewer> createState() => _FullScreenImageViewerState();
 }
 
-class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
+class _FullScreenImageViewerState extends State<FullScreenImageViewer>
+    with SingleTickerProviderStateMixin {
   late File? _currentFile;
   late String? _currentNetworkUrl;
   late Uint8List? _currentMemoryBytes;
   bool _isSaving = false;
+
+  late final TransformationController _transformationController;
+  late final AnimationController _animationController;
+  Animation<Matrix4>? _animation;
+  Offset _doubleTapPosition = Offset.zero;
+  double _currentScale = 1.0;
 
   @override
   void initState() {
@@ -66,6 +73,95 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
     _currentFile = widget.file;
     _currentNetworkUrl = widget.networkUrl;
     _currentMemoryBytes = widget.memoryBytes;
+
+    _transformationController = TransformationController();
+    _transformationController.addListener(_onTransformationChanged);
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+  }
+
+  void _onTransformationChanged() {
+    final scale = _transformationController.value.getMaxScaleOnAxis();
+    if ((scale - _currentScale).abs() > 0.05) {
+      setState(() => _currentScale = scale);
+    }
+  }
+
+  @override
+  void dispose() {
+    _transformationController.removeListener(_onTransformationChanged);
+    _transformationController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _animateToMatrix(Matrix4 target) {
+    _animation?.removeListener(_animationListener);
+    _animation = Matrix4Tween(
+      begin: _transformationController.value,
+      end: target,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _animationController.reset();
+    _animation!.addListener(_animationListener);
+    _animationController.forward();
+  }
+
+  void _animationListener() {
+    if (_animation != null) {
+      _transformationController.value = _animation!.value;
+    }
+  }
+
+  void _handleDoubleTap() {
+    if (_currentScale > 1.25) {
+      // Animate back to original scale
+      _animateToMatrix(Matrix4.identity());
+    } else {
+      // Zoom in to 3.0x focused on tapped point
+      const targetScale = 3.0;
+      final tapPos = _doubleTapPosition;
+      final newX = -tapPos.dx * (targetScale - 1);
+      final newY = -tapPos.dy * (targetScale - 1);
+
+      final targetMatrix = Matrix4.diagonal3Values(targetScale, targetScale, 1.0)
+        ..setTranslationRaw(newX, newY, 0.0);
+
+      _animateToMatrix(targetMatrix);
+    }
+  }
+
+  void _zoomBy(double factor) {
+    final currentMatrix = _transformationController.value;
+    final currentScale = currentMatrix.getMaxScaleOnAxis();
+    final targetScale = (currentScale * factor).clamp(1.0, 10.0);
+
+    if (targetScale <= 1.05) {
+      _animateToMatrix(Matrix4.identity());
+      return;
+    }
+
+    final size = MediaQuery.of(context).size;
+    final center = Offset(size.width / 2, size.height / 2);
+
+    final translation = currentMatrix.getTranslation();
+    final newX = center.dx - (center.dx - translation.x) * (targetScale / currentScale);
+    final newY = center.dy - (center.dy - translation.y) * (targetScale / currentScale);
+
+    final targetMatrix = Matrix4.diagonal3Values(targetScale, targetScale, 1.0)
+      ..setTranslationRaw(newX, newY, 0.0);
+
+    _animateToMatrix(targetMatrix);
+  }
+
+  void _resetZoom() {
+    _animateToMatrix(Matrix4.identity());
   }
 
   Future<Uint8List?> _resolveBytes() async {
@@ -121,6 +217,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
         _currentNetworkUrl = null;
         _currentMemoryBytes = null;
       });
+      _resetZoom();
       widget.onImageChanged?.call(newFile);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -138,7 +235,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black.withOpacity(0.85),
+        backgroundColor: Colors.black.withValues(alpha: 0.85),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
@@ -161,20 +258,101 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
       ),
       body: Stack(
         children: [
-          // Centered zoomable image
-          Center(
+          // 1. Gesture detector + InteractiveViewer for pinch-to-zoom and double-tap zoom
+          GestureDetector(
+            onDoubleTapDown: (details) => _doubleTapPosition = details.localPosition,
+            onDoubleTap: _handleDoubleTap,
             child: InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 5.0,
-              child: _buildImageWidget(),
+              transformationController: _transformationController,
+              minScale: 0.8,
+              maxScale: 10.0,
+              boundaryMargin: const EdgeInsets.all(double.infinity),
+              clipBehavior: Clip.none,
+              child: SizedBox.expand(
+                child: Center(
+                  child: _buildImageWidget(),
+                ),
+              ),
             ),
           ),
 
-          // Bottom Bar for Change Image (if callback provided)
+          // 2. Floating On-Screen Zoom Controls (Right side)
+          Positioned(
+            right: 16,
+            bottom: widget.onImageChanged != null ? 100 : 36,
+            child: SafeArea(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.70),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: Colors.white24, width: 1),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 2)),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Zoom In Button (+)
+                    IconButton(
+                      icon: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
+                      tooltip: 'Zoom In',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      onPressed: () => _zoomBy(1.5),
+                    ),
+                    const SizedBox(height: 2),
+
+                    // Current Scale Badge (Tapping also resets)
+                    InkWell(
+                      onTap: _resetZoom,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                        child: Text(
+                          '${_currentScale.toStringAsFixed(1)}x',
+                          style: TextStyle(
+                            color: _currentScale > 1.1 ? const Color(0xFF4ADE80) : Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+
+                    // Zoom Out Button (-)
+                    IconButton(
+                      icon: const Icon(Icons.remove_rounded, color: Colors.white, size: 24),
+                      tooltip: 'Zoom Out',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      onPressed: () => _zoomBy(1 / 1.5),
+                    ),
+
+                    // Reset Button (visible when zoomed in)
+                    if (_currentScale > 1.1) ...[
+                      const Divider(color: Colors.white24, height: 8, indent: 6, endIndent: 6),
+                      IconButton(
+                        icon: const Icon(Icons.restart_alt_rounded, color: Color(0xFF4ADE80), size: 22),
+                        tooltip: 'Reset Zoom (1.0x)',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        onPressed: _resetZoom,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Bottom Bar for Change Image (if callback provided)
           if (widget.onImageChanged != null)
             Positioned(
               left: 20,
-              right: 20,
+              right: 80, // Leaves room for the zoom controls on the right
               bottom: 24,
               child: SafeArea(
                 child: FilledButton.icon(
@@ -198,15 +376,14 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
   }
 
   Widget _buildImageWidget() {
-    Widget content;
     if (_currentFile != null) {
-      content = Image.file(_currentFile!, fit: widget.aspectRatio == 1.0 ? BoxFit.cover : BoxFit.contain);
+      return Image.file(_currentFile!, fit: BoxFit.contain);
     } else if (_currentMemoryBytes != null) {
-      content = Image.memory(_currentMemoryBytes!, fit: widget.aspectRatio == 1.0 ? BoxFit.cover : BoxFit.contain);
+      return Image.memory(_currentMemoryBytes!, fit: BoxFit.contain);
     } else if (_currentNetworkUrl != null && _currentNetworkUrl!.isNotEmpty) {
-      content = CachedNetworkImage(
+      return CachedNetworkImage(
         imageUrl: _currentNetworkUrl!,
-        fit: widget.aspectRatio == 1.0 ? BoxFit.cover : BoxFit.contain,
+        fit: BoxFit.contain,
         placeholder: (_, __) => const Center(
           child: CircularProgressIndicator(color: Colors.white),
         ),
@@ -219,29 +396,5 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
         child: Icon(Icons.image_not_supported_rounded, color: Colors.white54, size: 64),
       );
     }
-
-    if (widget.aspectRatio == 1.0) {
-      return Center(
-        child: Container(
-          width: 300,
-          height: 300,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: GrBookTheme.primary, width: 3.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.5),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: ClipOval(child: content),
-        ),
-      );
-    }
-
-    return content;
   }
 }

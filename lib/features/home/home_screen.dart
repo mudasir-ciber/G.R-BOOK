@@ -103,6 +103,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final schoolAsync = ref.watch(currentSchoolProvider);
     final user = ref.watch(currentUserProvider);
 
+    ref.listen(currentSchoolProvider, (previous, next) {
+      final schoolId = next.valueOrNull?.id;
+      if (schoolId != null) {
+        ref.read(studentRepositoryProvider).autoCorrectSerialNumbersForSchool(schoolId);
+      }
+    });
+    final initialSchoolId = schoolAsync.valueOrNull?.id;
+    if (initialSchoolId != null) {
+      ref.read(studentRepositoryProvider).autoCorrectSerialNumbersForSchool(initialSchoolId);
+    }
+
     final schoolName = schoolAsync.valueOrNull?.schoolName ?? 'Govt. Boys High School';
     final userFullName = user?.userMetadata?['full_name'] as String? ?? '';
     final userInitial = userFullName.trim().isNotEmpty ? userFullName.trim()[0].toUpperCase() : 'U';

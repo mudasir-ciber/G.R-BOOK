@@ -45,6 +45,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
   late final TextEditingController _motherNameController;
   late final TextEditingController _mobileController;
   late final TextEditingController _lastSchoolController;
+  late final TextEditingController _previousGrController;
   late final TextEditingController _addressController;
   late final TextEditingController _cnicController;
   late final TextEditingController _bFormController;
@@ -70,6 +71,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
     _motherNameController = TextEditingController(text: s?.motherName ?? '');
     _mobileController = TextEditingController(text: s?.phoneNumber ?? '');
     _lastSchoolController = TextEditingController(text: s?.previousSchool ?? '');
+    _previousGrController = TextEditingController(text: s?.previousGrNumber ?? '');
     _addressController = TextEditingController(text: s?.address ?? '');
     _cnicController = TextEditingController(text: s?.fatherCnic ?? '');
     _bFormController = TextEditingController(text: s?.bFormNumber ?? '');
@@ -211,6 +213,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
           phoneNumber: _emptyToNull(_mobileController.text),
           address: _emptyToNull(_addressController.text),
           previousSchool: _emptyToNull(_lastSchoolController.text),
+          previousGrNumber: _emptyToNull(_previousGrController.text),
           remarks: combinedRemarks,
         );
         await repo.updateStudent(updated);
@@ -230,6 +233,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
           phoneNumber: _emptyToNull(_mobileController.text),
           address: _emptyToNull(_addressController.text),
           previousSchool: _emptyToNull(_lastSchoolController.text),
+          previousGrNumber: _emptyToNull(_previousGrController.text),
           remarks: combinedRemarks,
         );
       }
@@ -776,6 +780,30 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                           ),
                           const SizedBox(height: 10),
 
+                          // 7b. Previous G.R. Number (سابقہ جی آر نمبر)
+                          _ProfileFieldCard(
+                            icon: Icons.history_edu_rounded,
+                            label: 'Previous G.R. Number (Optional)',
+                            child: TextFormField(
+                              controller: _previousGrController,
+                              style: const TextStyle(fontSize: 14.5, color: GrBookTheme.textPrimary, fontWeight: FontWeight.w600),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                focusedErrorBorder: InputBorder.none,
+                                filled: false,
+                                fillColor: Colors.transparent,
+                                hintText: 'e.g. 145 (From previous school)',
+                                hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
                           // 8. Date of Birth (Full width, easy to tap)
                           _ProfileFieldCard(
                             icon: Icons.calendar_today_outlined,
@@ -1193,6 +1221,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
     _motherNameController.dispose();
     _mobileController.dispose();
     _lastSchoolController.dispose();
+    _previousGrController.dispose();
     _addressController.dispose();
     _cnicController.dispose();
     _bFormController.dispose();

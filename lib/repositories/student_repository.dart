@@ -48,7 +48,7 @@ class StudentRepository {
           t.classId.equals(classId) &
           (t.status.equals('ACTIVE') | t.status.equals('active')) &
           t.isDeleted.equals(false))
-      ..orderBy([(t) => OrderingTerm(expression: t.serialNumber)]);
+      ..orderBy([(t) => OrderingTerm(expression: t.serialNumber), (t) => OrderingTerm(expression: t.dateOfAdmission)]);
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
@@ -73,6 +73,9 @@ class StudentRepository {
   /// searching "class 3" surfaces every Class 3 student even with no
   /// name/GR match. If queryText is empty, returns all students.
   Stream<List<Student>> watchGlobalSearch({required String schoolId, required String queryText}) async* {
+    () async {
+      await autoCorrectSerialNumbersForSchool(schoolId);
+    }();
     final trimmed = queryText.trim();
     if (trimmed.isEmpty) {
       final query = _db.select(_db.studentsTable)
@@ -109,7 +112,11 @@ class StudentRepository {
     String? classId,
     int? passOutYear,
   }) async {
-    await autoCorrectSingleStudentSerialNumber(schoolId);
+    if (classId != null && classId.isNotEmpty) {
+      await autoCorrectSerialNumbersForClass(classId);
+    } else {
+      await autoCorrectSerialNumbersForSchool(schoolId);
+    }
     final query = _db.select(_db.studentsTable)
       ..where((t) {
         var cond = t.schoolId.equals(schoolId) & t.isDeleted.equals(false);
@@ -118,7 +125,7 @@ class StudentRepository {
         if (passOutYear != null) cond = cond & t.passOutYear.equals(passOutYear);
         return cond;
       })
-      ..orderBy([(t) => OrderingTerm(expression: t.serialNumber)]);
+      ..orderBy([(t) => OrderingTerm(expression: t.serialNumber), (t) => OrderingTerm(expression: t.dateOfAdmission)]);
     final rows = await query.get();
     return rows.map(_fromRow).toList();
   }
@@ -174,12 +181,17 @@ class StudentRepository {
     String? phoneNumber,
     String? address,
     String? previousSchool,
+    String? previousGrNumber,
     String? remarks,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
     final online = await _connectivity.isOnline();
-    final serialNumber = await _determineNextSerialNumber(schoolId, online);
+    final serialNumber = await _determineNextSerialNumber(
+      schoolId: schoolId,
+      classId: classId,
+      online: online,
+    );
     SyncState syncState = SyncState.pendingCreate;
 
     final student = Student(
@@ -199,6 +211,7 @@ class StudentRepository {
       phoneNumber: phoneNumber,
       address: address,
       previousSchool: previousSchool,
+      previousGrNumber: previousGrNumber,
       remarks: remarks,
       updatedAt: now,
       createdAt: now,
@@ -342,6 +355,7 @@ class StudentRepository {
   Future<void> deleteStudentPermanently({required String studentId, required String schoolId}) async {
     final online = await _connectivity.isOnline();
     final existing = await getById(studentId);
+    final targetClassId = existing?.classId;
 
     // 1. Audit Log before deletion
     await _writeAuditLog(
@@ -399,20 +413,30 @@ class StudentRepository {
         payload: {'id': studentId, 'school_id': schoolId},
       );
     }
-    await autoCorrectSingleStudentSerialNumber(schoolId);
+    if (targetClassId != null && targetClassId.isNotEmpty) {
+      await autoCorrectSerialNumbersForClass(targetClassId);
+    }
     try {
       OfflineStorageService(_db).exportCurrentStateToStorage();
     } catch (_) {}
   }
 
   // ---------------------------------------------------------------
-  // Serial number management & auto-correction
+  // Serial number management & auto-correction (Class-Scoped)
   // ---------------------------------------------------------------
 
-  Future<int> _determineNextSerialNumber(String schoolId, bool online) async {
-    // 1. Check local DB for non-deleted students in this school
+  Future<int> _determineNextSerialNumber({
+    required String schoolId,
+    required String classId,
+    required bool online,
+  }) async {
+    // 1. Check local DB for non-deleted, active students in THIS class
     final localRows = await (_db.select(_db.studentsTable)
-          ..where((t) => t.schoolId.equals(schoolId) & t.isDeleted.equals(false)))
+          ..where((t) =>
+              t.schoolId.equals(schoolId) &
+              t.classId.equals(classId) &
+              (t.status.equals('ACTIVE') | t.status.equals('active')) &
+              t.isDeleted.equals(false)))
         .get();
 
     int? maxLocal;
@@ -432,6 +456,8 @@ class StudentRepository {
             .from('students')
             .select('serial_number')
             .eq('school_id', schoolId)
+            .eq('class_id', classId)
+            .eq('status', 'ACTIVE')
             .eq('is_deleted', false);
         serverCount = res.length;
         for (final item in res) {
@@ -445,7 +471,7 @@ class StudentRepository {
       } catch (_) {}
     }
 
-    // If there are currently NO active/registered students locally or on server
+    // If there are currently NO active students in this class locally or on server
     if (localRows.isEmpty && serverCount == 0) {
       return 1;
     }
@@ -462,49 +488,97 @@ class StudentRepository {
     return effectiveMax + 1;
   }
 
-  /// If there is only 1 registered student in the school, their serial
-  /// number must be 1. If it was assigned 4 (e.g. from previous deleted students),
-  /// this automatically corrects it locally and on Supabase.
-  Future<void> autoCorrectSingleStudentSerialNumber(String schoolId) async {
+  /// Ensures that all active students in [classId] have continuous,
+  /// 1-based sequential serial numbers (1, 2, 3 ... N).
+  Future<void> autoCorrectSerialNumbersForClass(String classId) async {
+    if (classId.isEmpty) return;
     try {
-      final active = await (_db.select(_db.studentsTable)
-            ..where((t) => t.schoolId.equals(schoolId) & t.isDeleted.equals(false)))
+      final studentsInClass = await (_db.select(_db.studentsTable)
+            ..where((t) =>
+                t.classId.equals(classId) &
+                (t.status.equals('ACTIVE') | t.status.equals('active')) &
+                t.isDeleted.equals(false)))
           .get();
 
-      if (active.length == 1 && active.first.serialNumber != 1) {
-        final target = active.first;
-        await (_db.update(_db.studentsTable)..where((t) => t.id.equals(target.id))).write(
-          const StudentsTableCompanion(serialNumber: Value(1)),
-        );
+      if (studentsInClass.isEmpty) return;
 
-        final online = await _connectivity.isOnline();
-        if (online) {
-          try {
-            await _client.from('students').update({'serial_number': 1}).eq('id', target.id);
-          } catch (_) {}
-        } else {
-          await _enqueue(
-            entityType: 'student',
-            entityId: target.id,
-            operation: 'update',
-            payload: {'id': target.id, 'serial_number': 1, 'school_id': schoolId},
+      // Sort stably:
+      // 1. By current valid positive serial number
+      // 2. Fall back to date of admission
+      // 3. Fall back to createdAt
+      final sorted = List<StudentsTableData>.from(studentsInClass)
+        ..sort((a, b) {
+          final sA = (a.serialNumber != null && a.serialNumber! > 0) ? a.serialNumber! : 999999;
+          final sB = (b.serialNumber != null && b.serialNumber! > 0) ? b.serialNumber! : 999999;
+          if (sA != sB) return sA.compareTo(sB);
+          final dComp = a.dateOfAdmission.compareTo(b.dateOfAdmission);
+          if (dComp != 0) return dComp;
+          return a.createdAt.compareTo(b.createdAt);
+        });
+
+      final online = await _connectivity.isOnline();
+      bool anyUpdated = false;
+
+      for (var i = 0; i < sorted.length; i++) {
+        final expectedSerial = i + 1;
+        final student = sorted[i];
+
+        if (student.serialNumber != expectedSerial) {
+          anyUpdated = true;
+          // Update local Drift DB
+          await (_db.update(_db.studentsTable)..where((t) => t.id.equals(student.id))).write(
+            StudentsTableCompanion(serialNumber: Value(expectedSerial)),
           );
+
+          // Update Supabase if online, else queue
+          if (online) {
+            try {
+              await _client
+                  .from('students')
+                  .update({'serial_number': expectedSerial})
+                  .eq('id', student.id);
+            } catch (_) {}
+          } else {
+            await _enqueue(
+              entityType: 'student',
+              entityId: student.id,
+              operation: 'update',
+              payload: {
+                'id': student.id,
+                'serial_number': expectedSerial,
+                'school_id': student.schoolId,
+                'class_id': student.classId,
+              },
+            );
+          }
         }
+      }
+
+      if (anyUpdated) {
+        try {
+          OfflineStorageService(_db).exportCurrentStateToStorage();
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  /// Auto-corrects all active classes for the entire school
+  Future<void> autoCorrectSerialNumbersForSchool(String schoolId) async {
+    if (schoolId.isEmpty) return;
+    try {
+      final classes = await (_db.select(_db.classesTable)
+            ..where((t) => t.schoolId.equals(schoolId) & t.isActive.equals(true)))
+          .get();
+
+      for (final c in classes) {
+        await autoCorrectSerialNumbersForClass(c.id);
       }
     } catch (_) {}
   }
 
   void _autoCorrectSerialNumbersForClass(String classId) {
-    // Fire and forget auto-correction
     () async {
-      try {
-        final studentsInClass = await (_db.select(_db.studentsTable)
-              ..where((t) => t.classId.equals(classId) & t.isDeleted.equals(false)))
-            .get();
-        if (studentsInClass.isNotEmpty) {
-          await autoCorrectSingleStudentSerialNumber(studentsInClass.first.schoolId);
-        }
-      } catch (_) {}
+      await autoCorrectSerialNumbersForClass(classId);
     }();
   }
 
@@ -533,6 +607,7 @@ class StudentRepository {
             phoneNumber: Value(s.phoneNumber),
             address: Value(s.address),
             previousSchool: Value(s.previousSchool),
+            previousGrNumber: Value(s.previousGrNumber),
             remarks: Value(s.remarks),
             status: Value(s.status.dbValue),
             promotionStatus: Value(s.promotionStatus.dbValue),
@@ -609,6 +684,7 @@ class StudentRepository {
         phoneNumber: row.phoneNumber,
         address: row.address,
         previousSchool: row.previousSchool,
+        previousGrNumber: row.previousGrNumber,
         remarks: row.remarks,
         status: StudentStatusX.fromDb(row.status),
         promotionStatus: PromotionStatusX.fromDb(row.promotionStatus),

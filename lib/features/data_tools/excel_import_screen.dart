@@ -102,6 +102,7 @@ class _ExcelImportScreenState extends ConsumerState<ExcelImportScreen> {
           phoneNumber: row.phoneNumber,
           address: row.address,
           previousSchool: row.previousSchool,
+          previousGrNumber: row.previousGrNumber,
           remarks: row.remarks,
         );
         imported++;
@@ -145,7 +146,7 @@ class _ExcelImportScreenState extends ConsumerState<ExcelImportScreen> {
                   const Text(
                     'Your sheet needs a header row. Required columns: GR Number, Student Name, Class, '
                     'Date of Birth, Date of Admission. Optional: Serial Number, Father Name, CNIC, B-Form, '
-                    'Phone, Address, Previous School, Remarks.',
+                    'Phone, Address, Previous School, Previous GR, Remarks.',
                     style: TextStyle(fontSize: 12),
                   ),
                   const SizedBox(height: 12),

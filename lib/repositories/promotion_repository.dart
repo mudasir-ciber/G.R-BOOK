@@ -85,6 +85,7 @@ class PromotionRepository {
         phoneNumber: row.phoneNumber,
         address: row.address,
         previousSchool: row.previousSchool,
+        previousGrNumber: row.previousGrNumber,
         remarks: row.remarks,
         status: StudentStatusX.fromDb(row.status),
         promotionStatus: PromotionStatusX.fromDb(row.promotionStatus),
@@ -170,6 +171,11 @@ class PromotionRepository {
       // Reuses StudentRepository so the same offline-first / conflict
       // logic applies to promotion-driven edits as any other edit.
       await _studentRepo.updateStudent(updated);
+    }
+
+    await _studentRepo.autoCorrectSerialNumbersForClass(fromClass.id);
+    if (toClass != null) {
+      await _studentRepo.autoCorrectSerialNumbersForClass(toClass.id);
     }
 
     await _writeAudit(

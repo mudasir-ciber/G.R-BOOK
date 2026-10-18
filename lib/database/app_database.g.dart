@@ -1125,6 +1125,12 @@ class $StudentsTableTable extends StudentsTable
   late final GeneratedColumn<String> previousSchool = GeneratedColumn<String>(
       'previous_school', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _previousGrNumberMeta =
+      const VerificationMeta('previousGrNumber');
+  @override
+  late final GeneratedColumn<String> previousGrNumber = GeneratedColumn<String>(
+      'previous_gr_number', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _remarksMeta =
       const VerificationMeta('remarks');
   @override
@@ -1238,6 +1244,7 @@ class $StudentsTableTable extends StudentsTable
         phoneNumber,
         address,
         previousSchool,
+        previousGrNumber,
         remarks,
         status,
         promotionStatus,
@@ -1364,6 +1371,12 @@ class $StudentsTableTable extends StudentsTable
           previousSchool.isAcceptableOrUnknown(
               data['previous_school']!, _previousSchoolMeta));
     }
+    if (data.containsKey('previous_gr_number')) {
+      context.handle(
+          _previousGrNumberMeta,
+          previousGrNumber.isAcceptableOrUnknown(
+              data['previous_gr_number']!, _previousGrNumberMeta));
+    }
     if (data.containsKey('remarks')) {
       context.handle(_remarksMeta,
           remarks.isAcceptableOrUnknown(data['remarks']!, _remarksMeta));
@@ -1475,6 +1488,8 @@ class $StudentsTableTable extends StudentsTable
           .read(DriftSqlType.string, data['${effectivePrefix}address']),
       previousSchool: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}previous_school']),
+      previousGrNumber: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}previous_gr_number']),
       remarks: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}remarks']),
       status: attachedDatabase.typeMapping
@@ -1530,6 +1545,7 @@ class StudentsTableData extends DataClass
   final String? phoneNumber;
   final String? address;
   final String? previousSchool;
+  final String? previousGrNumber;
   final String? remarks;
   final String status;
   final String promotionStatus;
@@ -1561,6 +1577,7 @@ class StudentsTableData extends DataClass
       this.phoneNumber,
       this.address,
       this.previousSchool,
+      this.previousGrNumber,
       this.remarks,
       required this.status,
       required this.promotionStatus,
@@ -1609,6 +1626,9 @@ class StudentsTableData extends DataClass
     }
     if (!nullToAbsent || previousSchool != null) {
       map['previous_school'] = Variable<String>(previousSchool);
+    }
+    if (!nullToAbsent || previousGrNumber != null) {
+      map['previous_gr_number'] = Variable<String>(previousGrNumber);
     }
     if (!nullToAbsent || remarks != null) {
       map['remarks'] = Variable<String>(remarks);
@@ -1675,6 +1695,9 @@ class StudentsTableData extends DataClass
       previousSchool: previousSchool == null && nullToAbsent
           ? const Value.absent()
           : Value(previousSchool),
+      previousGrNumber: previousGrNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(previousGrNumber),
       remarks: remarks == null && nullToAbsent
           ? const Value.absent()
           : Value(remarks),
@@ -1726,6 +1749,7 @@ class StudentsTableData extends DataClass
       phoneNumber: serializer.fromJson<String?>(json['phoneNumber']),
       address: serializer.fromJson<String?>(json['address']),
       previousSchool: serializer.fromJson<String?>(json['previousSchool']),
+      previousGrNumber: serializer.fromJson<String?>(json['previousGrNumber']),
       remarks: serializer.fromJson<String?>(json['remarks']),
       status: serializer.fromJson<String>(json['status']),
       promotionStatus: serializer.fromJson<String>(json['promotionStatus']),
@@ -1762,6 +1786,7 @@ class StudentsTableData extends DataClass
       'phoneNumber': serializer.toJson<String?>(phoneNumber),
       'address': serializer.toJson<String?>(address),
       'previousSchool': serializer.toJson<String?>(previousSchool),
+      'previousGrNumber': serializer.toJson<String?>(previousGrNumber),
       'remarks': serializer.toJson<String?>(remarks),
       'status': serializer.toJson<String>(status),
       'promotionStatus': serializer.toJson<String>(promotionStatus),
@@ -1796,6 +1821,7 @@ class StudentsTableData extends DataClass
           Value<String?> phoneNumber = const Value.absent(),
           Value<String?> address = const Value.absent(),
           Value<String?> previousSchool = const Value.absent(),
+          Value<String?> previousGrNumber = const Value.absent(),
           Value<String?> remarks = const Value.absent(),
           String? status,
           String? promotionStatus,
@@ -1829,6 +1855,9 @@ class StudentsTableData extends DataClass
         address: address.present ? address.value : this.address,
         previousSchool:
             previousSchool.present ? previousSchool.value : this.previousSchool,
+        previousGrNumber: previousGrNumber.present
+            ? previousGrNumber.value
+            : this.previousGrNumber,
         remarks: remarks.present ? remarks.value : this.remarks,
         status: status ?? this.status,
         promotionStatus: promotionStatus ?? this.promotionStatus,
@@ -1880,6 +1909,9 @@ class StudentsTableData extends DataClass
       previousSchool: data.previousSchool.present
           ? data.previousSchool.value
           : this.previousSchool,
+      previousGrNumber: data.previousGrNumber.present
+          ? data.previousGrNumber.value
+          : this.previousGrNumber,
       remarks: data.remarks.present ? data.remarks.value : this.remarks,
       status: data.status.present ? data.status.value : this.status,
       promotionStatus: data.promotionStatus.present
@@ -1924,6 +1956,7 @@ class StudentsTableData extends DataClass
           ..write('phoneNumber: $phoneNumber, ')
           ..write('address: $address, ')
           ..write('previousSchool: $previousSchool, ')
+          ..write('previousGrNumber: $previousGrNumber, ')
           ..write('remarks: $remarks, ')
           ..write('status: $status, ')
           ..write('promotionStatus: $promotionStatus, ')
@@ -1960,6 +1993,7 @@ class StudentsTableData extends DataClass
         phoneNumber,
         address,
         previousSchool,
+        previousGrNumber,
         remarks,
         status,
         promotionStatus,
@@ -1995,6 +2029,7 @@ class StudentsTableData extends DataClass
           other.phoneNumber == this.phoneNumber &&
           other.address == this.address &&
           other.previousSchool == this.previousSchool &&
+          other.previousGrNumber == this.previousGrNumber &&
           other.remarks == this.remarks &&
           other.status == this.status &&
           other.promotionStatus == this.promotionStatus &&
@@ -2028,6 +2063,7 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
   final Value<String?> phoneNumber;
   final Value<String?> address;
   final Value<String?> previousSchool;
+  final Value<String?> previousGrNumber;
   final Value<String?> remarks;
   final Value<String> status;
   final Value<String> promotionStatus;
@@ -2060,6 +2096,7 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
     this.phoneNumber = const Value.absent(),
     this.address = const Value.absent(),
     this.previousSchool = const Value.absent(),
+    this.previousGrNumber = const Value.absent(),
     this.remarks = const Value.absent(),
     this.status = const Value.absent(),
     this.promotionStatus = const Value.absent(),
@@ -2093,6 +2130,7 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
     this.phoneNumber = const Value.absent(),
     this.address = const Value.absent(),
     this.previousSchool = const Value.absent(),
+    this.previousGrNumber = const Value.absent(),
     this.remarks = const Value.absent(),
     this.status = const Value.absent(),
     this.promotionStatus = const Value.absent(),
@@ -2135,6 +2173,7 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
     Expression<String>? phoneNumber,
     Expression<String>? address,
     Expression<String>? previousSchool,
+    Expression<String>? previousGrNumber,
     Expression<String>? remarks,
     Expression<String>? status,
     Expression<String>? promotionStatus,
@@ -2168,6 +2207,7 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
       if (phoneNumber != null) 'phone_number': phoneNumber,
       if (address != null) 'address': address,
       if (previousSchool != null) 'previous_school': previousSchool,
+      if (previousGrNumber != null) 'previous_gr_number': previousGrNumber,
       if (remarks != null) 'remarks': remarks,
       if (status != null) 'status': status,
       if (promotionStatus != null) 'promotion_status': promotionStatus,
@@ -2203,6 +2243,7 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
       Value<String?>? phoneNumber,
       Value<String?>? address,
       Value<String?>? previousSchool,
+      Value<String?>? previousGrNumber,
       Value<String?>? remarks,
       Value<String>? status,
       Value<String>? promotionStatus,
@@ -2235,6 +2276,7 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       address: address ?? this.address,
       previousSchool: previousSchool ?? this.previousSchool,
+      previousGrNumber: previousGrNumber ?? this.previousGrNumber,
       remarks: remarks ?? this.remarks,
       status: status ?? this.status,
       promotionStatus: promotionStatus ?? this.promotionStatus,
@@ -2304,6 +2346,9 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
     if (previousSchool.present) {
       map['previous_school'] = Variable<String>(previousSchool.value);
     }
+    if (previousGrNumber.present) {
+      map['previous_gr_number'] = Variable<String>(previousGrNumber.value);
+    }
     if (remarks.present) {
       map['remarks'] = Variable<String>(remarks.value);
     }
@@ -2371,6 +2416,7 @@ class StudentsTableCompanion extends UpdateCompanion<StudentsTableData> {
           ..write('phoneNumber: $phoneNumber, ')
           ..write('address: $address, ')
           ..write('previousSchool: $previousSchool, ')
+          ..write('previousGrNumber: $previousGrNumber, ')
           ..write('remarks: $remarks, ')
           ..write('status: $status, ')
           ..write('promotionStatus: $promotionStatus, ')
@@ -6311,6 +6357,7 @@ typedef $$StudentsTableTableCreateCompanionBuilder = StudentsTableCompanion
   Value<String?> phoneNumber,
   Value<String?> address,
   Value<String?> previousSchool,
+  Value<String?> previousGrNumber,
   Value<String?> remarks,
   Value<String> status,
   Value<String> promotionStatus,
@@ -6345,6 +6392,7 @@ typedef $$StudentsTableTableUpdateCompanionBuilder = StudentsTableCompanion
   Value<String?> phoneNumber,
   Value<String?> address,
   Value<String?> previousSchool,
+  Value<String?> previousGrNumber,
   Value<String?> remarks,
   Value<String> status,
   Value<String> promotionStatus,
@@ -6420,6 +6468,10 @@ class $$StudentsTableTableFilterComposer
 
   ColumnFilters<String> get previousSchool => $composableBuilder(
       column: $table.previousSchool,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get previousGrNumber => $composableBuilder(
+      column: $table.previousGrNumber,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get remarks => $composableBuilder(
@@ -6528,6 +6580,10 @@ class $$StudentsTableTableOrderingComposer
       column: $table.previousSchool,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get previousGrNumber => $composableBuilder(
+      column: $table.previousGrNumber,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get remarks => $composableBuilder(
       column: $table.remarks, builder: (column) => ColumnOrderings(column));
 
@@ -6631,6 +6687,9 @@ class $$StudentsTableTableAnnotationComposer
   GeneratedColumn<String> get previousSchool => $composableBuilder(
       column: $table.previousSchool, builder: (column) => column);
 
+  GeneratedColumn<String> get previousGrNumber => $composableBuilder(
+      column: $table.previousGrNumber, builder: (column) => column);
+
   GeneratedColumn<String> get remarks =>
       $composableBuilder(column: $table.remarks, builder: (column) => column);
 
@@ -6716,6 +6775,7 @@ class $$StudentsTableTableTableManager extends RootTableManager<
             Value<String?> phoneNumber = const Value.absent(),
             Value<String?> address = const Value.absent(),
             Value<String?> previousSchool = const Value.absent(),
+            Value<String?> previousGrNumber = const Value.absent(),
             Value<String?> remarks = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String> promotionStatus = const Value.absent(),
@@ -6749,6 +6809,7 @@ class $$StudentsTableTableTableManager extends RootTableManager<
             phoneNumber: phoneNumber,
             address: address,
             previousSchool: previousSchool,
+            previousGrNumber: previousGrNumber,
             remarks: remarks,
             status: status,
             promotionStatus: promotionStatus,
@@ -6782,6 +6843,7 @@ class $$StudentsTableTableTableManager extends RootTableManager<
             Value<String?> phoneNumber = const Value.absent(),
             Value<String?> address = const Value.absent(),
             Value<String?> previousSchool = const Value.absent(),
+            Value<String?> previousGrNumber = const Value.absent(),
             Value<String?> remarks = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String> promotionStatus = const Value.absent(),
@@ -6815,6 +6877,7 @@ class $$StudentsTableTableTableManager extends RootTableManager<
             phoneNumber: phoneNumber,
             address: address,
             previousSchool: previousSchool,
+            previousGrNumber: previousGrNumber,
             remarks: remarks,
             status: status,
             promotionStatus: promotionStatus,

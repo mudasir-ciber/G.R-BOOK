@@ -197,6 +197,8 @@ class PdfExportService {
             _profileRow('Contact Number', student.phoneNumber ?? '-'),
             _profileRow('Residential Address', student.address ?? '-'),
             _profileRow('Previous School Attended', student.previousSchool ?? '-'),
+            if (student.previousGrNumber != null && student.previousGrNumber!.trim().isNotEmpty)
+              _profileRow('Previous G.R. Number', student.previousGrNumber!.trim()),
             _profileRow('Enrollment Status', student.status.dbValue),
             if (student.cleanRemarks != null) _profileRow('Remarks / Notes', student.cleanRemarks!),
 

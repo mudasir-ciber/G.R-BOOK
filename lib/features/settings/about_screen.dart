@@ -11,6 +11,10 @@ class AboutScreen extends StatelessWidget {
   static const String creatorWhatsApp = '923368456907';
   static const String creatorFormattedPhone = '+92 336 8456907';
 
+  static const String ideatorName = 'Sir Asif Ali Ghanghro';
+  static const String ideatorTitle = 'Head Master, GBPS Mehar Ghanghro';
+  static const String ideatorRole = 'Concept & Educational Ideation';
+
   Future<void> _openWhatsApp(BuildContext context) async {
     final message = Uri.encodeComponent('Assalam-o-Alaikum Mudasir Bhai, G.R. Book App ke hawale se rabta kiya hai.');
     final uris = [
@@ -481,6 +485,207 @@ class AboutScreen extends StatelessWidget {
 
               const SizedBox(height: 20),
 
+              // 3b. Concept, Ideation & Educational Vision Card (Royal Sapphire Gradient)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1E3A8A), Color(0xFF0F172A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 16,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF60A5FA).withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF60A5FA), width: 1.2),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lightbulb_rounded, color: Color(0xFF93C5FD), size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'CONCEPT & IDEATION',
+                            style: TextStyle(
+                              color: Color(0xFFDBEAFE),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Avatar with educational badge
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        Container(
+                          width: 86,
+                          height: 86,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF60A5FA), width: 2.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/asif_ali_ghanghro.jpg',
+                              width: 86,
+                              height: 86,
+                              fit: BoxFit.cover,
+                              alignment: Alignment.center,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFF1E3A8A),
+                                child: const Center(
+                                  child: Icon(Icons.person_rounded, size: 48, color: Color(0xFF93C5FD)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.school_rounded, size: 20, color: Color(0xFF1E3A8A)),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+                    const Text(
+                      ideatorName,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      ideatorTitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFBFDBFE),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Primary School Teacher (PST) — Sindh Education Dept.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Concept & Origin Box
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.psychology_rounded, color: Color(0xFF93C5FD), size: 16),
+                              SizedBox(width: 8),
+                              Text(
+                                'The Concept & Origin',
+                                style: TextStyle(
+                                  color: Color(0xFFDBEAFE),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'The vision of transforming the traditional, physical General Register into a smart digital tool was conceived by Sir Asif Ali Ghanghro, Head Master of GBPS Mehar Ghanghro. Having experienced the day-to-day challenges of student records, struck-off tracing, and certificate generation firsthand in government primary schools, he formulated the core requirements and inspired the development of this offline-first solution.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.5,
+                              color: Color(0xFFF8F9FA),
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Appreciation Note Banner
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF60A5FA).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF60A5FA).withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.workspace_premium_rounded, color: Color(0xFF93C5FD), size: 16),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Special gratitude for inspiring the digitalization of primary school records in Sindh.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFFDBEAFE),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
               // 4. Core Features Highlights Card
               Container(
                 decoration: BoxDecoration(
@@ -526,7 +731,7 @@ class AboutScreen extends StatelessWidget {
               // 5. Footer & Copyright
               Center(
                 child: Text(
-                  '© ${DateTime.now().year} G.R. Book App. All rights reserved.\nCreated by Mudasir Ahmed Ghanghro\nFounder & Software Architect',
+                  '© ${DateTime.now().year} G.R. Book App. All rights reserved.\nCreated & Architected by Mudasir Ahmed Ghanghro\nConcept & Ideation by Sir Asif Ali Ghanghro (Head Master, GBPS Mehar Ghanghro)',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 11.5, color: GrBookTheme.getTextSecondary(context), height: 1.5),
                 ),

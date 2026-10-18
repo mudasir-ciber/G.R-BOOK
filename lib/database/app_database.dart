@@ -59,6 +59,7 @@ class StudentsTable extends Table {
   TextColumn get phoneNumber => text().nullable()();
   TextColumn get address => text().nullable()();
   TextColumn get previousSchool => text().nullable()();
+  TextColumn get previousGrNumber => text().nullable()();
   TextColumn get remarks => text().nullable()();
   TextColumn get status => text().withDefault(const Constant('ACTIVE'))();
   TextColumn get promotionStatus => text().withDefault(const Constant('NONE'))();
@@ -220,7 +221,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -237,6 +238,16 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             await m.createTable(struckOffRecordsTable);
             await m.createTable(passOutYearsTable);
+          }
+          if (from < 4) {
+            await m.addColumn(studentsTable, studentsTable.previousGrNumber);
+          }
+        },
+        beforeOpen: (details) async {
+          try {
+            await customStatement('ALTER TABLE students ADD COLUMN previous_gr_number TEXT;');
+          } catch (_) {
+            // Already added or newly created database
           }
         },
       );

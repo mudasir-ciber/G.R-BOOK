@@ -25,6 +25,7 @@ class Student {
   final String? phoneNumber;
   final String? address;
   final String? previousSchool;
+  final String? previousGrNumber;
   final String? remarks;
 
   final StudentStatus status;
@@ -82,6 +83,7 @@ class Student {
     this.phoneNumber,
     this.address,
     this.previousSchool,
+    this.previousGrNumber,
     this.remarks,
     this.status = StudentStatus.active,
     this.promotionStatus = PromotionStatus.none,
@@ -112,6 +114,7 @@ class Student {
     String? phoneNumber,
     String? address,
     String? previousSchool,
+    String? previousGrNumber,
     String? remarks,
     StudentStatus? status,
     PromotionStatus? promotionStatus,
@@ -141,6 +144,7 @@ class Student {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       address: address ?? this.address,
       previousSchool: previousSchool ?? this.previousSchool,
+      previousGrNumber: previousGrNumber ?? this.previousGrNumber,
       remarks: remarks ?? this.remarks,
       status: status ?? this.status,
       promotionStatus: promotionStatus ?? this.promotionStatus,
@@ -175,6 +179,7 @@ class Student {
       phoneNumber: map['phone_number'] as String?,
       address: map['address'] as String?,
       previousSchool: map['previous_school'] as String?,
+      previousGrNumber: map['previous_gr_number'] as String?,
       remarks: map['remarks'] as String?,
       status: StudentStatusX.fromDb(map['status'] as String),
       promotionStatus: PromotionStatusX.fromDb(map['promotion_status'] as String),
@@ -210,6 +215,7 @@ class Student {
       'phone_number': phoneNumber,
       'address': address,
       'previous_school': previousSchool,
+      'previous_gr_number': previousGrNumber,
       'remarks': remarks,
       'status': status.dbValue,
       'promotion_status': promotionStatus.dbValue,

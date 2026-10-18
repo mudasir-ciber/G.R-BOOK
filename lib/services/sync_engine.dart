@@ -120,13 +120,21 @@ class SyncEngine {
     var serialNumber = payload['serial_number'] as int?;
 
     if (serialNumber == null) {
-      // Offline-created student never got a serial number — allocate
-      // one now, safely, via the server sequence (requirement #8).
-      final result = await _client.rpc(
-        'next_serial_number',
-        params: {'p_school_id': payload['school_id']},
-      );
-      serialNumber = result as int;
+      final classId = payload['class_id'] as String?;
+      int nextNum = 1;
+      if (classId != null && classId.isNotEmpty) {
+        final existingInClass = await (_db.select(_db.studentsTable)
+              ..where((t) =>
+                  t.classId.equals(classId) &
+                  (t.status.equals('ACTIVE') | t.status.equals('active')) &
+                  t.isDeleted.equals(false)))
+            .get();
+        final maxNum = existingInClass
+            .map((s) => s.serialNumber ?? 0)
+            .fold<int>(0, (max, current) => current > max ? current : max);
+        nextNum = maxNum + 1;
+      }
+      serialNumber = nextNum;
       payload['serial_number'] = serialNumber;
     }
 

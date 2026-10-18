@@ -17,7 +17,7 @@ class ExcelExportService {
   static const _headers = [
     'Serial No', 'GR Number', 'Student Name', 'Father Name', 'Class',
     'Date of Birth', 'Date of Admission', 'Father CNIC', 'B-Form Number',
-    'Phone Number', 'Address', 'Previous School', 'Status', 'Remarks',
+    'Phone Number', 'Address', 'Previous School', 'Previous GR', 'Status', 'Remarks',
   ];
 
   /// [students] paired with each one's class display name (already
@@ -51,6 +51,7 @@ class ExcelExportService {
         xl.TextCellValue(student.phoneNumber ?? ''),
         xl.TextCellValue(student.address ?? ''),
         xl.TextCellValue(student.previousSchool ?? ''),
+        xl.TextCellValue(student.previousGrNumber ?? ''),
         xl.TextCellValue(student.status.dbValue),
         xl.TextCellValue(student.remarks ?? ''),
       ]);

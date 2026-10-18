@@ -20,6 +20,7 @@ class ImportRow {
   final String? phoneNumber;
   final String? address;
   final String? previousSchool;
+  final String? previousGrNumber;
   final String? remarks;
   final ImportRowStatus status;
   final List<String> problems;
@@ -37,6 +38,7 @@ class ImportRow {
     this.phoneNumber,
     this.address,
     this.previousSchool,
+    this.previousGrNumber,
     this.remarks,
     required this.status,
     required this.problems,
@@ -78,6 +80,7 @@ class ExcelImportService {
     'phone': ['phone', 'phonenumber', 'mobile', 'mobileno', 'contact'],
     'address': ['address'],
     'previousSchool': ['previousschool', 'lastschool'],
+    'previousGrNumber': ['previousgrnumber', 'previousgr', 'prevgr', 'oldgr', 'lastgr'],
     'remarks': ['remarks', 'remark', 'notes'],
   };
 
@@ -215,6 +218,7 @@ class ExcelImportService {
         phoneNumber: cell(row, 'phone'),
         address: cell(row, 'address'),
         previousSchool: cell(row, 'previousSchool'),
+        previousGrNumber: cell(row, 'previousGrNumber'),
         remarks: cell(row, 'remarks'),
         status: status,
         problems: problems,
